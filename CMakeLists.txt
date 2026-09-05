@@ -26,7 +26,8 @@ foreach(_hint IN LISTS _qt_prefix_hints)
     endif()
 endforeach()
 
-find_package(Qt6 REQUIRED COMPONENTS Concurrent Quick Quick3D Quick3DAssetUtils QuickControls2 QuickEffects Qml Network Sql Svg)
+find_package(Qt6 REQUIRED COMPONENTS Concurrent Quick Quick3D Quick3DAssetUtils QuickControls2 Qml Network Sql Svg)
+find_package(Qt6 OPTIONAL_COMPONENTS QuickEffects)
 
 include(CTest)
 if(BUILD_TESTING)
@@ -188,10 +189,12 @@ target_link_libraries(CarrierVision PRIVATE
     Qt6::Quick3D
     Qt6::Quick3DAssetUtils
     Qt6::QuickControls2
-    Qt6::QuickEffects
     Qt6::Svg
     Qt6::Sql
 )
+if(TARGET Qt6::QuickEffects)
+    target_link_libraries(CarrierVision PRIVATE Qt6::QuickEffects)
+endif()
 
 set_target_properties(CarrierVision PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
