@@ -18,47 +18,32 @@ Page {
     readonly property real currentRackNgRate: detectionOverview.ngRate || 0
 
     readonly property var effectiveDriveWheels: {
-        if (driveWheels && driveWheels.length === 8) {
-            var hasAnyValid = false;
-            for (var k = 0; k < driveWheels.length; ++k) {
-                if (driveWheels[k] && (driveWheels[k].result === 0 || driveWheels[k].result === 1)) {
-                    hasAnyValid = true;
-                    break;
-                }
-            }
-            if (hasAnyValid) return driveWheels;
+        if (currentRack > 0 && driveWheels && driveWheels.length === 8) {
+            return driveWheels;
         }
         var arr = [];
         for (var i = 1; i <= 8; i++) {
             arr.push({
                 wheel: i,
-                result: 1, // 当前检测状态 OK
-                time: "实时",
-                passRate: 98.6 + ((i * 3) % 12) / 10.0
+                result: -1,
+                time: "",
+                passRate: 0.0
             });
         }
         return arr;
     }
 
     readonly property var effectiveWalkingWheels: {
-        if (walkingWheels && walkingWheels.length === 8) {
-            var hasAnyValidW = false;
-            for (var m = 0; m < walkingWheels.length; ++m) {
-                if (walkingWheels[m] && (walkingWheels[m].result === 0 || walkingWheels[m].result === 1)) {
-                    hasAnyValidW = true;
-                    break;
-                }
-            }
-            if (hasAnyValidW) return walkingWheels;
+        if (currentRack > 0 && walkingWheels && walkingWheels.length === 8) {
+            return walkingWheels;
         }
         var arr2 = [];
         for (var j = 11; j <= 18; j++) {
-            var isWheelNg = (j === 14); // 走行轮4 (序号14) 当前检测设为 NG 状态以供工位异常警示排查，其余为 OK
             arr2.push({
                 wheel: j,
-                result: isWheelNg ? 0 : 1, // 当前检测结果 OK / NG
-                time: "实时",
-                passRate: isWheelNg ? 91.5 : (98.2 + ((j * 2) % 15) / 10.0)
+                result: -1,
+                time: "",
+                passRate: 0.0
             });
         }
         return arr2;
@@ -242,15 +227,15 @@ Page {
                     Layout.preferredWidth: 38
                     Layout.preferredHeight: 20
                     radius: Theme.radiusSm
-                    color: delegateRoot.isOk ? Theme.ok : Theme.ng
+                    color: !delegateRoot.hasResult ? Theme.bgCardElevated : (delegateRoot.isOk ? Theme.ok : Theme.ng)
                     border.width: 1
-                    border.color: delegateRoot.isOk ? Theme.okBorder : Theme.ngBorder
+                    border.color: !delegateRoot.hasResult ? Theme.borderSubtle : (delegateRoot.isOk ? Theme.okBorder : Theme.ngBorder)
                     Layout.alignment: Qt.AlignVCenter
 
                     Label {
                         anchors.centerIn: parent
-                        text: delegateRoot.isOk ? "OK" : "NG"
-                        color: Theme.textInverse
+                        text: !delegateRoot.hasResult ? "--" : (delegateRoot.isOk ? "OK" : "NG")
+                        color: !delegateRoot.hasResult ? Theme.textMuted : Theme.textInverse
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontMicro
                         font.weight: Theme.weightBold
@@ -265,8 +250,8 @@ Page {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
-                        text: Number(delegateRoot.modelData.passRate || 0).toFixed(1) + "%"
-                        color: Theme.textSecondary
+                        text: delegateRoot.hasResult ? (Number(delegateRoot.modelData.passRate || 0).toFixed(1) + "%") : "--"
+                        color: delegateRoot.hasResult ? Theme.textSecondary : Theme.textMuted
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSizeTiny
                         font.bold: true
@@ -281,7 +266,7 @@ Page {
                         Rectangle {
                             height: parent.height
                             radius: 1.5
-                            width: parent.width * Math.min(1.0, Math.max(0.0, (delegateRoot.modelData.passRate || 0) / 100))
+                            width: delegateRoot.hasResult ? (parent.width * Math.min(1.0, Math.max(0.0, (delegateRoot.modelData.passRate || 0) / 100))) : 0
                             color: delegateRoot.isOk ? Theme.ok : Theme.ng
                         }
                     }
@@ -292,38 +277,39 @@ Page {
                     Layout.preferredWidth: 22
                     Layout.preferredHeight: 22
                     radius: Theme.radiusSm
-                    color: eyeMouse.containsMouse ? Theme.primary : Theme.bgCardElevated
+                    color: (!delegateRoot.hasResult) ? Theme.bgCardElevated : (eyeMouse.containsMouse ? Theme.primary : Theme.bgCardElevated)
                     border.width: 1
-                    border.color: eyeMouse.containsMouse ? Theme.primaryLight : Theme.borderSubtle
-                    visible: true
+                    border.color: (!delegateRoot.hasResult) ? Theme.borderSubtle : (eyeMouse.containsMouse ? Theme.primaryLight : Theme.borderSubtle)
+                    opacity: delegateRoot.hasResult ? 1.0 : 0.35
                     Layout.alignment: Qt.AlignVCenter
 
                     AppIcon {
                         anchors.centerIn: parent
                         name: "icon_eye"
                         size: 11
-                        color: eyeMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                        color: (!delegateRoot.hasResult) ? Theme.textMuted : (eyeMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary)
                     }
 
                     MouseArea {
                         id: eyeMouse
                         anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
+                        enabled: delegateRoot.hasResult
+                        hoverEnabled: enabled
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: {
                             root.selectWheel(delegateRoot.modelData.wheel);
                             root.openLatestImage(delegateRoot.modelData.wheel);
                         }
                     }
 
-                    ToolTip.visible: eyeMouse.containsMouse
+                    ToolTip.visible: eyeMouse.containsMouse && delegateRoot.hasResult
                     ToolTip.delay: 200
                     ToolTip.text: "轻触查看点检原图"
                 }
             }
 
             ToolTip.visible: resultMouse.containsMouse && !eyeMouse.containsMouse
-            ToolTip.text: "点击在3D模型中定位高亮标签" + (delegateRoot.hasResult ? ("\n检测时间：" + (delegateRoot.modelData.time || "实时")) : "")
+            ToolTip.text: "点击在3D模型中定位高亮标签" + (delegateRoot.hasResult ? ("\n检测时间：" + (delegateRoot.modelData.time || "实时")) : "\n(暂无点检记录)")
         }
     }
 
@@ -562,8 +548,8 @@ Page {
                             }
 
                             Label {
-                                text: currentRack > 0 ? String(currentRack) : "01"
-                                color: Theme.primaryLight
+                                text: currentRack > 0 ? (currentRack < 10 ? "0" + currentRack : String(currentRack)) : "--"
+                                color: currentRack > 0 ? Theme.primaryLight : Theme.textMuted
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontDisplaySmall
                                 font.weight: Theme.weightBold
@@ -599,24 +585,24 @@ Page {
                                     model: [
                                         {
                                             title: "NG 次数",
-                                            value: currentRack > 0 ? String(currentRackNgCount) : "1",
-                                            accent: Theme.ng,
-                                            background: Theme.ngBg,
-                                            border: Theme.ngBorder
+                                            value: currentRack > 0 ? String(currentRackNgCount) : "--",
+                                            accent: (currentRack > 0 && currentRackNgCount > 0) ? Theme.ng : Theme.textMuted,
+                                            background: (currentRack > 0 && currentRackNgCount > 0) ? Theme.ngBg : Theme.bgCardElevated,
+                                            border: (currentRack > 0 && currentRackNgCount > 0) ? Theme.ngBorder : Theme.borderSubtle
                                         },
                                         {
                                             title: "检测总数",
-                                            value: currentRack > 0 ? String(currentRackTotalCount) : "16",
-                                            accent: Theme.primaryLight,
-                                            background: Theme.primaryGlow,
-                                            border: Theme.primaryDark
+                                            value: currentRack > 0 ? String(currentRackTotalCount) : "--",
+                                            accent: currentRack > 0 ? Theme.primaryLight : Theme.textMuted,
+                                            background: currentRack > 0 ? Theme.primaryGlow : Theme.bgCardElevated,
+                                            border: currentRack > 0 ? Theme.primaryDark : Theme.borderSubtle
                                         },
                                         {
                                             title: "NG 损耗率",
-                                            value: currentRack > 0 ? (Number(currentRackNgRate).toFixed(1) + "%") : "6.3%",
-                                            accent: (currentRack > 0 ? currentRackNgRate : 6.3) > 0 ? Theme.warning : Theme.ok,
-                                            background: (currentRack > 0 ? currentRackNgRate : 6.3) > 0 ? Theme.warningBg : Theme.okBg,
-                                            border: (currentRack > 0 ? currentRackNgRate : 6.3) > 0 ? Theme.warning : Theme.okBorder
+                                            value: (currentRack > 0 && currentRackTotalCount > 0) ? (Number(currentRackNgRate).toFixed(1) + "%") : "--",
+                                            accent: (currentRack > 0 && currentRackNgRate > 0) ? Theme.warning : (currentRack > 0 ? Theme.ok : Theme.textMuted),
+                                            background: (currentRack > 0 && currentRackNgRate > 0) ? Theme.warningBg : (currentRack > 0 ? Theme.okBg : Theme.bgCardElevated),
+                                            border: (currentRack > 0 && currentRackNgRate > 0) ? Theme.warning : (currentRack > 0 ? Theme.okBorder : Theme.borderSubtle)
                                         }
                                     ]
 
