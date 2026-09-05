@@ -34,9 +34,11 @@ jobs:
       - name: Configure CMake
         shell: pwsh
         run: |
+          $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
+          Write-Host "Configuring CMake with Qt root: $qtRoot"
           cmake -B build -G "Ninja" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR;$env:QT_ROOT_DIR" `
+            -DCMAKE_PREFIX_PATH="$qtRoot" `
             -DBUILD_TESTING=OFF `
             -DENABLE_WINDEPLOYQT=OFF
 
@@ -48,11 +50,12 @@ jobs:
       - name: Deploy Windows Package
         shell: pwsh
         run: |
+          $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
           # 1. 安装主程序至 dist 发布目录
           cmake --install build --prefix dist
 
           # 2. 调用 windeployqt 自动补齐依赖的 Qt 核心 DLL、Quick3D 插件及 QML 运行时
-          windeployqt.exe dist\CarrierVision.exe `
+          & "$qtRoot/bin/windeployqt.exe" dist\CarrierVision.exe `
             --qmldir qml `
             --compiler-runtime `
             --force
