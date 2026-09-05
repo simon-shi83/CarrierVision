@@ -23,13 +23,12 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Qt 6
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.2'
-          host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
-          modules: 'qtquick3d qtshadertools qtsvg'
+          modules: 'qtquick3d qtquickeffectmaker qtquicktimeline qtshadertools'
           cache: true
 
       - name: Configure CMake
@@ -37,7 +36,7 @@ jobs:
         run: |
           cmake -B build -G "Ninja" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
+            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR;$env:QT_ROOT_DIR" `
             -DBUILD_TESTING=OFF `
             -DENABLE_WINDEPLOYQT=OFF
 
@@ -53,8 +52,7 @@ jobs:
           cmake --install build --prefix dist
 
           # 2. 调用 windeployqt 自动补齐依赖的 Qt 核心 DLL、Quick3D 插件及 QML 运行时
-          & "$env:Qt6_DIR\bin\windeployqt.exe" `
-            dist\CarrierVision.exe `
+          windeployqt.exe dist\CarrierVision.exe `
             --qmldir qml `
             --compiler-runtime `
             --force
