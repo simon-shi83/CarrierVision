@@ -221,19 +221,53 @@ set_target_properties(CarrierVision PROPERTIES
 )
 
 include(GNUInstallDirs)
-install(TARGETS CarrierVision
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION .
-)
-
 if(WIN32)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/CarrierVision.rc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/CarrierVision.rc"
+        @ONLY
+    )
+    target_sources(CarrierVision PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CarrierVision.rc")
+    set_target_properties(CarrierVision PROPERTIES
+        OUTPUT_NAME "CarrierVision_app"
+    )
+    install(TARGETS CarrierVision
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib
+    )
+
+    # 根目录放置零外部依赖的轻量 Win32 原生启动器 CarrierVision.exe (透明拉起 lib/CarrierVision_app.exe)
+    add_executable(CarrierVisionLauncher WIN32
+        src/launcher_win.cpp
+        "${CMAKE_CURRENT_BINARY_DIR}/CarrierVision.rc"
+    )
+    set_target_properties(CarrierVisionLauncher PROPERTIES
+        OUTPUT_NAME "CarrierVision"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+    install(TARGETS CarrierVisionLauncher
+        RUNTIME DESTINATION .
+    )
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt")
         install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt" DESTINATION .)
     endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg")
         install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg" DESTINATION . RENAME CarrierVision.svg)
     endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/register_env.bat")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/register_env.bat" DESTINATION .)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unregister_env.bat")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unregister_env.bat" DESTINATION .)
+    endif()
+else()
+    install(TARGETS CarrierVision
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION .
+    )
 endif()
 
 # Windows 独立依赖自动部署（收集全部 Qt 动态库至 lib/、插件至 plugins/、QML模块至 qml/、生成 qt.conf 及启动脚本）

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # ==============================================================================
 # CarrierVision 独立完整依赖精简部署打包脚本 (Windows)
-# 规范化输出目录结构，完全对齐 Linux 独立发布包结构：
-# ├── CarrierVision.exe
-# ├── CarrierVision.bat
-# ├── CarrierVision.svg
-# ├── README.txt
-# ├── qt.conf
-# ├── lib/       (所有核心 DLL 及 C/C++ 运行时)
-# ├── plugins/   (所有 Qt 平台、图像、数据库、网络等插件目录)
-# └── qml/       (所有 QML 运行时组件目录)
+# 规范化输出目录结构，完全对齐 Linux 独立发布包规范：
+# ├── CarrierVision.exe      (无黑框原生 GUI 快速启动器，可直接双击运行)
+# ├── CarrierVision.bat      (便携启动脚本备用)
+# ├── register_env.bat       (一键注册当前用户环境变量工具)
+# ├── unregister_env.bat     (一键清理环境变量工具)
+# ├── CarrierVision.svg      (应用矢量图标)
+# ├── README.txt             (发布说明文档)
+# ├── qt.conf                (根目录路径重定向配置)
+# ├── lib/                   (真实应用 CarrierVision_app.exe、lib/qt.conf 及所有核心 DLL)
+# ├── plugins/               (所有 Qt 平台、图像、数据库、网络等插件目录)
+# └── qml/                   (所有 QML 运行时组件目录)
 # ==============================================================================
 import argparse
 import io
@@ -33,20 +35,33 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
     print(f"[Windows Deploy] Qt root path: {qt_path}")
     print(f"[Windows Deploy] Source root path: {source_path}")
 
-    # 1. 定位 CarrierVision.exe 主程序
-    app_exe = install_path / "CarrierVision.exe"
+    lib_dir = install_path / "lib"
+    lib_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. 定位真实 Qt 应用程序本体 (CarrierVision_app.exe)
+    app_exe = lib_dir / "CarrierVision_app.exe"
     if not app_exe.is_file():
-        alt_exe = install_path / "bin" / "CarrierVision.exe"
-        if alt_exe.is_file():
-            shutil.move(str(alt_exe), str(app_exe))
+        alt_app = install_path / "CarrierVision_app.exe"
+        if alt_app.is_file():
+            shutil.move(str(alt_app), str(app_exe))
         else:
-            candidates = list(install_path.glob("**/CarrierVision.exe"))
+            candidates = list(install_path.glob("**/CarrierVision_app.exe"))
             if candidates:
                 shutil.move(str(candidates[0]), str(app_exe))
             else:
-                raise FileNotFoundError(f"CarrierVision.exe not found in install dir: {install_path}")
+                # 兼容处理：如果没有独立编译 Launcher，则保留根目录的 CarrierVision.exe
+                fallback = install_path / "CarrierVision.exe"
+                if fallback.is_file():
+                    app_exe = fallback
+                else:
+                    alt_bin = install_path / "bin" / "CarrierVision.exe"
+                    if alt_bin.is_file():
+                        shutil.move(str(alt_bin), str(fallback))
+                        app_exe = fallback
+                    else:
+                        raise FileNotFoundError(f"Target executable not found in: {install_path}")
 
-    print(f"[Windows Deploy] Located application executable: {app_exe}")
+    print(f"[Windows Deploy] Located application executable for dependency scan: {app_exe}")
 
     # 清理残留的 bin/ 目录（如果存在）
     bin_dir = install_path / "bin"
@@ -86,10 +101,7 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
     print(f"[Windows Deploy] windeployqt exited with return code: {res.returncode}")
 
     # 4. 规范化重组目录结构
-    # 4.1 归拢所有动态库 (*.dll) 到 lib/ 目录
-    lib_dir = install_path / "lib"
-    lib_dir.mkdir(parents=True, exist_ok=True)
-
+    # 4.1 归拢所有根目录下多余的动态库 (*.dll) 到 lib/ 目录
     moved_dlls = 0
     for item in list(install_path.glob("*.dll")):
         target = lib_dir / item.name
@@ -112,9 +124,9 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
             except Exception as e2:
                 print(f"[Windows Deploy] Warning: failed to move {item.name}: {e2}")
 
-    print(f"[Windows Deploy] Moved {moved_dlls} dynamic libraries to lib/ directory.")
+    print(f"[Windows Deploy] Relocated {moved_dlls} root DLL(s) to lib/ directory.")
 
-    # 4.2 归拢所有插件子目录到 plugins/ 目录
+    # 4.2 归拢所有插件子目录（检查 install_path 和 lib_dir）到 plugins/ 目录
     plugins_dir = install_path / "plugins"
     plugins_dir.mkdir(parents=True, exist_ok=True)
 
@@ -125,10 +137,11 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
     }
 
     moved_plugins = 0
+    # 检查 install_path 根目录下的插件目录
     for item in list(install_path.iterdir()):
         if not item.is_dir():
             continue
-        if item.name.lower() in {"lib", "plugins", "qml", "data", "bin"}:
+        if item.name.lower() in {"lib", "plugins", "qml", "data", "bin", "translations"}:
             continue
         is_plugin = item.name.lower() in known_plugin_names or any(item.glob("*.dll"))
         if is_plugin:
@@ -139,17 +152,44 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
                 shutil.move(str(item), str(target))
                 moved_plugins += 1
             except Exception as e:
-                print(f"[Windows Deploy] Retrying plugin dir move via copytree: {item.name} ({e})")
+                print(f"[Windows Deploy] Retrying plugin move via copytree: {item.name} ({e})")
                 try:
                     shutil.copytree(str(item), str(target), dirs_exist_ok=True)
                     shutil.rmtree(str(item), ignore_errors=True)
                     moved_plugins += 1
                 except Exception as e2:
-                    print(f"[Windows Deploy] Warning: failed to move plugin dir {item.name}: {e2}")
+                    print(f"[Windows Deploy] Warning: failed to move plugin {item.name}: {e2}")
 
-    print(f"[Windows Deploy] Moved {moved_plugins} plugin directories to plugins/ directory.")
+    # 检查 lib/ 目录下被 windeployqt 直接生成的插件子目录（如 lib/platforms）
+    for item in list(lib_dir.iterdir()):
+        if not item.is_dir():
+            continue
+        if item.name.lower() in known_plugin_names:
+            target = plugins_dir / item.name
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            try:
+                shutil.move(str(item), str(target))
+                moved_plugins += 1
+            except Exception as e:
+                print(f"[Windows Deploy] Retrying lib plugin move: {item.name} ({e})")
+                try:
+                    shutil.copytree(str(item), str(target), dirs_exist_ok=True)
+                    shutil.rmtree(str(item), ignore_errors=True)
+                    moved_plugins += 1
+                except Exception as e2:
+                    print(f"[Windows Deploy] Warning: failed to move lib plugin {item.name}: {e2}")
 
-    # 4.3 生成标准 qt.conf（重定向 Libraries, Plugins, Qml2Imports）
+    # 检查是否有误放在 lib/ 内部的 qml/ 目录
+    if (lib_dir / "qml").is_dir():
+        target_qml = install_path / "qml"
+        shutil.copytree(str(lib_dir / "qml"), str(target_qml), dirs_exist_ok=True)
+        shutil.rmtree(str(lib_dir / "qml"), ignore_errors=True)
+
+    print(f"[Windows Deploy] Relocated {moved_plugins} plugin directories to plugins/ directory.")
+
+    # 4.3 生成双层标准 qt.conf（重定向 Libraries, Plugins, Qml2Imports）
+    # 根目录 qt.conf
     qt_conf_path = install_path / "qt.conf"
     qt_conf_content = """[Paths]
 Prefix = .
@@ -158,9 +198,20 @@ Plugins = plugins
 Qml2Imports = qml
 """
     qt_conf_path.write_text(qt_conf_content, encoding="utf-8")
-    print(f"[Windows Deploy] Generated runtime config: {qt_conf_path}")
+    print(f"[Windows Deploy] Generated root runtime config: {qt_conf_path}")
 
-    # 4.4 生成 Windows 便携启动脚本 CarrierVision.bat (类似 CarrierVision.sh)
+    # lib/ 目录内部 qt.conf (以 lib 为基准，Prefix 指向上一级 ..)
+    lib_qt_conf_path = lib_dir / "qt.conf"
+    lib_qt_conf_content = """[Paths]
+Prefix = ..
+Libraries = lib
+Plugins = plugins
+Qml2Imports = qml
+"""
+    lib_qt_conf_path.write_text(lib_qt_conf_content, encoding="utf-8")
+    print(f"[Windows Deploy] Generated lib runtime config: {lib_qt_conf_path}")
+
+    # 4.4 生成 Windows 便携启动脚本 CarrierVision.bat
     bat_path = install_path / "CarrierVision.bat"
     bat_content = """@echo off
 setlocal
@@ -168,12 +219,29 @@ set "APP_DIR=%~dp0"
 set "PATH=%APP_DIR%lib;%PATH%"
 set "QT_PLUGIN_PATH=%APP_DIR%plugins"
 set "QML2_IMPORT_PATH=%APP_DIR%qml"
-start "" "%APP_DIR%CarrierVision.exe" %*
+if exist "%APP_DIR%lib\\CarrierVision_app.exe" (
+    start "" "%APP_DIR%lib\\CarrierVision_app.exe" %*
+) else (
+    start "" "%APP_DIR%CarrierVision.exe" %*
+)
 """
     bat_path.write_text(bat_content, encoding="utf-8")
     print(f"[Windows Deploy] Generated portable startup batch script: {bat_path}")
 
-    # 4.5 部署说明文件与图标（确保仅保留 CarrierVision.svg，清理多余的原始 logo_agc.svg）
+    # 4.5 复制环境变量注册与注销批处理脚本
+    reg_src = source_path / "scripts" / "register_env.bat"
+    reg_dst = install_path / "register_env.bat"
+    if reg_src.is_file() and not reg_dst.is_file():
+        shutil.copy2(reg_src, reg_dst)
+        print(f"[Windows Deploy] Copied {reg_src.name} to package root.")
+
+    unreg_src = source_path / "scripts" / "unregister_env.bat"
+    unreg_dst = install_path / "unregister_env.bat"
+    if unreg_src.is_file() and not unreg_dst.is_file():
+        shutil.copy2(unreg_src, unreg_dst)
+        print(f"[Windows Deploy] Copied {unreg_src.name} to package root.")
+
+    # 4.6 部署说明文件与图标（清理多余的原始 logo_agc.svg，确保仅保留 CarrierVision.svg）
     legacy_logo = install_path / "logo_agc.svg"
     if legacy_logo.is_file():
         try:
