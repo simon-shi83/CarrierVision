@@ -1,0 +1,70 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        // ====================================================================
+        //  Linux (GDB) 调试配置 (默认启动项)
+        // ====================================================================
+        {
+            "name": "Linux: CarrierVision (GDB 调试)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/CarrierVision",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Linux: Debug 编译 (Build)"
+        },
+
+        // ====================================================================
+        //  Windows 调试配置 (Visual Studio MSVC / C++)
+        // ====================================================================
+        {
+            "name": "Windows: CarrierVision (MSVC 调试)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/CarrierVision.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "preLaunchTask": "Windows: Debug 编译 (Build)"
+        },
+
+        // ====================================================================
+        //  Windows 调试配置 (MinGW / GDB)
+        // ====================================================================
+        {
+            "name": "Windows: CarrierVision (GDB 调试)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/CarrierVision.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Windows: Debug 编译 (Build)"
+        }
+    ]
+}

@@ -1,0 +1,3 @@
+// Resource script to embed application icon on Windows
+// Requires icons/app_icon.ico to exist
+IDI_APP_ICON ICON "../icons/favicon.ico"

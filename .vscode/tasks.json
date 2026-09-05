@@ -1,0 +1,280 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        // ====================================================================
+        //  Linux 专属任务组
+        // ====================================================================
+        {
+            "label": "Linux: Debug 配置 (Configure)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build/Debug",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-G",
+                "Ninja"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 使用 Ninja 生成 Debug 构建文件"
+        },
+        {
+            "label": "Linux: Debug 编译 (Build)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Debug",
+                "-j8"
+            ],
+            "dependsOn": [
+                "Linux: Debug 配置 (Configure)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Linux: 编译 Debug 目标程序 (若未配置将自动先执行配置)"
+        },
+        {
+            "label": "Linux: Debug 清理 (Clean)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Debug",
+                "--target",
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 清理 Debug 中间产物"
+        },
+        {
+            "label": "Linux: Release 配置 (Configure)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build/Release",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-G",
+                "Ninja"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 使用 Ninja 生成 Release 构建文件"
+        },
+        {
+            "label": "Linux: Release 编译 (Build)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Release",
+                "-j8"
+            ],
+            "dependsOn": [
+                "Linux: Release 配置 (Configure)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Linux: 编译 Release 优化版本 (若未配置将自动先执行配置)"
+        },
+        {
+            "label": "Linux: Release 清理 (Clean)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Release",
+                "--target",
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 清理 Release 中间产物"
+        },
+        {
+            "label": "Linux: Release 安装 (Install)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--install",
+                "${workspaceFolder}/build/Release",
+                "--prefix",
+                "${workspaceFolder}/install/Release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 安装 Release 版本程序至 install/Release (自动打包所有 Qt/ICU/QML 依赖)"
+        },
+        {
+            "label": "Linux: Release 打包 (Package)",
+            "type": "shell",
+            "command": "tar",
+            "args": [
+                "-czvf",
+                "${workspaceFolder}/install/CarrierVision-Linux-Release.tar.gz",
+                "-C",
+                "${workspaceFolder}/install",
+                "Release"
+            ],
+            "dependsOn": [
+                "Linux: Release 安装 (Install)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "Linux: 安装并打包为可直接分发到其他电脑的 CarrierVision-Linux-Release.tar.gz 压缩包"
+        },
+        // ====================================================================
+        //  Windows 专属任务组
+        // ====================================================================
+        {
+            "label": "Windows: Debug 配置 (Configure)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build/Debug",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-G",
+                "Ninja"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 使用 Ninja 配置 Debug 版本 (如用 MSVC 可调整 -G)"
+        },
+        {
+            "label": "Windows: Debug 编译 (Build)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Debug",
+                "-j8"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 编译 Debug 目标程序"
+        },
+        {
+            "label": "Windows: Debug 清理 (Clean)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Debug",
+                "--target",
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 清理 Debug 中间产物"
+        },
+        {
+            "label": "Windows: Release 配置 (Configure)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "${workspaceFolder}/build/Release",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-G",
+                "Ninja",
+                "-DENABLE_WINDEPLOYQT=ON"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 配置 Release 版本 (启用 windeployqt 自动打包)"
+        },
+        {
+            "label": "Windows: Release 编译 (Build)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Release",
+                "-j8"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 编译 Release 优化版本"
+        },
+        {
+            "label": "Windows: Release 清理 (Clean)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build/Release",
+                "--target",
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 清理 Release 中间产物"
+        },
+        {
+            "label": "Windows: Release 安装 (Install)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--install",
+                "${workspaceFolder}/build/Release",
+                "--prefix",
+                "${workspaceFolder}/install/Release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 安装 Release 版本并自动执行 windeployqt 依赖打包"
+        }
+    ]
+}

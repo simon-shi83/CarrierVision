@@ -1,0 +1,9 @@
+build/
+install/
+__pycache__/
+*.py[cod]
+*.user
+.cache/
+logs/
+bin/logs/
+bin/data/*.csv
