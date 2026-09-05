@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QSet>
 #include <QVariantList>
 #include <QVector>
 #include <QMutex>
@@ -200,6 +201,17 @@ private:
     void upsertRecord(const BatchRecord &record);
     void setStatusMessage(const QString &message);
     void scheduleCleanup();
+    void closeoutPreviousSession(const QString &newRackNumber);
+    void checkSessionTimeout();
+
+    struct RackSession {
+        QString rack;
+        QString batchId;
+        int roundNumber = 0;
+        QSet<int> receivedSlots;
+        QDateTime startedAt;
+        bool completed = false;
+    };
 
     QString m_sourceDirectory;
     QString m_archiveDirectory;
@@ -252,4 +264,7 @@ private:
     QTimer m_cleanupTimer;
     QTimer m_ingestRetryTimer;
     std::unique_ptr<QDirIterator> m_pendingScan;
+    QHash<QString, RackSession> m_activeRackSessions;
+    QString m_currentSessionRack;
+    QTimer m_safetyTimeoutTimer;
 };

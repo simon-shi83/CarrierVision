@@ -444,6 +444,9 @@ AppController::AppController(QObject *parent)
         scheduleCleanup();
     });
     scheduleCleanup();
+
+    m_safetyTimeoutTimer.setSingleShot(false);
+    connect(&m_safetyTimeoutTimer, &QTimer::timeout, this, &AppController::checkSessionTimeout);
     loadArchiveIndex();
     // prepare ftp log path
     m_ftpLogPath = QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("ftp.log");
@@ -528,6 +531,8 @@ AppController::AppController(QObject *parent)
         [this](const QString &rackNumber, int roundNumber, int currentTotal)
         {
             const QString rackKey = rackNumber.trimmed();
+            closeoutPreviousSession(rackKey);
+
             if (m_lastTotalByRack.contains(rackKey)) {
                 const int prev = m_lastTotalByRack.value(rackKey);
                 if (qint64(currentTotal) > qint64(prev) + 1) {
@@ -560,6 +565,19 @@ AppController::AppController(QObject *parent)
             }
             m_currentCopiedCount = 0;
             emit currentBatchChanged();
+
+            RackSession session;
+            session.rack = rackKey;
+            session.batchId = m_currentBatchId;
+            session.roundNumber = roundNumber;
+            session.startedAt = QDateTime::currentDateTime();
+            session.completed = false;
+            m_activeRackSessions[rackKey] = session;
+            m_currentSessionRack = rackKey;
+
+            if (!m_safetyTimeoutTimer.isActive()) {
+                m_safetyTimeoutTimer.start(30000);
+            }
 
             LOG_DEBUG("收到架轮数据批次: batchId={} serials={}", m_currentBatchId.toStdString(), m_currentSerialsRaw.toStdString());
             setStatusMessage(
@@ -1127,24 +1145,47 @@ bool AppController::ingestStoredImage(const QString &filePath)
     }
     const QFileInfo file(filePath);
     if (!file.isFile() || file.isSymbolicLink()) return false;
-    QDateTime received = file.lastModified();
+    QDateTime received = ImageIngest::parseTimestamp(file.fileName(), file.lastModified());
     QFile journal(filePath + QStringLiteral(".cv-pending"));
     if (journal.open(QIODevice::ReadOnly)) {
         const auto saved = QDateTime::fromString(QString::fromUtf8(journal.read(64)), "yyyy-MM-dd HH:mm:ss");
         if (saved.isValid()) received = saved;
     }
     const QString imageName = QDir(m_archiveDirectory).relativeFilePath(file.absoluteFilePath());
+
+    const QString rackKey = QString::number(metadata.rack);
+    QString batchId;
+    int roundNo = 0;
+    if (m_activeRackSessions.contains(rackKey)) {
+        const RackSession &session = m_activeRackSessions[rackKey];
+        batchId = session.batchId;
+        roundNo = session.roundNumber;
+    }
+
     bool inserted = false;
     {
         QMutexLocker lock(&m_dbMutex);
         if (!ImageIngest::record(QSqlDatabase::database(), metadata, imageName,
-                                AgcUtils::formatDateTime(received), rackWheelDistances(metadata.rack), inserted, error)) {
+                                AgcUtils::formatDateTime(received), rackWheelDistances(metadata.rack), inserted, error,
+                                batchId, roundNo)) {
             LOG_ERROR("图片入库失败: {}: {}", filePath.toStdString(), error.toStdString());
             setStatusMessage(QStringLiteral("图片入库失败，等待重试: %1").arg(file.fileName()));
             return false;
         }
     }
     if (!inserted) return true;
+
+    // Track session slots & check instant closeout (12/12)
+    if (m_activeRackSessions.contains(rackKey)) {
+        RackSession &session = m_activeRackSessions[rackKey];
+        session.receivedSlots.insert(metadata.camera);
+        if (!session.completed && session.receivedSlots.size() >= 12) {
+            session.completed = true;
+            LOG_INFO("架号 {} 轮号 {} 实时收齐 12 张图片，即时结案", rackKey.toStdString(), session.roundNumber);
+            setStatusMessage(QStringLiteral("架号 %1 轮号 %2 全部 12 张图片已实时收齐").arg(rackKey).arg(session.roundNumber));
+        }
+    }
+
     ImageItem item;
     item.filePath = file.absoluteFilePath();
     item.fileName = file.fileName();
@@ -2597,6 +2638,80 @@ void AppController::setStatusMessage(const QString &message)
 
     m_statusMessage = decorated;
     emit statusMessageChanged();
+}
+
+void AppController::closeoutPreviousSession(const QString &newRackNumber)
+{
+    if (m_currentSessionRack.isEmpty() || m_currentSessionRack == newRackNumber) {
+        return;
+    }
+    if (m_activeRackSessions.contains(m_currentSessionRack)) {
+        RackSession &prevSession = m_activeRackSessions[m_currentSessionRack];
+        if (!prevSession.completed) {
+            prevSession.completed = true;
+            if (prevSession.receivedSlots.size() < 12) {
+                QStringList missing;
+                for (int c = 1; c <= 12; ++c) {
+                    if (!prevSession.receivedSlots.contains(c)) {
+                        missing << QString::number(c);
+                    }
+                }
+                const QString warnMsg = QStringLiteral("架号 %1 (轮号 %2) 接收结束，存在缺图: 相机 [%3] 未接收 (实收 %4/12)")
+                    .arg(prevSession.rack)
+                    .arg(prevSession.roundNumber)
+                    .arg(missing.join(QLatin1String(", ")))
+                    .arg(prevSession.receivedSlots.size());
+                setStatusMessage(warnMsg);
+                LOG_WARN("架号 {} 轮号 {} 离站结案: 存在漏拍缺图! 相机未接收: [{}], 实收 {}/12",
+                         prevSession.rack.toStdString(),
+                         prevSession.roundNumber,
+                         missing.join(QLatin1String(", ")).toStdString(),
+                         prevSession.receivedSlots.size());
+            } else {
+                LOG_INFO("架号 {} 轮号 {} 离站结案: 12张图片完整",
+                         prevSession.rack.toStdString(),
+                         prevSession.roundNumber);
+            }
+        }
+    }
+}
+
+void AppController::checkSessionTimeout()
+{
+    const QDateTime now = QDateTime::currentDateTime();
+    bool hasActive = false;
+    for (auto it = m_activeRackSessions.begin(); it != m_activeRackSessions.end(); ++it) {
+        RackSession &session = it.value();
+        if (!session.completed) {
+            if (session.startedAt.secsTo(now) >= 30) {
+                session.completed = true;
+                if (session.receivedSlots.size() < 12) {
+                    QStringList missing;
+                    for (int c = 1; c <= 12; ++c) {
+                        if (!session.receivedSlots.contains(c)) {
+                            missing << QString::number(c);
+                        }
+                    }
+                    const QString warnMsg = QStringLiteral("架号 %1 批次超时(30s)，存在缺图: 相机 [%2] (实收 %3/12)")
+                        .arg(session.rack)
+                        .arg(missing.join(QLatin1String(", ")))
+                        .arg(session.receivedSlots.size());
+                    setStatusMessage(warnMsg);
+                    LOG_WARN("架号 {} 超时兜底结案: 存在漏拍缺图! 相机未接收: [{}], 实收 {}/12",
+                             session.rack.toStdString(),
+                             missing.join(QLatin1String(", ")).toStdString(),
+                             session.receivedSlots.size());
+                } else {
+                    LOG_INFO("架号 {} 超时兜底结案: 12张图片完整", session.rack.toStdString());
+                }
+            } else {
+                hasActive = true;
+            }
+        }
+    }
+    if (!hasActive && m_safetyTimeoutTimer.isActive()) {
+        m_safetyTimeoutTimer.stop();
+    }
 }
 
 void AppController::clearSearch()

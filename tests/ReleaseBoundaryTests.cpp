@@ -241,6 +241,82 @@ private slots:
         QVERIFY(q.next());
         QCOMPARE(q.value(0).toInt(), 0);
     }
+    void recordBatchAndRoundPersistence() {
+        ImageIngest::Metadata data; QString error;
+        QVERIFY(ImageIngest::parse("t_1_1_1OK_12_20_10_end.png", data, error));
+        bool inserted = false;
+        QVERIFY(ImageIngest::record(db, data, "batch_test.png", "2026-09-05 12:00:00", {10, 10}, inserted, error, "BATCH_R1_R2", 2));
+        QVERIFY(inserted);
+
+        QSqlQuery q(db);
+        QVERIFY(q.exec("SELECT batch_id, round_no FROM record WHERE imagename = 'batch_test.png'"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString(), QString("BATCH_R1_R2"));
+        QCOMPARE(q.value(1).toInt(), 2);
+
+        // verify index exists
+        QVERIFY(q.exec("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_record_batch'"));
+        QVERIFY(q.next());
+    }
+    void timestampAndCollisionParsing() {
+        const QDateTime dt = ImageIngest::parseTimestamp("20260905143000_1_1_1OK_10_20_10_end.png");
+        QCOMPARE(dt.toString("yyyy-MM-dd HH:mm:ss"), QString("2026-09-05 14:30:00"));
+
+        const QDateTime fallback(QDate(2026, 1, 1), QTime(0, 0, 0));
+        QCOMPARE(ImageIngest::parseTimestamp("no_date_1_1_1OK_end.png", fallback), fallback);
+
+        ImageIngest::Metadata data; QString error;
+        QVERIFY(ImageIngest::parse("t_1_1_1NG_0_2_1_end_v2.png", data, error));
+        QCOMPARE(data.rack, 1);
+        QCOMPARE(data.camera, 1);
+        QCOMPARE(data.wheels.size(), 1);
+
+        QVERIFY(ImageIngest::parse("t_50_12_11OK_12NG_0_0_0_end_v3.png", data, error));
+        QCOMPARE(data.rack, 50);
+        QCOMPARE(data.camera, 12);
+        QCOMPARE(data.wheels.size(), 2);
+    }
+    void collisionSafeFtpUpload() {
+        QTemporaryDir dir; FtpServer server; QString error;
+        server.uploadHandler = [&](const QString &staged, const QString &target) {
+            return ImageIngest::accept(staged, target, [](const QString&){ return true; }, error);
+        };
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0, dir.path(), QMap<QString,QString>{{"u","p"}}));
+        QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, server.port());
+        QVERIFY(reply(client).startsWith("220"));
+        QVERIFY(command(client, "USER u").startsWith("331"));
+        QVERIFY(command(client, "PASS p").startsWith("230"));
+
+        // First upload: red image
+        QString epsv = command(client, "EPSV");
+        QTcpSocket data1; data1.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
+        QTRY_COMPARE(data1.state(), QAbstractSocket::ConnectedState);
+        QVERIFY(command(client, "STOR t_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QImage redImg(8, 8, QImage::Format_RGB32); redImg.fill(Qt::red);
+        QByteArray redBytes; QBuffer buf1(&redBytes); buf1.open(QIODevice::WriteOnly); redImg.save(&buf1, "PNG");
+        data1.write(redBytes); data1.disconnectFromHost();
+        QVERIFY2(reply(client).startsWith("226"), qPrintable(error));
+        const QString path1 = dir.filePath("t_1_1_1OK_12_20_10_end.png");
+        QVERIFY(QFile::exists(path1));
+
+        // Second upload with same name but different content: blue image
+        epsv = command(client, "EPSV");
+        QTcpSocket data2; data2.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
+        QTRY_COMPARE(data2.state(), QAbstractSocket::ConnectedState);
+        QVERIFY(command(client, "STOR t_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QImage blueImg(8, 8, QImage::Format_RGB32); blueImg.fill(Qt::blue);
+        QByteArray blueBytes; QBuffer buf2(&blueBytes); buf2.open(QIODevice::WriteOnly); blueImg.save(&buf2, "PNG");
+        data2.write(blueBytes); data2.disconnectFromHost();
+        QVERIFY2(reply(client).startsWith("226"), qPrintable(error));
+
+        // Both original and version-suffixed files must exist without data loss
+        const QString path2 = dir.filePath("t_1_1_1OK_12_20_10_end_v2.png");
+        QVERIFY(QFile::exists(path1));
+        QVERIFY(QFile::exists(path2));
+        QCOMPARE(QImage(path1).pixelColor(0, 0), QColor(Qt::red));
+        QCOMPARE(QImage(path2).pixelColor(0, 0), QColor(Qt::blue));
+        server.stop();
+    }
 };
 QTEST_GUILESS_MAIN(ReleaseBoundaryTests)
 #include "ReleaseBoundaryTests.moc"

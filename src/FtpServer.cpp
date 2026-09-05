@@ -300,7 +300,7 @@ void FtpControlConnection::pumpDownload()
 
 void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
 {
-    const QString finalPath = m_pendingStorePath;
+    QString effectiveFinalPath = m_pendingStorePath;
     if (!sendStoreReply) {
         m_storeSuccess = false;
     }
@@ -312,7 +312,32 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
             if (m_storeFile->flush()) {
                 const QString temporaryPath = m_storeFile->fileName();
                 m_storeFile->close();
-                finalizeOk = uploadHandler && uploadHandler(temporaryPath, finalPath);
+
+                // 若目标文件已存在且内容不同，自动分配自增后缀（_v2, _v3...），确保新图100%保存不被丢弃
+                if (QFileInfo::exists(effectiveFinalPath)) {
+                    QFile left(temporaryPath), right(effectiveFinalPath);
+                    bool same = (left.size() == right.size());
+                    if (same && left.open(QIODevice::ReadOnly) && right.open(QIODevice::ReadOnly)) {
+                        while (!left.atEnd()) {
+                            const QByteArray bl = left.read(256 * 1024);
+                            if (bl.isEmpty() || bl != right.read(bl.size())) { same = false; break; }
+                        }
+                    }
+                    if (!same) {
+                        QFileInfo fi(effectiveFinalPath);
+                        const QString base = fi.completeBaseName();
+                        const QString suffix = fi.suffix();
+                        const QString dir = fi.absolutePath();
+                        int version = 2;
+                        QString candidate;
+                        do {
+                            candidate = dir + QDir::separator() + base + QStringLiteral("_v%1.").arg(version++) + suffix;
+                        } while (QFileInfo::exists(candidate));
+                        effectiveFinalPath = candidate;
+                    }
+                }
+
+                finalizeOk = uploadHandler && uploadHandler(temporaryPath, effectiveFinalPath);
             }
         } else {
             m_storeFile->remove();
@@ -322,21 +347,21 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
     }
 
     m_storeSuccess = finalizeOk;
-    if (!finalPath.isEmpty()) {
+    if (!effectiveFinalPath.isEmpty()) {
         if (!finalizeOk) {
             emit logMessage(ftpLogPrefix() + QStringLiteral("上传中断或提交失败，未替换目标文件: %1 (bytes=%2)")
-                                .arg(finalPath)
+                                .arg(effectiveFinalPath)
                                 .arg(m_storeBytesReceived));
         }
 
-        QFileInfo fi(finalPath);
+        QFileInfo fi(effectiveFinalPath);
         emit logMessage(ftpLogPrefix() + QStringLiteral("上传处理完成: %1 (%2 bytes) finalized=%3")
-            .arg(finalPath)
+            .arg(effectiveFinalPath)
             .arg(fi.exists() ? fi.size() : 0)
             .arg(finalizeOk ? QStringLiteral("Y") : QStringLiteral("N")));
         if (finalizeOk) {
             // notify listeners that an image file has been stored
-            emit imageStored(finalPath);
+            emit imageStored(effectiveFinalPath);
         }
     }
 

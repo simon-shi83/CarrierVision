@@ -281,13 +281,37 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
             imagename TEXT NOT NULL,
             distance INTEGER NOT NULL DEFAULT 0,
             dist_max INTEGER NOT NULL DEFAULT 0,
-            dist_norm INTEGER NOT NULL DEFAULT 0
+            dist_norm INTEGER NOT NULL DEFAULT 0,
+            batch_id TEXT DEFAULT '',
+            round_no INTEGER DEFAULT 0
         )
     )";
     if(!q.exec(createRecord)){
         LOG_ERROR("DBSchema: 创建 record 表失败: {}", q.lastError().text().toStdString());
         return false;
     }
+
+    // 检查并自动升级现有 record 表字段
+    bool hasBatchId = false;
+    bool hasRoundNo = false;
+    if (q.exec("PRAGMA table_info(record)")) {
+        while (q.next()) {
+            const QString col = q.value(1).toString();
+            if (col.compare("batch_id", Qt::CaseInsensitive) == 0) hasBatchId = true;
+            if (col.compare("round_no", Qt::CaseInsensitive) == 0) hasRoundNo = true;
+        }
+    }
+    if (!hasBatchId) {
+        if (!q.exec("ALTER TABLE record ADD COLUMN batch_id TEXT DEFAULT ''")) {
+            LOG_WARN("DBSchema: 为 record 表追加 batch_id 字段失败: {}", q.lastError().text().toStdString());
+        }
+    }
+    if (!hasRoundNo) {
+        if (!q.exec("ALTER TABLE record ADD COLUMN round_no INTEGER DEFAULT 0")) {
+            LOG_WARN("DBSchema: 为 record 表追加 round_no 字段失败: {}", q.lastError().text().toStdString());
+        }
+    }
+
     if(!q.exec("CREATE INDEX IF NOT EXISTS idx_record_rack_result_time ON record(rackno, result, createtime DESC)")){
         LOG_ERROR("DBSchema: 创建索引 idx_record_rack_result_time 失败: {}", q.lastError().text().toStdString());
     }
@@ -295,6 +319,8 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         LOG_ERROR("DBSchema: 创建复合索引 idx_record_rack_result_distance_createtime_wheel 失败: {}", q.lastError().text().toStdString());
     }
 
+    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)")) return false;
+    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_round ON record(round_no)")) return false;
     if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_image_wheel ON record(imagename,wheelno)")) return false;
     if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_rack_wheel_time ON record(rackno,wheelno,createtime DESC)")) return false;
     if (!q.exec("CREATE TABLE IF NOT EXISTS cleanup_files(path TEXT PRIMARY KEY, imagename TEXT NOT NULL)")) return false;

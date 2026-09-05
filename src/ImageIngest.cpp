@@ -15,7 +15,10 @@ namespace ImageIngest {
 bool parse(const QString &path, Metadata &out, QString &error)
 {
     out = {};
-    const auto parts = QFileInfo(path).completeBaseName().split('_');
+    QString base = QFileInfo(path).completeBaseName();
+    static const QRegularExpression vSuffix(QStringLiteral("_v[0-9]+$"));
+    base.remove(vSuffix);
+    const auto parts = base.split('_');
     auto invalid = [&]() { error = QStringLiteral("无法识别的图片元数据: %1").arg(QFileInfo(path).fileName()); return false; };
     if (parts.size() != 8 && parts.size() != 9) return invalid();
     auto integer = [](const QString &text, int &value) {
@@ -43,16 +46,33 @@ bool parse(const QString &path, Metadata &out, QString &error)
     return true;
 }
 
+QDateTime parseTimestamp(const QString &path, const QDateTime &fallbackTime)
+{
+    const auto parts = QFileInfo(path).completeBaseName().split('_');
+    if (!parts.isEmpty()) {
+        const QString &tag = parts.first();
+        if (tag.size() == 14) {
+            QDateTime dt = QDateTime::fromString(tag, "yyyyMMddHHmmss");
+            if (dt.isValid()) return dt;
+        } else if (tag.size() >= 15 && tag.at(8) == 'T') {
+            QDateTime dt = QDateTime::fromString(tag, Qt::ISODate);
+            if (dt.isValid()) return dt;
+        }
+    }
+    return fallbackTime;
+}
+
 bool record(QSqlDatabase db, const Metadata &metadata, const QString &imageName,
-            const QString &time, const QVariantList &standards, bool &inserted, QString &error)
+            const QString &time, const QVariantList &standards, bool &inserted, QString &error,
+            const QString &batchId, int roundNo)
 {
     inserted = false;
     if (!db.isOpen() || !db.transaction()) { error = db.lastError().text(); return false; }
     auto fail = [&](const QString &reason) { error = reason; db.rollback(); inserted = false; return false; };
     for (const auto &wheel : metadata.wheels) {
         QSqlQuery q(db);
-        q.prepare("INSERT INTO record(createtime,rackno,wheelno,result,imagename,distance,dist_max,dist_norm) "
-                  "SELECT :t,:r,:w,:result,:image,:d,:max,:norm "
+        q.prepare("INSERT INTO record(createtime,rackno,wheelno,result,imagename,distance,dist_max,dist_norm,batch_id,round_no) "
+                  "SELECT :t,:r,:w,:result,:image,:d,:max,:norm,:b,:rnd "
                   "WHERE NOT EXISTS (SELECT 1 FROM record WHERE imagename=:image AND wheelno=:w)");
         q.bindValue(":t", time);
         q.bindValue(":r", QString::number(metadata.rack));
@@ -63,6 +83,8 @@ bool record(QSqlDatabase db, const Metadata &metadata, const QString &imageName,
         q.bindValue(":d", single ? metadata.distance : 0);
         q.bindValue(":max", single ? metadata.maximum : 0);
         q.bindValue(":norm", single ? metadata.norm : 0);
+        q.bindValue(":b", batchId);
+        q.bindValue(":rnd", roundNo);
         if (!q.exec()) return fail(q.lastError().text());
         if (q.numRowsAffected() == 0) continue;
         inserted = true;
