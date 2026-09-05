@@ -1,0 +1,80 @@
+name: Build Windows Release
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build & Package Windows x64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.8.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtquick3d qtshadertools qtsvg'
+          cache: true
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -B build -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
+            -DBUILD_TESTING=OFF `
+            -DENABLE_WINDEPLOYQT=OFF
+
+      - name: Build Project
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Deploy Windows Package
+        shell: pwsh
+        run: |
+          # 1. 安装主程序至 dist 发布目录
+          cmake --install build --prefix dist
+
+          # 2. 调用 windeployqt 自动补齐依赖的 Qt 核心 DLL、Quick3D 插件及 QML 运行时
+          & "$env:Qt6_DIR\bin\windeployqt.exe" `
+            dist\CarrierVision.exe `
+            --qmldir qml `
+            --compiler-runtime `
+            --force
+
+          # 3. 附带图标与使用说明（如存在）
+          if (Test-Path "scripts\README.txt") {
+            Copy-Item "scripts\README.txt" "dist\"
+          }
+          if (Test-Path "icons\logo_agc.svg") {
+            Copy-Item "icons\logo_agc.svg" "dist\"
+          }
+
+      - name: Compress to ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\* -DestinationPath CarrierVision-Windows-x64.zip -Force
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarrierVision-Windows-x64
+          path: CarrierVision-Windows-x64.zip
+          retention-days: 14
