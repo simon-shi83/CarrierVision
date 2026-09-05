@@ -236,23 +236,6 @@ if(WIN32)
     endif()
 endif()
 
-if(MSVC)
-    target_link_libraries(CarrierVision PRIVATE delayimp.lib)
-    target_link_options(CarrierVision PRIVATE
-        "/DELAYLOAD:Qt6Concurrent.dll"
-        "/DELAYLOAD:Qt6Core.dll"
-        "/DELAYLOAD:Qt6Gui.dll"
-        "/DELAYLOAD:Qt6Network.dll"
-        "/DELAYLOAD:Qt6Qml.dll"
-        "/DELAYLOAD:Qt6Quick.dll"
-        "/DELAYLOAD:Qt6Quick3D.dll"
-        "/DELAYLOAD:Qt6Quick3DAssetUtils.dll"
-        "/DELAYLOAD:Qt6QuickControls2.dll"
-        "/DELAYLOAD:Qt6Sql.dll"
-        "/DELAYLOAD:Qt6Svg.dll"
-    )
-endif()
-
 # Windows 独立依赖自动部署（收集全部 Qt 动态库至 lib/、插件至 plugins/、QML模块至 qml/、生成 qt.conf 及启动脚本）
 option(ENABLE_WINDEPLOYQT "Run Windows standalone deployment on install" ON)
 
