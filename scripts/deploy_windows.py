@@ -173,14 +173,25 @@ start "" "%APP_DIR%CarrierVision.exe" %*
     bat_path.write_text(bat_content, encoding="utf-8")
     print(f"[Windows Deploy] Generated portable startup batch script: {bat_path}")
 
-    # 4.5 部署说明文件与图标
-    readme_src = source_path / "scripts" / "README.txt"
-    if readme_src.is_file():
-        shutil.copy2(readme_src, install_path / "README.txt")
+    # 4.5 部署说明文件与图标（确保仅保留 CarrierVision.svg，清理多余的原始 logo_agc.svg）
+    legacy_logo = install_path / "logo_agc.svg"
+    if legacy_logo.is_file():
+        try:
+            legacy_logo.unlink()
+            print(f"[Windows Deploy] Removed redundant logo: {legacy_logo}")
+        except Exception as e:
+            print(f"[Windows Deploy] Warning removing {legacy_logo}: {e}")
 
-    icon_src = source_path / "icons" / "logo_agc.svg"
-    if icon_src.is_file():
-        shutil.copy2(icon_src, install_path / "CarrierVision.svg")
+    readme_src = source_path / "scripts" / "README.txt"
+    readme_dst = install_path / "README.txt"
+    if readme_src.is_file() and not readme_dst.is_file():
+        shutil.copy2(readme_src, readme_dst)
+
+    icon_dst = install_path / "CarrierVision.svg"
+    if not icon_dst.is_file():
+        icon_src = source_path / "icons" / "logo_agc.svg"
+        if icon_src.is_file():
+            shutil.copy2(icon_src, icon_dst)
 
     print("=" * 60)
     print("[Windows Deploy] Deployment finished successfully!")

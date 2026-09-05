@@ -232,7 +232,7 @@ if(WIN32)
         install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt" DESTINATION .)
     endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg" DESTINATION .)
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg" DESTINATION . RENAME CarrierVision.svg)
     endif()
 endif()
 
