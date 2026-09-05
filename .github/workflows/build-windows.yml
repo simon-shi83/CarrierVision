@@ -53,17 +53,14 @@ jobs:
         shell: pwsh
         run: |
           $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
-          # 1. 安装主程序至 install/CarrierVision_windows_* 目录
-          cmake --install build
-
-          # 定位安装目录
-          $pkgDir = Get-ChildItem -Path "install" -Directory -Filter "CarrierVision_windows_*" | Select-Object -First 1
-          if (-not $pkgDir) {
-            throw "Install directory install/CarrierVision_windows_* not found"
-          }
-          $pkgPath = $pkgDir.FullName
-          $pkgName = $pkgDir.Name
+          $commitCount = (git rev-list --count HEAD).Trim()
+          $shortHash = (git rev-parse --short=7 HEAD).Trim()
+          $pkgName = "CarrierVision_windows_5.0.0.$commitCount.$shortHash"
+          $pkgPath = "$PWD/install/$pkgName"
           Write-Host "Deploying to package directory: $pkgPath ($pkgName)"
+
+          # 1. 显式指定安装前缀，确保准确安装至指定目录
+          cmake --install build --prefix "$pkgPath"
 
           # 2. 执行 Windows 规范化部署与依赖归拢 (lib/, plugins/, qml/, qt.conf, CarrierVision.bat)
           python scripts/deploy_windows.py --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir .

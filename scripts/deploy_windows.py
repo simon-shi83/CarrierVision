@@ -65,8 +65,13 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
         target = lib_dir / item.name
         if target.exists():
             target.unlink()
-        shutil.move(str(item), str(target))
-        moved_dlls += 1
+        try:
+            shutil.move(str(item), str(target))
+            moved_dlls += 1
+        except Exception as e:
+            shutil.copy2(str(item), str(target))
+            item.unlink()
+            moved_dlls += 1
     print(f"[Windows Deploy] 已归拢 {moved_dlls} 个核心动态链接库到 lib/ 目录。")
 
     # 2.2 归拢所有插件子目录到 plugins/ 目录
@@ -86,9 +91,14 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
             if item.name in known_plugin_names or any(item.glob("*.dll")):
                 target = plugins_dir / item.name
                 if target.exists():
-                    shutil.rmtree(target)
-                shutil.move(str(item), str(target))
-                moved_plugins += 1
+                    shutil.rmtree(target, ignore_errors=True)
+                try:
+                    shutil.move(str(item), str(target))
+                    moved_plugins += 1
+                except Exception as e:
+                    shutil.copytree(str(item), str(target), dirs_exist_ok=True)
+                    shutil.rmtree(str(item), ignore_errors=True)
+                    moved_plugins += 1
     print(f"[Windows Deploy] 已归拢 {moved_plugins} 个插件目录到 plugins/ 目录。")
 
     # 2.3 生成标准 qt.conf（重定向 Libraries, Plugins, Qml2Imports）
