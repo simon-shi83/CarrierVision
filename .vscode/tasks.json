@@ -121,27 +121,22 @@
             "command": "cmake",
             "args": [
                 "--install",
-                "${workspaceFolder}/build/Release",
-                "--prefix",
-                "${workspaceFolder}/install/Release"
+                "${workspaceFolder}/build/Release"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "group": "none",
             "problemMatcher": [],
-            "detail": "Linux: 安装 Release 版本程序至 install/Release (自动打包所有 Qt/ICU/QML 依赖)"
+            "detail": "Linux: 安装 Release 版本程序至 install/CarrierVision_linux_${完整版本号} (自动打包所有 Qt/ICU/QML 依赖)"
         },
         {
             "label": "Linux: Release 打包 (Package)",
             "type": "shell",
-            "command": "tar",
+            "command": "python3",
             "args": [
-                "-czvf",
-                "${workspaceFolder}/install/CarrierVision-Linux-Release.tar.gz",
-                "-C",
-                "${workspaceFolder}/install",
-                "Release"
+                "-c",
+                "import shutil, glob, os; p = sorted(glob.glob('${workspaceFolder}/install/CarrierVision_linux_*'))[-1]; name = os.path.basename(p); shutil.make_archive(p, 'gztar', root_dir='${workspaceFolder}/install', base_dir=name); print(f'成功打包至: {p}.tar.gz')"
             ],
             "dependsOn": [
                 "Linux: Release 安装 (Install)"
@@ -151,7 +146,7 @@
             },
             "group": "none",
             "problemMatcher": [],
-            "detail": "Linux: 安装并打包为可直接分发到其他电脑的 CarrierVision-Linux-Release.tar.gz 压缩包"
+            "detail": "Linux: 安装并打包为可直接分发到其他电脑的 CarrierVision_linux_${完整版本号}.tar.gz 压缩包"
         },
         // ====================================================================
         //  Windows 专属任务组
@@ -265,16 +260,34 @@
             "command": "cmake",
             "args": [
                 "--install",
-                "${workspaceFolder}/build/Release",
-                "--prefix",
-                "${workspaceFolder}/install/Release"
+                "${workspaceFolder}/build/Release"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "group": "none",
             "problemMatcher": "$msCompile",
-            "detail": "Windows: 安装 Release 版本并自动执行 windeployqt 依赖打包"
+            "detail": "Windows: 安装 Release 版本至 install/CarrierVision_windows_${完整版本号} 并自动执行 windeployqt 依赖打包"
+        },
+        {
+            "label": "Windows: Release 打包 (Package)",
+            "type": "shell",
+            "command": "cpack",
+            "args": [
+                "--config",
+                "${workspaceFolder}/build/Release/CPackConfig.cmake",
+                "-G",
+                "ZIP"
+            ],
+            "dependsOn": [
+                "Windows: Release 安装 (Install)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "none",
+            "problemMatcher": "$msCompile",
+            "detail": "Windows: 打包生成 CarrierVision_windows_${完整版本号}.zip 压缩包"
         }
     ]
 }

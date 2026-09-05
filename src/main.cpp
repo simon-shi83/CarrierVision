@@ -12,6 +12,7 @@
 #include "WeeklyReport.h"
 #include "DbSchema.h"
 #include "AppLogger.h"
+#include "version.h"
 #include <nlohmann/json.hpp>
 
 #include "AppController.h"
@@ -32,6 +33,19 @@
 
 int main(int argc, char *argv[])
 {
+#if defined(Q_OS_WIN)
+    // 确保从应用程序根目录下的 lib 子目录加载动态链接库
+    wchar_t exePath[MAX_PATH];
+    if (GetModuleFileNameW(nullptr, exePath, MAX_PATH)) {
+        wchar_t *lastSlash = wcsrchr(exePath, L'\\');
+        if (lastSlash) {
+            *lastSlash = L'\0';
+            std::wstring libPath = std::wstring(exePath) + L"\\lib";
+            SetDllDirectoryW(libPath.c_str());
+        }
+    }
+#endif
+
     // 单实例检查：避免同时启动多个程序实例（生命周期持续到 main 结束）
     static const char *singleKey = "CarrierVision_single_instance_key";
     QSharedMemory singleMem(QString::fromUtf8(singleKey));
@@ -61,9 +75,10 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle("Fusion");
 
     QGuiApplication app(argc, argv);
+    app.setApplicationVersion(QString::fromUtf8(CARRIER_VISION_VERSION_FULL));
     // 初始化 spdlog 工业日志引擎
     AppLogger::init();
-    LOG_INFO("CarrierVision 应用程序启动");
+    LOG_INFO("CarrierVision 应用程序启动, 版本: {}", CARRIER_VISION_VERSION_FULL);
 
     // remove old debug log file to keep installation clean
     QFile oldDbg(QCoreApplication::applicationDirPath() + QDir::separator() + "run_debug_log.txt");

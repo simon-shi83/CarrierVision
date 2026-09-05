@@ -1,6 +1,23 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(CarrierVision VERSION 0.1 LANGUAGES CXX)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
+
+project(CarrierVision VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+
+# 默认安装路径规范：
+# Windows 下输出至 install/CarrierVision_windows_${VERSION_FULL}
+# Linux 下输出至 install/CarrierVision_linux_${VERSION_FULL}
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT
+   OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local"
+   OR CMAKE_INSTALL_PREFIX STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/install/Release"
+   OR CMAKE_INSTALL_PREFIX MATCHES "^C:/Program Files")
+    if(WIN32)
+        set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/CarrierVision_windows_${VERSION_FULL}" CACHE PATH "Windows 安装输出目录" FORCE)
+    else()
+        set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/CarrierVision_linux_${VERSION_FULL}" CACHE PATH "Linux 安装输出目录" FORCE)
+    endif()
+endif()
+
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -210,30 +227,55 @@ install(TARGETS CarrierVision
     RUNTIME DESTINATION .
 )
 
-# Optional: run windeployqt after `cmake --install` to deploy Qt runtime/plugins
-option(ENABLE_WINDEPLOYQT "Run windeployqt on install (Windows only)" OFF)
-set(CMAKE_WINDEPLOYQT "C:/Qt/6.11.0/msvc2022_64/bin/windeployqt.exe" CACHE FILEPATH "Path to windeployqt.exe")
+if(WIN32)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt" DESTINATION .)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg" DESTINATION .)
+    endif()
+endif()
+
+if(MSVC)
+    target_link_libraries(CarrierVision PRIVATE delayimp.lib)
+    target_link_options(CarrierVision PRIVATE
+        "/DELAYLOAD:Qt6Concurrent.dll"
+        "/DELAYLOAD:Qt6Core.dll"
+        "/DELAYLOAD:Qt6Gui.dll"
+        "/DELAYLOAD:Qt6Network.dll"
+        "/DELAYLOAD:Qt6Qml.dll"
+        "/DELAYLOAD:Qt6Quick.dll"
+        "/DELAYLOAD:Qt6Quick3D.dll"
+        "/DELAYLOAD:Qt6Quick3DAssetUtils.dll"
+        "/DELAYLOAD:Qt6QuickControls2.dll"
+        "/DELAYLOAD:Qt6Sql.dll"
+        "/DELAYLOAD:Qt6Svg.dll"
+    )
+endif()
+
+# Windows 独立依赖自动部署（收集全部 Qt 动态库至 lib/、插件至 plugins/、QML模块至 qml/、生成 qt.conf 及启动脚本）
+option(ENABLE_WINDEPLOYQT "Run Windows standalone deployment on install" ON)
 
 if(WIN32 AND ENABLE_WINDEPLOYQT)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    get_target_property(_qt_core_loc Qt6::Core LOCATION)
+    get_filename_component(_qt_bin_dir "${_qt_core_loc}" DIRECTORY)
+    get_filename_component(_qt_root_dir "${_qt_bin_dir}" DIRECTORY)
+
     install(CODE "
-        message(STATUS \"ENABLE_WINDEPLOYQT is ON — running windeployqt on installed executable\")
-        set(EXE_PATH \"${CMAKE_INSTALL_PREFIX}/CarrierVision.exe\")
-        if(NOT EXISTS \"${CMAKE_WINDEPLOYQT}\")
-            message(WARNING \"windeployqt not found at ${CMAKE_WINDEPLOYQT}; please set CMAKE_WINDEPLOYQT cache variable\")
-        else()
-            execute_process(COMMAND \"${CMAKE_WINDEPLOYQT}\" \"${EXE_PATH}\"
-                --qmldir \"${CMAKE_SOURCE_DIR}/qml\"
-                --force
-                --compiler-runtime
-                --add-plugin-types quick3d,quick3dassetutils,quick3druntimerender
-                RESULT_VARIABLE _wd_res OUTPUT_VARIABLE _wd_out ERROR_VARIABLE _wd_err)
-            if(NOT _wd_res EQUAL 0)
-                message(WARNING \"windeployqt failed (exit=${_wd_res}):\n${_wd_err}\")
-            else()
-                message(STATUS \"windeployqt finished: ${_wd_out}\")
-            endif()
+        message(STATUS \"CarrierVision Windows: Running standalone dependency deployment...\")
+        execute_process(
+            COMMAND \"${Python3_EXECUTABLE}\"
+                    \"${CMAKE_CURRENT_SOURCE_DIR}/scripts/deploy_windows.py\"
+                    --install-dir \"\${CMAKE_INSTALL_PREFIX}\"
+                    --qt-dir \"${_qt_root_dir}\"
+                    --source-dir \"${CMAKE_CURRENT_SOURCE_DIR}\"
+            RESULT_VARIABLE _deploy_res
+        )
+        if(NOT _deploy_res EQUAL 0)
+            message(FATAL_ERROR \"Windows standalone deployment failed with exit code: \${_deploy_res}\")
         endif()
-    " )
+    ")
 endif()
 
 # Linux 独立依赖自动部署（收集全部 Qt/ICU 动态库、插件、QML、配置和启动脚本）
@@ -278,6 +320,11 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "CarrierVision Standalone Portable Release
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+if(WIN32)
+    set(CPACK_PACKAGE_FILE_NAME "CarrierVision_windows_${VERSION_FULL}")
+else()
+    set(CPACK_PACKAGE_FILE_NAME "CarrierVision_linux_${VERSION_FULL}")
+endif()
 set(CPACK_GENERATOR "TGZ;ZIP")
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 include(CPack)

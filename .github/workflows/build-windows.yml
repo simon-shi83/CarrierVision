@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup MSVC developer environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -51,31 +53,32 @@ jobs:
         shell: pwsh
         run: |
           $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
-          # 1. 安装主程序至 dist 发布目录
-          cmake --install build --prefix dist
+          # 1. 安装主程序至 install/CarrierVision_windows_* 目录
+          cmake --install build
 
-          # 2. 调用 windeployqt 自动补齐依赖的 Qt 核心 DLL、Quick3D 插件及 QML 运行时
-          & "$qtRoot/bin/windeployqt.exe" dist\CarrierVision.exe `
-            --qmldir qml `
-            --compiler-runtime `
-            --force
+          # 定位安装目录
+          $pkgDir = Get-ChildItem -Path "install" -Directory -Filter "CarrierVision_windows_*" | Select-Object -First 1
+          if (-not $pkgDir) {
+            throw "Install directory install/CarrierVision_windows_* not found"
+          }
+          $pkgPath = $pkgDir.FullName
+          $pkgName = $pkgDir.Name
+          Write-Host "Deploying to package directory: $pkgPath ($pkgName)"
 
-          # 3. 附带图标与使用说明（如存在）
-          if (Test-Path "scripts\README.txt") {
-            Copy-Item "scripts\README.txt" "dist\"
-          }
-          if (Test-Path "icons\logo_agc.svg") {
-            Copy-Item "icons\logo_agc.svg" "dist\"
-          }
+          # 2. 执行 Windows 规范化部署与依赖归拢 (lib/, plugins/, qml/, qt.conf, CarrierVision.bat)
+          python scripts/deploy_windows.py --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir .
+
+          Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=$pkgName"
+          Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_PATH=$pkgPath"
 
       - name: Compress to ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path dist\* -DestinationPath CarrierVision-Windows-x64.zip -Force
+          Compress-Archive -Path "$env:PACKAGE_PATH\*" -DestinationPath "$env:PACKAGE_NAME.zip" -Force
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CarrierVision-Windows-x64
-          path: CarrierVision-Windows-x64.zip
+          name: ${{ env.PACKAGE_NAME }}
+          path: ${{ env.PACKAGE_NAME }}.zip
           retention-days: 14
