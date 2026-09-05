@@ -51,6 +51,9 @@ jobs:
 
       - name: Deploy Windows Package
         shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
           $workspace = $PWD.Path.Replace('\', '/')
@@ -65,6 +68,9 @@ jobs:
 
           # 2. 执行 Windows 规范化部署与依赖归拢 (lib/, plugins/, qml/, qt.conf, CarrierVision.bat)
           python "$workspace/scripts/deploy_windows.py" --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir "$workspace"
+
+          Write-Host "Package contents:"
+          Get-ChildItem -Path "$pkgPath"
 
           Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=$pkgName"
           Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_PATH=$pkgPath"
