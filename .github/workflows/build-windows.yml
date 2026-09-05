@@ -53,17 +53,18 @@ jobs:
         shell: pwsh
         run: |
           $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
+          $workspace = $PWD.Path.Replace('\', '/')
           $commitCount = (git rev-list --count HEAD).Trim()
           $shortHash = (git rev-parse --short=7 HEAD).Trim()
           $pkgName = "CarrierVision_windows_5.0.0.$commitCount.$shortHash"
-          $pkgPath = "$PWD/install/$pkgName"
+          $pkgPath = "$workspace/install/$pkgName"
           Write-Host "Deploying to package directory: $pkgPath ($pkgName)"
 
           # 1. 显式指定安装前缀，确保准确安装至指定目录
           cmake --install build --prefix "$pkgPath"
 
           # 2. 执行 Windows 规范化部署与依赖归拢 (lib/, plugins/, qml/, qt.conf, CarrierVision.bat)
-          python scripts/deploy_windows.py --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir .
+          python "$workspace/scripts/deploy_windows.py" --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir "$workspace"
 
           Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=$pkgName"
           Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_PATH=$pkgPath"

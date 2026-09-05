@@ -25,14 +25,17 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
 
     app_exe = install_path / "CarrierVision.exe"
     if not app_exe.is_file():
-        raise FileNotFoundError(f"CarrierVision.exe not found in install dir: {app_exe}")
+        alt_exe = install_path / "bin" / "CarrierVision.exe"
+        if alt_exe.is_file():
+            shutil.move(str(alt_exe), str(app_exe))
+        else:
+            raise FileNotFoundError(f"CarrierVision.exe not found in install dir: {app_exe}")
 
     print(f"[Windows Deploy] 开始针对目标执行部署: {app_exe}")
     print(f"[Windows Deploy] Qt 安装路径: {qt_path}")
 
     windeployqt = qt_path / "bin" / "windeployqt.exe"
     if not windeployqt.is_file():
-        # 尝试从系统 PATH 中寻找 windeployqt
         which_res = shutil.which("windeployqt")
         if which_res:
             windeployqt = Path(which_res)
@@ -49,9 +52,9 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
         "--force"
     ]
     print(f"[Windows Deploy] 执行 windeployqt: {' '.join(cmd)}")
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd)
     if res.returncode != 0:
-        print(f"[Warning] windeployqt stderr:\n{res.stderr}")
+        print(f"[Warning] windeployqt exited with code {res.returncode}")
     else:
         print("[Windows Deploy] windeployqt 完成依赖收集。")
 
