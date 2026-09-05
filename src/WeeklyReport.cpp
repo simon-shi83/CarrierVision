@@ -1,4 +1,5 @@
 #include "WeeklyReport.h"
+#include "DbSchema.h"
 #include "AppLogger.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -58,7 +59,7 @@ bool generateForWeek(const QDate &monday){
     QDate start = monday;
     QDate end = monday.addDays(6);
 
-    QString dbPath = QCoreApplication::applicationDirPath() + QDir::separator() + "dataAgc.db";
+    QString dbPath = DBSchema::defaultDatabasePath();
     QString startTag = start.toString("yyyyMMdd");
     QString endTag = end.toString("yyyyMMdd");
     QString outDir = ensureOutDir();

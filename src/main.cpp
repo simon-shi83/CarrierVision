@@ -88,49 +88,6 @@ int main(int argc, char *argv[])
     // set application icon from resources
     app.setWindowIcon(QIcon("qrc:/icons/favicon.png"));
 
-    // 初始化架号、轮号距离标准数据（使用 nlohmann/json.hpp）
-    {
-        const QString dataDirectoryPath = QCoreApplication::applicationDirPath()
-            + QDir::separator() + "data";
-        QDir dataDirectory;
-        if (!dataDirectory.mkpath(dataDirectoryPath)) {
-            LOG_WARN("无法创建数据目录: {}", dataDirectoryPath.toStdString());
-        } else {
-            const QString normFilePath = dataDirectoryPath + QDir::separator()
-                + "agcRackWheelNorm.json";
-            if (!QFile::exists(normFilePath)) {
-                nlohmann::json racks = nlohmann::json::array();
-                for (int rackNumber = 1; rackNumber <= 50; ++rackNumber) {
-                    nlohmann::json wheels = nlohmann::json::array();
-                    for (int wheelNumber = 1; wheelNumber <= 8; ++wheelNumber) {
-                        wheels.push_back({
-                            {"wheelno", std::to_string(wheelNumber)},
-                            {"distance", "0"}
-                        });
-                    }
-
-                    racks.push_back({
-                        {"rackno", std::to_string(rackNumber)},
-                        {"wheels", wheels}
-                    });
-                }
-
-                QSaveFile normFile(normFilePath);
-                if (!normFile.open(QIODevice::WriteOnly)) {
-                    LOG_WARN("无法写入架轮标准文件: {}", normFile.fileName().toStdString());
-                } else {
-                    std::string jsonStr = racks.dump(4);
-                    normFile.write(jsonStr.data(), jsonStr.size());
-                    if (!normFile.commit()) {
-                        LOG_WARN("保存架轮标准文件失败: {}", normFile.fileName().toStdString());
-                    } else {
-                        LOG_INFO("生成初始架轮标准配置: {}", normFilePath.toStdString());
-                    }
-                }
-            }
-        }
-    }
-
     // On Windows, set an explicit AppUserModelID so the taskbar groups and icon use our app identity
 #ifdef Q_OS_WIN
     // Use a stable AppUserModelID for taskbar grouping; call dynamically to avoid compile-time header issues
@@ -148,7 +105,7 @@ int main(int argc, char *argv[])
     // 初始化 SQLite 数据库 dataAgc（文件 dataAgc.db）并确保表 record 存在
     {
         QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-        QString dbPath = QCoreApplication::applicationDirPath() + QDir::separator() + "dataAgc.db";
+        QString dbPath = DBSchema::defaultDatabasePath();
         db.setDatabaseName(dbPath);
         if (!db.open()) {
             LOG_ERROR("无法打开主数据库 dataAgc: {}", db.lastError().text().toStdString());

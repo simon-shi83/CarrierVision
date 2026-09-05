@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "DbSchema.h"
 #include "AppLogger.h"
 #include <nlohmann/json.hpp>
 
@@ -81,27 +82,12 @@ bool parseResultFilter(const QString &text, int &result)
 
 QString encodePassword(const QString &password)
 {
-    QByteArray salt(16, Qt::Uninitialized);
-    for (char &byte : salt) byte = static_cast<char>(QRandomGenerator::global()->generate() & 0xff);
-    QByteArray digest = password.toUtf8();
-    for (int i = 0; i < 20'000; ++i) {
-        digest = QCryptographicHash::hash(salt + digest, QCryptographicHash::Sha256);
-    }
-    return QStringLiteral("sha256$%1$%2")
-        .arg(QString::fromLatin1(salt.toHex()), QString::fromLatin1(digest.toHex()));
+    return AgcUtils::encodePassword(password);
 }
 
 bool verifyEncodedPassword(const QString &password, const QString &stored)
 {
-    if (!stored.startsWith(QStringLiteral("sha256$"))) return password == stored;
-    const QStringList fields = stored.split(u'$');
-    if (fields.size() != 3) return false;
-    const QByteArray salt = QByteArray::fromHex(fields.at(1).toLatin1());
-    QByteArray digest = password.toUtf8();
-    for (int i = 0; i < 20'000; ++i) {
-        digest = QCryptographicHash::hash(salt + digest, QCryptographicHash::Sha256);
-    }
-    return QString::fromLatin1(digest.toHex()) == fields.at(2);
+    return AgcUtils::verifyEncodedPassword(password, stored);
 }
 
 nlohmann::json batchToJson(const BatchRecord &record)
@@ -171,10 +157,14 @@ BatchRecord batchFromJson(const nlohmann::json &object)
 
 void AppController::triggerCleanup()
 {
-    const QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    const int keepDays = qBound(1, settings.value("cleanup/keepDays", 90).toInt(), 3650);
-    const int logKeepDays = qBound(1, settings.value("cleanup/logKeepDays", 30).toInt(), 3650);
+    int keepDays = 90;
+    int logKeepDays = 30;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        keepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/keepDays", 90), 3650);
+        logKeepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/logKeepDays", 30), 3650);
+    }
 
     LOG_INFO("执行历史数据清理任务: 图像保留天数={} 天, 日志保留天数={} 天", keepDays, logKeepDays);
     const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
@@ -229,54 +219,52 @@ void AppController::triggerCleanup()
 
 int AppController::cleanupKeepDays() const
 {
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    return settings.value("cleanup/keepDays", 90).toInt();
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return DBSchema::getConfigInt(db, "cleanup/keepDays", 90);
 }
 
 int AppController::cleanupLogKeepDays() const
 {
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    return settings.value("cleanup/logKeepDays", 30).toInt();
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return DBSchema::getConfigInt(db, "cleanup/logKeepDays", 30);
 }
 
 int AppController::cleanupRunHour() const
 {
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    return settings.value("cleanup/runHour", 1).toInt();
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return DBSchema::getConfigInt(db, "cleanup/runHour", 1);
 }
 
 QString AppController::homepageDescription() const
 {
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    return settings.value(
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return DBSchema::getConfig(
+        db,
         "homepage/description",
-        QStringLiteral("欢迎使用 AGC ImageViewer。系统用于接收、浏览和查询 AGC 检测图片，并提供批次监控、数据统计及参数设置等功能。"))
-        .toString();
+        QStringLiteral("欢迎使用 AGC ImageViewer。系统用于接收、浏览和查询 AGC 检测图片，并提供批次监控、数据统计及参数设置等功能。"));
 }
 
 bool AppController::isDarkMode() const
 {
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    return settings.value("ui/isDark", false).toBool();
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return DBSchema::getConfigBool(db, "ui/isDark", false);
 }
 
 void AppController::setDarkMode(bool dark)
 {
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    if (settings.value("ui/isDark", false).toBool() == dark) {
-        return;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        if (DBSchema::getConfigBool(db, "ui/isDark", false) == dark) {
+            return;
+        }
+        DBSchema::setConfig(db, "ui/isDark", dark ? QStringLiteral("true") : QStringLiteral("false"));
     }
-    settings.setValue("ui/isDark", dark);
-    settings.sync();
     LOG_INFO("持久化保存颜色主题配置: {}", dark ? "深色模式 (Dark)" : "浅色模式 (Light)");
     emit darkModeChanged(dark);
 }
@@ -284,30 +272,33 @@ void AppController::setDarkMode(bool dark)
 void AppController::setCleanupKeepDays(int days)
 {
     days = qBound(1, days, 3650);
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("cleanup/keepDays", days);
-    settings.sync();
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        DBSchema::setConfig(db, "cleanup/keepDays", QString::number(days));
+    }
     LOG_DEBUG("设置图像清理保留天数: {} 天", days);
 }
 
 void AppController::setCleanupLogKeepDays(int days)
 {
     days = qBound(1, days, 3650);
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("cleanup/logKeepDays", days);
-    settings.sync();
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        DBSchema::setConfig(db, "cleanup/logKeepDays", QString::number(days));
+    }
     LOG_DEBUG("设置日志清理保留天数: {} 天", days);
 }
 
 void AppController::setCleanupRunHour(int hour)
 {
     hour = qBound(0, hour, 23);
-    QString configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("cleanup/runHour", hour);
-    settings.sync();
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        DBSchema::setConfig(db, "cleanup/runHour", QString::number(hour));
+    }
     scheduleCleanup();
     LOG_DEBUG("设置清理执行时间点: 每天 {} 时", hour);
 }
@@ -329,12 +320,13 @@ bool AppController::saveHomepageDescription(const QString &description)
         return false;
     }
 
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("homepage/description", trimmedDescription);
-    settings.sync();
-    if (settings.status() != QSettings::NoError) {
+    bool success = false;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        success = DBSchema::setConfig(db, "homepage/description", trimmedDescription);
+    }
+    if (!success) {
         return false;
     }
 
@@ -344,10 +336,12 @@ bool AppController::saveHomepageDescription(const QString &description)
 
 bool AppController::verifySettingsPassword(const QString &password) const
 {
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    const QString stored = settings.value("security/settingsPassword").toString();
+    QString stored;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        stored = DBSchema::getConfig(db, "security/settingsPassword");
+    }
     bool ok = !stored.isEmpty() && verifyEncodedPassword(password, stored);
     if (ok) {
         LOG_INFO("管理员安全密码验证成功");
@@ -386,29 +380,30 @@ bool AppController::changeSettingsPassword(const QString &currentPassword,
         return false;
     }
 
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("security/settingsPassword", encodePassword(newPassword));
-    settings.sync();
-    bool success = (settings.status() == QSettings::NoError);
+    bool success = false;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        success = DBSchema::setConfig(db, "security/settingsPassword", encodePassword(newPassword));
+    }
     if (success) {
         LOG_INFO("管理员密码修改成功");
     } else {
-        LOG_ERROR("管理员密码修改写入配置文件失败");
+        LOG_ERROR("管理员密码修改写入数据库失败");
     }
     return success;
 }
 
 bool AppController::resetSettingsPassword()
 {
-    const QString configPath = QCoreApplication::applicationDirPath()
-        + QDir::separator() + "config.ini";
-    QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("security/settingsPassword", encodePassword(QStringLiteral("123456")));
-    settings.sync();
+    bool success = false;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        success = DBSchema::setConfig(db, "security/settingsPassword", encodePassword(QStringLiteral("123456")));
+    }
     LOG_WARN("管理员密码已被重置为默认密码");
-    return settings.status() == QSettings::NoError;
+    return success;
 }
 
 AppController::AppController(QObject *parent)
@@ -1395,8 +1390,7 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                     const QStringList candidates = {
                         QDir(m_archiveDirectory).filePath(rawName),
                         QDir(m_sourceDirectory).filePath(rawName),
-                        QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName),
-                        QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("incoming")).filePath(rawName)
+                        QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
                     };
                     for (const QString &candidate : candidates) {
                         if (QFile::exists(candidate)) { item.filePath = QFileInfo(candidate).absoluteFilePath(); break; }
@@ -1541,8 +1535,7 @@ void AppController::search(const QString &startText, const QString &endText, con
                         const QStringList candidates = {
                             QDir(m_archiveDirectory).filePath(rawName),
                             QDir(m_sourceDirectory).filePath(rawName),
-                            QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName),
-                            QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("incoming")).filePath(rawName)
+                            QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
                         };
                         for (const QString &candidate : candidates) {
                             if (QFile::exists(candidate)) {
@@ -1697,8 +1690,7 @@ void AppController::searchPaged(const QString &startText, const QString &endText
                 const QStringList candidates = {
                     QDir(m_archiveDirectory).filePath(rawName),
                     QDir(m_sourceDirectory).filePath(rawName),
-                    QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName),
-                    QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("incoming")).filePath(rawName)
+                    QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
                 };
                 for (const QString &candidate : candidates) {
                     if (QFile::exists(candidate)) { resolvedPath = QFileInfo(candidate).absoluteFilePath(); break; }
@@ -1834,96 +1826,120 @@ void AppController::alertSearchPaged(const QString &startText, const QString &en
 
 void AppController::loadFtpSettingsFromFile()
 {
-    const QString path = QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("agc_ftp_config.json");
-    QFile f(path);
-    if (!f.exists()) return;
-    if (!f.open(QIODevice::ReadOnly)) return;
-    if (f.size() > 1024 * 1024) return;
-    const QByteArray data = f.readAll();
-    f.close();
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    if (!db.isOpen()) return;
 
-    nlohmann::json obj;
-    try {
-        obj = nlohmann::json::parse(data.constData(), data.constData() + data.size());
-    } catch (...) {
-        return;
-    }
-    if (!obj.is_object()) return;
-
-    if (obj.contains("ftpUsers") && obj["ftpUsers"].is_array()) {
-        m_ftpUsers.clear();
-        for (const auto &v : obj["ftpUsers"]) {
-            if (m_ftpUsers.size() >= 32) break;
-            if (!v.is_object()) continue;
-            QString u = v.contains("user") && v["user"].is_string() ? QString::fromStdString(v["user"].get<std::string>()) : QString();
-            QString p = v.contains("pass") && v["pass"].is_string() ? QString::fromStdString(v["pass"].get<std::string>()) : QString();
+    // Load users from ftp_users table
+    m_ftpUsers.clear();
+    QSqlQuery qUsers(db);
+    if (qUsers.exec("SELECT username, password_hash, allow_anonymous FROM ftp_users")) {
+        while (qUsers.next() && m_ftpUsers.size() < 32) {
+            QString u = qUsers.value(0).toString();
+            QString p = qUsers.value(1).toString();
             if (!u.isEmpty() && u.size() <= 64 && !p.isEmpty() && p.size() <= 256) {
-                if (!p.startsWith(QStringLiteral("sha256$"))) p = encodePassword(p);
                 m_ftpUsers.insert(u, p);
             }
         }
     }
     m_ftpAllowAnonymous = false; // 内置服务不允许匿名上传。
-    if (obj.contains("ftpRoot") && obj["ftpRoot"].is_string()) {
-        m_ftpRoot = AgcUtils::normalizedPath(QString::fromStdString(obj["ftpRoot"].get<std::string>()));
-        const QString fsRoot = QDir::cleanPath(QDir(m_ftpRoot).rootPath());
-        const QString home = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
-        if (m_ftpRoot.isEmpty() || m_ftpRoot == fsRoot || m_ftpRoot == home
-            || QFileInfo(m_ftpRoot).isSymbolicLink()) {
-            m_ftpRoot.clear();
-        }
-        // If ftpRoot points to an "incoming" folder, prefer using the corresponding "archive" folder
-        QDir ftpDir(m_ftpRoot);
-        if (!m_ftpRoot.isEmpty() && ftpDir.dirName().compare(QStringLiteral("incoming"), Qt::CaseInsensitive) == 0) {
-            ftpDir.cdUp();
-            if (!ftpDir.mkpath(QStringLiteral("archive")) || !ftpDir.cd(QStringLiteral("archive"))) {
-                setStatusMessage(QStringLiteral("无法创建兼容归档目录"));
-                m_ftpRoot.clear();
-                return;
+
+    // Load root directory & port from system_config table
+    QString root = DBSchema::getConfig(db, "ftp/rootDirectory", QStringLiteral("archive"));
+    m_ftpRoot = AgcUtils::normalizedPath(root);
+    const QString fsRoot = QDir::cleanPath(QDir(m_ftpRoot).rootPath());
+    const QString home = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
+    if (m_ftpRoot.isEmpty() || m_ftpRoot == fsRoot || m_ftpRoot == home
+        || QFileInfo(m_ftpRoot).isSymbolicLink()) {
+        m_ftpRoot.clear();
+    }
+
+    int configuredPort = DBSchema::getConfigInt(db, "ftp/port", m_ftpPort);
+    if (configuredPort >= 1 && configuredPort <= 65535) {
+        m_ftpPort = configuredPort;
+    }
+
+    // Load slot mapping from camera_slots table
+    m_slotMapping.resize(12);
+    for (int i = 0; i < 12; ++i) m_slotMapping[i] = i + 1;
+    QSqlQuery qSlots(db);
+    if (qSlots.exec("SELECT slot_id, mapped_target FROM camera_slots ORDER BY slot_id ASC")) {
+        while (qSlots.next()) {
+            int slot = qSlots.value(0).toInt();
+            int target = qSlots.value(1).toInt();
+            if (slot >= 1 && slot <= 12) {
+                if (target < 1) target = 1;
+                if (target > 14) target = 14;
+                m_slotMapping[slot - 1] = target;
             }
-            m_ftpRoot = AgcUtils::normalizedPath(ftpDir.absolutePath());
-            LOG_INFO("loadFtpSettingsFromFile: 检测到 incoming 根目录，已自动重定向至 archive: {}", m_ftpRoot.toStdString());
         }
     }
-    if (obj.contains("ftpPort") && obj["ftpPort"].is_number()) {
-        const int configuredPort = boundedJsonInt(obj["ftpPort"], m_ftpPort, 1, 65535);
-        if (configuredPort >= 1 && configuredPort <= 65535) m_ftpPort = configuredPort;
-    }
-    // load slot mapping
-    loadSlotMappingFromJson(obj);
+
     if (!m_ftpUsers.isEmpty()) m_ftpUser = m_ftpUsers.firstKey();
-    // notify QML that ftp account list may have changed
     emit ftpSettingsChanged();
-    // diagnostic: log effective value after loading
-    LOG_DEBUG("loadFtpSettingsFromFile: 有效端口={}, 用户={}", m_ftpPort, m_ftpUser.toStdString());
-    saveFtpSettingsToFile(); // 原子写回，同时完成旧版明文密码迁移。
+    LOG_DEBUG("loadFtpSettings: 有效端口={}, 用户={}", m_ftpPort, m_ftpUser.toStdString());
 }
 
 bool AppController::saveFtpSettingsToFile()
 {
-    const QString path = QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("agc_ftp_config.json");
-    nlohmann::json obj;
-    nlohmann::json usersArr = nlohmann::json::array();
-    for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) {
-        nlohmann::json uo;
-        uo["user"] = it.key().toStdString();
-        uo["pass"] = it.value().toStdString();
-        usersArr.push_back(uo);
-    }
-    obj["ftpUsers"] = usersArr;
-    obj["ftpAllowAnonymous"] = m_ftpAllowAnonymous;
-    obj["ftpRoot"] = m_ftpRoot.toStdString();
-    obj["ftpPort"] = m_ftpPort;
-    // save slot mapping
-    saveSlotMappingToJson(obj);
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    if (!db.isOpen()) return false;
 
-    std::string jsonStr = obj.dump(4);
-    QSaveFile f(path);
-    if (!f.open(QIODevice::WriteOnly) || f.write(jsonStr.data(), jsonStr.size()) != qint64(jsonStr.size()) || !f.commit()) {
-        setStatusMessage(QStringLiteral("FTP 配置保存失败: %1").arg(f.errorString()));
+    if (!db.transaction()) return false;
+
+    // 1. Save system_config
+    if (!DBSchema::setConfig(db, "ftp/port", QString::number(m_ftpPort))
+        || !DBSchema::setConfig(db, "ftp/rootDirectory", m_ftpRoot)) {
+        db.rollback();
+        setStatusMessage(QStringLiteral("FTP 配置保存失败"));
         return false;
     }
-    LOG_INFO("保存 FTP 配置到 {}, 账户列表: {}", path.toStdString(), m_ftpUsers.keys().join(',').toStdString());
+
+    // 2. Save ftp_users
+    QSqlQuery qDelUsers(db);
+    if (!qDelUsers.exec("DELETE FROM ftp_users")) {
+        db.rollback();
+        setStatusMessage(QStringLiteral("FTP 账户保存失败"));
+        return false;
+    }
+    QSqlQuery qInsUser(db);
+    qInsUser.prepare("INSERT INTO ftp_users(username, password_hash, allow_anonymous, updated_at) VALUES(?, ?, ?, datetime('now','localtime'))");
+    for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) {
+        qInsUser.bindValue(0, it.key());
+        qInsUser.bindValue(1, it.value());
+        qInsUser.bindValue(2, m_ftpAllowAnonymous ? 1 : 0);
+        if (!qInsUser.exec()) {
+            db.rollback();
+            setStatusMessage(QStringLiteral("FTP 账户插入失败: %1").arg(qInsUser.lastError().text()));
+            return false;
+        }
+    }
+
+    // 3. Save camera_slots
+    QSqlQuery qInsSlot(db);
+    qInsSlot.prepare(R"(
+        INSERT INTO camera_slots(slot_id, mapped_target)
+        VALUES(?, ?)
+        ON CONFLICT(slot_id) DO UPDATE SET mapped_target = excluded.mapped_target
+    )");
+    for (int i = 0; i < m_slotMapping.size() && i < 12; ++i) {
+        qInsSlot.bindValue(0, i + 1);
+        qInsSlot.bindValue(1, m_slotMapping.at(i));
+        if (!qInsSlot.exec()) {
+            db.rollback();
+            setStatusMessage(QStringLiteral("相机槽位保存失败: %1").arg(qInsSlot.lastError().text()));
+            return false;
+        }
+    }
+
+    if (!db.commit()) {
+        db.rollback();
+        setStatusMessage(QStringLiteral("FTP 配置提交事务失败"));
+        return false;
+    }
+
+    LOG_INFO("保存 FTP 配置至数据库成功, 账户列表: {}", m_ftpUsers.keys().join(',').toStdString());
     return true;
 }
 
@@ -1978,57 +1994,22 @@ QVariantList AppController::rackWheelDistances(int rackNumber) const
         return distances;
     }
 
-    const QString path = QDir(QCoreApplication::applicationDirPath())
-        .filePath(QStringLiteral("data/agcRackWheelNorm.json"));
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return distances;
-    }
-    if (file.size() > 5 * 1024 * 1024) return distances;
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    if (!db.isOpen()) return distances;
 
-    const QByteArray jsonData = file.readAll();
-    file.close();
-
-    nlohmann::json document;
-    try {
-        document = nlohmann::json::parse(jsonData.constData(), jsonData.constData() + jsonData.size());
-    } catch (...) {
-        return distances;
-    }
-    if (!document.is_array()) {
-        return distances;
-    }
-
-    for (const auto &rack : document) {
-        if (!rack.is_object()) continue;
-        int rno = 0;
-        if (rack.contains("rackno")) {
-            if (rack["rackno"].is_number()) rno = boundedJsonInt(rack["rackno"], 0, 1, 50);
-            else if (rack["rackno"].is_string()) rno = QString::fromStdString(rack["rackno"].get<std::string>()).toInt();
-        }
-        if (rno != rackNumber) continue;
-
-        if (rack.contains("wheels") && rack["wheels"].is_array()) {
-            for (const auto &wheel : rack["wheels"]) {
-                if (!wheel.is_object()) continue;
-                int wno = 0;
-                if (wheel.contains("wheelno")) {
-                    if (wheel["wheelno"].is_number()) wno = boundedJsonInt(wheel["wheelno"], 0, 1, 8);
-                    else if (wheel["wheelno"].is_string()) wno = QString::fromStdString(wheel["wheelno"].get<std::string>()).toInt();
-                }
-                if (wno >= 1 && wno <= 8) {
-                    QString dist = QStringLiteral("0");
-                    if (wheel.contains("distance")) {
-                        if (wheel["distance"].is_string()) dist = QString::fromStdString(wheel["distance"].get<std::string>());
-                        else if (wheel["distance"].is_number()) dist = QString::number(wheel["distance"].get<double>());
-                    }
-                    distances[wno - 1] = dist;
-                }
+    QSqlQuery q(db);
+    q.prepare("SELECT wheelno, standard_distance FROM rack_wheel_norm WHERE rackno = ? ORDER BY wheelno ASC");
+    q.addBindValue(rackNumber);
+    if (q.exec()) {
+        while (q.next()) {
+            int w = q.value(0).toInt();
+            int dist = q.value(1).toInt();
+            if (w >= 1 && w <= 8) {
+                distances[w - 1] = QString::number(dist);
             }
         }
-        break;
     }
-
     return distances;
 }
 
@@ -2044,64 +2025,41 @@ bool AppController::saveRackWheelDistances(int rackNumber, const QVariantList &d
         if (!ok || value < 0) return false;
     }
 
-    const QString path = QDir(QCoreApplication::applicationDirPath())
-        .filePath(QStringLiteral("data/agcRackWheelNorm.json"));
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return false;
-    }
-    if (file.size() > 5 * 1024 * 1024) return false;
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    if (!db.isOpen()) return false;
 
-    const QByteArray jsonData = file.readAll();
-    file.close();
+    if (!db.transaction()) return false;
 
-    nlohmann::json document;
-    try {
-        document = nlohmann::json::parse(jsonData.constData(), jsonData.constData() + jsonData.size());
-    } catch (...) {
-        return false;
-    }
-    if (!document.is_array()) {
-        return false;
-    }
+    QSqlQuery q(db);
+    q.prepare(R"(
+        INSERT INTO rack_wheel_norm(rackno, wheelno, standard_distance, tolerance, updated_at)
+        VALUES(?, ?, ?, 0, datetime('now', 'localtime'))
+        ON CONFLICT(rackno, wheelno) DO UPDATE SET
+            standard_distance = excluded.standard_distance,
+            updated_at = excluded.updated_at
+    )");
 
-    bool rackFound = false;
-    for (auto &rack : document) {
-        if (!rack.is_object()) continue;
-        int rno = 0;
-        if (rack.contains("rackno")) {
-            if (rack["rackno"].is_number()) rno = boundedJsonInt(rack["rackno"], 0, 1, 50);
-            else if (rack["rackno"].is_string()) rno = QString::fromStdString(rack["rackno"].get<std::string>()).toInt();
+    for (int wheel = 0; wheel < 8; ++wheel) {
+        int distVal = distances.at(wheel).toString().toInt();
+        q.bindValue(0, rackNumber);
+        q.bindValue(1, wheel + 1);
+        q.bindValue(2, distVal);
+        if (!q.exec()) {
+            LOG_ERROR("保存架轮标准距离失败: 架号={}, 轮号={}, 错误={}",
+                      rackNumber, wheel + 1, q.lastError().text().toStdString());
+            db.rollback();
+            return false;
         }
-        if (rno != rackNumber) continue;
-
-        nlohmann::json wheels = nlohmann::json::array();
-        for (int wheel = 0; wheel < 8; ++wheel) {
-            wheels.push_back({
-                {"wheelno", std::to_string(wheel + 1)},
-                {"distance", distances.at(wheel).toString().toStdString()}
-            });
-        }
-        rack["wheels"] = wheels;
-        rackFound = true;
-        break;
     }
 
-    if (!rackFound) {
+    if (!db.commit()) {
+        db.rollback();
         return false;
     }
 
-    QSaveFile output(path);
-    if (!output.open(QIODevice::WriteOnly)) {
-        return false;
-    }
-    std::string jsonStr = document.dump(4);
-    if (output.write(jsonStr.data(), jsonStr.size()) != qint64(jsonStr.size())) return false;
-    bool committed = output.commit();
-    if (committed) {
-        LOG_INFO("保存架轮标准距离成功: 架号={}", rackNumber);
-    }
-    return committed;
+    LOG_INFO("保存架轮标准距离成功: 架号={}", rackNumber);
+    return true;
 }
 
 QVariantList AppController::gearSumResult() const {
@@ -2461,12 +2419,8 @@ void AppController::ensureDirectories()
         }
     }
 
-    // 额外确保运行目录下的 incoming 和 archive 也存在（兼容用户直接查看工作目录）
-    const QString appIncoming = QDir::cleanPath(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("incoming"));
+    // 额外确保运行目录下的 archive 也存在（兼容用户直接查看工作目录）
     const QString appArchive = QDir::cleanPath(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive"));
-    if (QDir().mkpath(appIncoming)) {
-        LOG_DEBUG("创建/确认应用 incoming 目录成功: {}", appIncoming.toStdString());
-    }
     if (QDir().mkpath(appArchive)) {
         LOG_DEBUG("创建/确认应用 archive 目录成功: {}", appArchive.toStdString());
         QFile marker(QDir(appArchive).filePath(QStringLiteral(".carriervision-archive")));
@@ -2664,17 +2618,11 @@ void AppController::loadSettings()
     m_sourceDirectory = AgcUtils::normalizedPath(envSource.isEmpty() ? defaultSource : envSource);
     m_archiveDirectory = AgcUtils::normalizedPath(envArchive.isEmpty() ? defaultArchive : envArchive);
     {
-        QSettings settings(QCoreApplication::applicationDirPath() + QDir::separator() + "config.ini",
-                           QSettings::IniFormat);
-        m_listenPort = settings.value("network/tcpPort", kListenPort).toInt();
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        m_listenPort = DBSchema::getConfigInt(db, "network/tcpPort", kListenPort);
         if (m_listenPort < 1024 || m_listenPort > 65535) {
             m_listenPort = kListenPort;
-        }
-        QString stored = settings.value("security/settingsPassword").toString();
-        if (stored.isEmpty()) stored = QStringLiteral("123456");
-        if (!stored.startsWith(QStringLiteral("sha256$"))) {
-            settings.setValue("security/settingsPassword", encodePassword(stored));
-            settings.sync();
         }
     }
     // Load persisted FTP-related settings (includes slot mapping)
@@ -2768,18 +2716,26 @@ void AppController::setListenPort(int port)
         setStatusMessage(restored ? QStringLiteral("新端口不可用，已恢复原 TCP 服务") : QStringLiteral("新旧 TCP 端口均无法监听"));
         return;
     }
-    QSettings settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat);
-    settings.setValue("network/tcpPort", port);
-    settings.sync();
-    if (settings.status() != QSettings::NoError) {
-        settings.setValue("network/tcpPort", previous);
-        settings.sync();
+    bool success = false;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        success = DBSchema::setConfig(db, "network/tcpPort", QString::number(port));
+    }
+    if (!success) {
+        {
+            QMutexLocker locker(&m_dbMutex);
+            QSqlDatabase db = QSqlDatabase::database();
+            DBSchema::setConfig(db, "network/tcpPort", QString::number(previous));
+        }
         if (running) m_tcpServer.start(quint16(previous));
         setStatusMessage(QStringLiteral("TCP 配置保存失败，已恢复原端口"));
         return;
     }
     m_listenPort = port;
     emit listenPortChanged();
+    setStatusMessage(QStringLiteral("TCP 端口已更新并保存"));
+    LOG_INFO("已更新并持久化 TCP 监听端口: {}", port);
 }
 
 void AppController::resetSlotMapping()

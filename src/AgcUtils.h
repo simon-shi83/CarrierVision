@@ -13,5 +13,8 @@ QDateTime parseFlexibleDateTime(const QString &text, bool endOfDay = false);
 bool isImageFile(const QString &fileName);
 QString makeBatchId(int roundNumber, const QDateTime &receivedAt);
 QString safeNamePart(const QString &input);
+QString encodePassword(const QString &password);
+bool verifyEncodedPassword(const QString &password, const QString &stored);
 
 } // namespace AgcUtils
+

@@ -6,6 +6,7 @@
 #include <QSqlError>
 #include <QElapsedTimer>
 #include "DbSchema.h"
+#include "AgcUtils.h"
 #include "ImageIngest.h"
 #include "ArchiveMaintenance.h"
 #include "FtpServer.h"
@@ -193,6 +194,52 @@ private slots:
         QVERIFY2(reply(client).startsWith("226"),qPrintable(error)); QVERIFY(QFile::exists(imageName(dir.path())));
         server.setUsers({}); QTRY_COMPARE(server.clientCount(),0);
         server.stop();
+    }
+    void databaseDefaultsAndHelpers() {
+        QCOMPARE(DBSchema::getConfigInt(db, "network/tcpPort", 0), 22345);
+        QCOMPARE(DBSchema::getConfig(db, "ftp/rootDirectory", ""), QString("archive"));
+        QCOMPARE(DBSchema::getConfigInt(db, "cleanup/keepDays", 0), 90);
+        QCOMPARE(DBSchema::getConfigBool(db, "ui/isDark", true), false);
+
+        QVERIFY(DBSchema::setConfig(db, "ui/isDark", "true"));
+        QCOMPARE(DBSchema::getConfigBool(db, "ui/isDark", false), true);
+        QVERIFY(DBSchema::setConfig(db, "ui/isDark", "false"));
+
+        // verify ftp_users
+        QSqlQuery q(db);
+        QVERIFY(q.exec("SELECT username, password_hash FROM ftp_users"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString(), QString("agc"));
+        QVERIFY(AgcUtils::verifyEncodedPassword("123456", q.value(1).toString()));
+
+        // verify camera_slots
+        QVERIFY(q.exec("SELECT COUNT(*) FROM camera_slots"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 12);
+
+        // verify rack_wheel_norm
+        QVERIFY(q.exec("SELECT COUNT(*) FROM rack_wheel_norm"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 400); // 50 racks * 8 wheels
+    }
+    void defaultDatabasePathIsUnderDataDirectory() {
+        QString dbPath = DBSchema::defaultDatabasePath();
+        QVERIFY(dbPath.endsWith("data/dataAgc.db") || dbPath.endsWith("data\\dataAgc.db"));
+    }
+    void rackWheelNormDatabaseOperations() {
+        QSqlQuery q(db);
+        q.prepare("UPDATE rack_wheel_norm SET standard_distance = 150 WHERE rackno = 5 AND wheelno = 3");
+        QVERIFY(q.exec());
+
+        q.prepare("SELECT standard_distance FROM rack_wheel_norm WHERE rackno = 5 AND wheelno = 3");
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 150);
+
+        q.prepare("SELECT standard_distance FROM rack_wheel_norm WHERE rackno = 5 AND wheelno = 4");
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 0);
     }
 };
 QTEST_GUILESS_MAIN(ReleaseBoundaryTests)

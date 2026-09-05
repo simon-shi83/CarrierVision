@@ -4,6 +4,8 @@
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QSet>
+#include <QCryptographicHash>
+#include <QRandomGenerator>
 
 namespace AgcUtils {
 
@@ -131,6 +133,31 @@ QString safeNamePart(const QString &input)
     }
 
     return cleaned;
+}
+
+QString encodePassword(const QString &password)
+{
+    QByteArray salt(16, Qt::Uninitialized);
+    for (char &byte : salt) byte = static_cast<char>(QRandomGenerator::global()->generate() & 0xff);
+    QByteArray digest = password.toUtf8();
+    for (int i = 0; i < 20'000; ++i) {
+        digest = QCryptographicHash::hash(salt + digest, QCryptographicHash::Sha256);
+    }
+    return QStringLiteral("sha256$%1$%2")
+        .arg(QString::fromLatin1(salt.toHex()), QString::fromLatin1(digest.toHex()));
+}
+
+bool verifyEncodedPassword(const QString &password, const QString &stored)
+{
+    if (!stored.startsWith(QStringLiteral("sha256$"))) return password == stored;
+    const QStringList fields = stored.split(u'$');
+    if (fields.size() != 3) return false;
+    const QByteArray salt = QByteArray::fromHex(fields.at(1).toLatin1());
+    QByteArray digest = password.toUtf8();
+    for (int i = 0; i < 20'000; ++i) {
+        digest = QCryptographicHash::hash(salt + digest, QCryptographicHash::Sha256);
+    }
+    return QString::fromLatin1(digest.toHex()) == fields.at(2);
 }
 
 } // namespace AgcUtils
