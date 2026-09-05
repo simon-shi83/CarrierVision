@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(VERSION_MAJOR 5  CACHE STRING "主版本号")
+set(VERSION_MAJOR 1  CACHE STRING "主版本号")
 set(VERSION_MINOR 0  CACHE STRING "子版本号")
 set(VERSION_PATCH 0  CACHE STRING "修正号")
 set(VERSION_SUFFIX "unknown" CACHE STRING "Git suffix")
