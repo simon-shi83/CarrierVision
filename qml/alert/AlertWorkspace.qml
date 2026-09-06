@@ -25,6 +25,13 @@ Item {
         }
     ]
 
+    function switchTab(tabIndex) {
+        if (tabIndex >= 0 && tabIndex < menuData.length) {
+            navMenu.currentIndex = tabIndex;
+            contentLoader.source = menuData[tabIndex].pageSource;
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 10

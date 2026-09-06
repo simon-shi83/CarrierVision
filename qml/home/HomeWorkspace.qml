@@ -1,6 +1,8 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import ".."
+import "../common"
 
 Page {
     id: root
@@ -8,6 +10,11 @@ Page {
     background: Rectangle {
         color: "transparent"
     }
+
+    // 0: 3D数字孪生视窗, 1: 实时点检批次
+    property int currentLeftCardView: 0
+
+    property string batchSummaryText: (typeof appController !== 'undefined' && appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0) ? ("TCP 消息: " + appController.lastTcpMessage) : ((typeof appController !== 'undefined' && appController && appController.currentSerialsRaw && appController.currentSerialsRaw.length > 0) ? ("当前序列号: " + appController.currentSerialsRaw) : "等待新的 TCP 点检信号...")
 
     property var detectionOverview: ({})
     readonly property int currentRack: detectionOverview.rack || 0
@@ -64,7 +71,8 @@ Page {
 
     // 将 3D 标签名称转换为轮号
     function tagNameToWheel(name) {
-        if (!name) return 0;
+        if (!name)
+            return 0;
         if (name.indexOf("驱动轮") === 0) {
             var dwNum = parseInt(name.substring(3));
             return (dwNum >= 1 && dwNum <= 8) ? dwNum : 0;
@@ -132,16 +140,10 @@ Page {
             Layout.preferredHeight: 32
             radius: Theme.radiusSm
 
-            color: isSelected ?
-                       (Theme.isDark ? "#223554" : "#e0edff") :
-                       (resultMouse.containsMouse ?
-                           (Theme.isDark ? "#1b283d" : "#f1f5f9") :
-                           (!hasResult ? Theme.bgCard : (isOk ? Theme.okBg : Theme.ngBg)))
+            color: isSelected ? (Theme.isDark ? "#223554" : "#e0edff") : (resultMouse.containsMouse ? (Theme.isDark ? "#1b283d" : "#f1f5f9") : (!hasResult ? Theme.bgCard : (isOk ? Theme.okBg : Theme.ngBg)))
 
             border.width: isSelected ? 1.5 : 1
-            border.color: isSelected ? Theme.primary :
-                          (resultMouse.containsMouse ? (Theme.isDark ? "#3b82f6" : "#93c5fd") :
-                          (!hasResult ? Theme.borderSubtle : (isOk ? Theme.okBorder : Theme.ngBorder)))
+            border.color: isSelected ? Theme.primary : (resultMouse.containsMouse ? (Theme.isDark ? "#3b82f6" : "#93c5fd") : (!hasResult ? Theme.borderSubtle : (isOk ? Theme.okBorder : Theme.ngBorder)))
 
             Behavior on color {
                 ColorAnimation {
@@ -344,7 +346,7 @@ Page {
                     }
 
                     Label {
-                        text: "Carrier 3D 机构数字孪生视窗"
+                        text: root.currentLeftCardView === 0 ? "Carrier 机构数字孪生视窗" : "Carrier 实时点检工位图像"
                         color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeH2
@@ -355,7 +357,7 @@ Page {
                         Layout.fillWidth: true
                     }
 
-                    // 实时架号状态指示胶囊
+                    // 1. 3D 模式：实时架号状态指示胶囊
                     Rectangle {
                         Layout.preferredHeight: 28
                         implicitWidth: rackStatusRow.implicitWidth + 24
@@ -363,6 +365,7 @@ Page {
                         color: currentRack > 0 ? Theme.bgCardActive : Theme.bgCardElevated
                         border.color: currentRack > 0 ? Theme.primary : Theme.borderMedium
                         border.width: 1
+                        visible: root.currentLeftCardView === 0
 
                         RowLayout {
                             id: rackStatusRow
@@ -401,36 +404,193 @@ Page {
                             }
                         }
                     }
+
+                    // 2. 批次模式：TCP / 序列号实时状态指示胶囊
+                    Rectangle {
+                        Layout.preferredHeight: 28
+                        implicitWidth: batchTcpRow.implicitWidth + 20
+                        radius: Theme.radiusPill
+                        color: Theme.bgCardElevated
+                        border.color: Theme.borderSubtle
+                        border.width: 1
+                        visible: root.currentLeftCardView === 1
+
+                        RowLayout {
+                            id: batchTcpRow
+                            anchors.centerIn: parent
+                            spacing: 6
+
+                            Rectangle {
+                                width: 6
+                                height: 6
+                                radius: 3
+                                color: Theme.primaryLight
+                            }
+
+                            Text {
+                                text: root.batchSummaryText
+                                color: Theme.primaryLight
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                            }
+                        }
+                    }
+
+                    // 3. 卡片右上角视图切换控制胶囊 (Segmented Toggle Control)
+                    Rectangle {
+                        id: viewSwitchContainer
+                        Layout.preferredHeight: 30
+                        implicitWidth: switchRow.implicitWidth + 8
+                        radius: Theme.radiusPill
+                        color: Theme.bgInput
+                        border.width: 1
+                        border.color: Theme.borderMedium
+
+                        RowLayout {
+                            id: switchRow
+                            anchors.centerIn: parent
+                            spacing: 3
+
+                            // 选项 1：数字孪生视图
+                            Rectangle {
+                                id: btn3D
+                                Layout.preferredHeight: 24
+                                implicitWidth: seg3DRow.implicitWidth + 18
+                                radius: 12
+                                color: root.currentLeftCardView === 0 ? Theme.primary : (mouse3D.containsMouse ? Theme.bgCardElevated : "transparent")
+                                border.width: 1
+                                border.color: root.currentLeftCardView === 0 ? Theme.primaryLight : "transparent"
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animFast
+                                    }
+                                }
+
+                                RowLayout {
+                                    id: seg3DRow
+                                    anchors.centerIn: parent
+                                    spacing: 5
+
+                                    AppIcon {
+                                        name: "icon_3d"
+                                        size: 13
+                                        color: root.currentLeftCardView === 0 ? Theme.textInverse : (mouse3D.containsMouse ? Theme.textPrimary : Theme.textSecondary)
+                                    }
+
+                                    Text {
+                                        text: "数字孪生视图"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.bold: root.currentLeftCardView === 0
+                                        color: root.currentLeftCardView === 0 ? Theme.textInverse : (mouse3D.containsMouse ? Theme.textPrimary : Theme.textSecondary)
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: mouse3D
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.currentLeftCardView = 0
+                                }
+                            }
+
+                            // 选项 2：工位实时图像
+                            Rectangle {
+                                id: btnBatch
+                                Layout.preferredHeight: 24
+                                implicitWidth: segBatchRow.implicitWidth + 18
+                                radius: 12
+                                color: root.currentLeftCardView === 1 ? Theme.primary : (mouseBatch.containsMouse ? Theme.bgCardElevated : "transparent")
+                                border.width: 1
+                                border.color: root.currentLeftCardView === 1 ? Theme.primaryLight : "transparent"
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animFast
+                                    }
+                                }
+
+                                RowLayout {
+                                    id: segBatchRow
+                                    anchors.centerIn: parent
+                                    spacing: 5
+
+                                    AppIcon {
+                                        name: "nav_batch"
+                                        size: 13
+                                        color: root.currentLeftCardView === 1 ? Theme.textInverse : (mouseBatch.containsMouse ? Theme.textPrimary : Theme.textSecondary)
+                                    }
+
+                                    Text {
+                                        text: "工位实时图像"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.bold: root.currentLeftCardView === 1
+                                        color: root.currentLeftCardView === 1 ? Theme.textInverse : (mouseBatch.containsMouse ? Theme.textPrimary : Theme.textSecondary)
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: mouseBatch
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.currentLeftCardView = 1
+                                }
+                            }
+                        }
+
+                        ToolTip.visible: mouse3D.containsMouse || mouseBatch.containsMouse
+                        ToolTip.delay: 300
+                        ToolTip.text: "点击切换数字孪生视图与工位实时图像"
+                    }
                 }
 
                 Label {
-                    text: "交互式三维实体数字孪生 · 左键旋转 · 右键平移 · 滚轮缩放"
+                    text: root.currentLeftCardView === 0 ? "Carrier 载具数字孪生三维交互 · 左键旋转 · 右键平移 · 滚轮缩放" : "12 工位点检图像实时回传 · 点击卡片进入全屏缩放检验"
                     color: Theme.textMuted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSmall
                 }
 
-                // 3D 工作台视窗容器
-                Rectangle {
-                    id: processDiagram
+                // 主工作台视窗容器（3D 数字孪生 与 工位实时图像网格）
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
-                    border.width: 1
-                    border.color: Theme.borderSubtle
-                    clip: true
 
-                    DesignShow {
-                        id: designShow
+                    // 1. 3D 工作台视窗容器 (保活 OpenGL/3D 缓存，仅控制 visible)
+                    Rectangle {
+                        id: processDiagram
                         anchors.fill: parent
-                        showHeader: false
-                        onSelectedTagChanged: {
-                            var w = root.tagNameToWheel(selectedTag);
-                            if (root.selectedWheel !== w) {
-                                root.selectedWheel = w;
+                        radius: Theme.radiusMd
+                        color: Theme.bgInput
+                        border.width: 1
+                        border.color: Theme.borderSubtle
+                        clip: true
+                        visible: root.currentLeftCardView === 0
+
+                        DesignShow {
+                            id: designShow
+                            anchors.fill: parent
+                            showHeader: false
+                            onSelectedTagChanged: {
+                                var w = root.tagNameToWheel(selectedTag);
+                                if (root.selectedWheel !== w) {
+                                    root.selectedWheel = w;
+                                }
                             }
                         }
+                    }
+
+                    // 2. 工位实时图像网格容器 (嵌入模式，委派外层 ZoomOverlay)
+                    RealtimeStationImageView {
+                        id: realtimeStationImageView
+                        anchors.fill: parent
+                        visible: root.currentLeftCardView === 1
+                        embeddedMode: true
+                        externalViewer: imagePreview
                     }
                 }
             }

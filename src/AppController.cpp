@@ -457,6 +457,12 @@ AppController::AppController(QObject *parent)
         setStatusMessage(message);
     });
 
+    AppLogger::setLogCallback([this](const QString &/*level*/, const QString &/*message*/, const QString &/*time*/) {
+        QMetaObject::invokeMethod(this, [this]() {
+            emit latestWarnOrErrorChanged();
+        }, Qt::QueuedConnection);
+    });
+
     // 仅在构造时单次连接原始消息，避免每次收到架子信号时重复 connect 造成信号泄漏
     connect(&m_tcpServer, &TcpMessageServer::rawMessageReceived, this, [this](const QString &msg) {
         m_lastTcpMessage = msg;
@@ -1233,10 +1239,22 @@ void AppController::recoverPendingUploads()
 
 AppController::~AppController()
 {
+    AppLogger::setLogCallback(nullptr);
     m_logPool.waitForDone();
     m_tcpServer.stop();
     stopFtpServer();
     // CopyWorker removed
+}
+
+QVariantMap AppController::latestWarnOrError() const
+{
+    return AppLogger::latestWarningOrError();
+}
+
+void AppController::clearLatestWarnOrError()
+{
+    AppLogger::clearLatestWarningOrError();
+    emit latestWarnOrErrorChanged();
 }
 
 QString AppController::sourceDirectory() const

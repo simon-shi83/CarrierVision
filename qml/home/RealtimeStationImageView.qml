@@ -12,7 +12,7 @@ Rectangle {
     Layout.fillHeight: true
 
     property var imageModel: (typeof appController !== 'undefined' && appController) ? appController.currentImagesModel : null
-    property string titleText: "实时点检批次图像监控"
+    property string titleText: "实时工位图像监控"
     property string summaryText: (appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0)
                                      ? ("TCP 消息: " + appController.lastTcpMessage)
                                      : ((appController && appController.currentSerialsRaw.length > 0)
@@ -43,25 +43,30 @@ Rectangle {
         }
     }
 
-    radius: Theme.radiusLg
-    color: Theme.bgCard
-    border.width: 1
-    border.color: Theme.borderMedium
+    property bool embeddedMode: false
+    property var externalViewer: null
+
+    radius: embeddedMode ? 0 : Theme.radiusLg
+    color: embeddedMode ? "transparent" : Theme.bgCard
+    border.width: embeddedMode ? 0 : 1
+    border.color: embeddedMode ? "transparent" : Theme.borderMedium
 
     ZoomOverlay {
         id: viewer
         anchors.fill: parent
+        visible: !root.embeddedMode && viewerSource !== ""
     }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 8
+        anchors.margins: root.embeddedMode ? 0 : 12
+        spacing: root.embeddedMode ? 0 : 8
 
         // 顶栏汇总指示
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
+            visible: !root.embeddedMode
 
             Rectangle {
                 width: 4
@@ -159,7 +164,11 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         onActivate: function(sourceUrl, title, subtitle) {
-                            viewer.openViewer(sourceUrl, title, subtitle)
+                            if (root.externalViewer) {
+                                root.externalViewer.openViewer(sourceUrl, title, subtitle)
+                            } else {
+                                viewer.openViewer(sourceUrl, title, subtitle)
+                            }
                         }
                     }
                 }

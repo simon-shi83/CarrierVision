@@ -46,6 +46,18 @@ Page {
         logRequestId = appController.requestLogs(dStr, lvl, kw, currentPage, pageSize)
     }
 
+    function filterByLevel(lvl) {
+        var lower = String(lvl).toLowerCase();
+        for (var i = 0; i < levelCombo.model.length; i++) {
+            if (levelCombo.model[i].value === lower) {
+                levelCombo.currentIndex = i;
+                break;
+            }
+        }
+        currentPage = 1;
+        queryCurrentPage();
+    }
+
     Connections {
         target: appController
         function onLogQueryFinished(requestId, res) {

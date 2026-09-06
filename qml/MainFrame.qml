@@ -142,11 +142,20 @@ Window {
     Connections {
         target: appController
         function onGenericSearchRequested(startDate, endDate, wheelNumber, resultType) {
-            navMenu.navigateTo(3, mainwindow.menuData[3]);
-            Qt.callLater(function () {
-                if (contentLoader.item && contentLoader.item.openGenericQuery)
-                    contentLoader.item.openGenericQuery(startDate, endDate, wheelNumber, resultType);
-            });
+            var searchIdx = -1;
+            for (var i = 0; i < mainwindow.menuData.length; i++) {
+                if (mainwindow.menuData[i].title === "数据查询" || (mainwindow.menuData[i].pageSource && mainwindow.menuData[i].pageSource.indexOf("SearchWorkspace.qml") !== -1)) {
+                    searchIdx = i;
+                    break;
+                }
+            }
+            if (searchIdx >= 0) {
+                navMenu.navigateTo(searchIdx, mainwindow.menuData[searchIdx]);
+                Qt.callLater(function () {
+                    if (contentLoader.item && contentLoader.item.openGenericQuery)
+                        contentLoader.item.openGenericQuery(startDate, endDate, wheelNumber, resultType);
+                });
+            }
         }
     }
 
@@ -159,19 +168,13 @@ Window {
             pageSource: "home/HomeWorkspace.qml"
         },
         {
-            title: "实时批次",
-            iconName: "nav_batch",
-            iconText: "▣",
-            pageSource: "batch/BatchWorkspace.qml"
-        },
-        {
-            title: "全景监控",
+            title: "热力矩阵",
             iconName: "nav_monitor",
             iconText: "▦",
             pageSource: "monitor/MonitorWorkspace.qml"
         },
         {
-            title: "历史查询",
+            title: "数据查询",
             iconName: "nav_search",
             iconText: "☵",
             pageSource: "search/SearchWorkspace.qml",
@@ -185,7 +188,7 @@ Window {
             enabled: true
         },
         {
-            title: "报警中心",
+            title: "报警统计",
             iconName: "nav_alert",
             iconText: "▲",
             pageSource: "alert/AlertWorkspace.qml",
@@ -245,6 +248,44 @@ Window {
             onExit: {
                 exitPasswordDialog.open();
             }
+            onNavigateRequested: (index, subAction) => {
+                if (index >= 0 && index < mainwindow.menuData.length) {
+                    if (navMenu.activationHandler && navMenu.activationHandler(index, mainwindow.menuData[index]) === false) {
+                        return;
+                    }
+                    navMenu.navigateTo(index, mainwindow.menuData[index]);
+                    if (subAction !== undefined && subAction !== null) {
+                        Qt.callLater(function () {
+                            var item = (index === 0) ? homePageLoader.item : contentLoader.item;
+                            if (!item) return;
+                            if (typeof subAction === "number") {
+                                if (typeof item.switchTab === "function") {
+                                    item.switchTab(subAction);
+                                }
+                            } else if (typeof subAction === "string") {
+                                if (subAction === "twin" && typeof item.currentLeftCardView !== "undefined") {
+                                    item.currentLeftCardView = 0;
+                                } else if (subAction === "station" && typeof item.currentLeftCardView !== "undefined") {
+                                    item.currentLeftCardView = 1;
+                                } else if (subAction === "today" && typeof item.openGenericQuery === "function") {
+                                    var today = new Date().toISOString().slice(0, 10);
+                                    item.openGenericQuery(today + " 00:00:00", today + " 23:59:59", 0, "");
+                                } else if (subAction === "ng" && typeof item.openGenericQuery === "function") {
+                                    item.openGenericQuery("", "", 0, "NG");
+                                } else if (typeof item.filterByLevel === "function") {
+                                    item.filterByLevel(subAction);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        // F11 快捷键切换全屏
+        Shortcut {
+            sequence: "F11"
+            onActivated: head.toggleFullScreen()
         }
 
         // 2. 导航菜单 (内嵌水平导航栏)
@@ -534,8 +575,9 @@ Window {
 
             statusItems: mainwindow.statusItems
 
-            onItemClicked: {
-                console.log("状态栏点击:", itemData.modelId, itemData.text);
+            onItemClicked: function(index, itemData) {
+                if (itemData)
+                    console.log("状态栏点击:", itemData.modelId, itemData.text);
             }
         }
     }

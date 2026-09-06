@@ -49,6 +49,7 @@ class AppController : public QObject
     Q_PROPERTY(QVariantList gearSumResult READ gearSumResult NOTIFY gearSumResultChanged)
     Q_PROPERTY(QString ftpLog READ ftpLog NOTIFY ftpLogChanged)
     Q_PROPERTY(QVariantList ftpLogLines READ ftpLogLines NOTIFY ftpLogChanged)
+    Q_PROPERTY(QVariantMap latestWarnOrError READ latestWarnOrError NOTIFY latestWarnOrErrorChanged)
 
 public:
     explicit AppController(QObject *parent = nullptr);
@@ -158,8 +159,12 @@ public:
 
     QVariantList gearSumResult() const;
 
+    QVariantMap latestWarnOrError() const;
+    Q_INVOKABLE void clearLatestWarnOrError();
+
 signals:
     void logQueryFinished(int requestId, const QVariantMap &result);
+    void latestWarnOrErrorChanged();
     void sourceDirectoryChanged();
     void archiveDirectoryChanged();
     void listenPortChanged();

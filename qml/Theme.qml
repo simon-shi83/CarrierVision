@@ -66,6 +66,7 @@ QtObject {
     // 4.1 OK 正常合格 (Emerald 翡翠翠绿)
     readonly property color ok: isDark ? "#10b981" : "#059669"
     readonly property color okLight: isDark ? "#34d399" : "#059669"
+    readonly property color accentSuccess: okLight
     readonly property color okBg: isDark ? "#1810b981" : "#ecfdf5"
     readonly property color okBorder: isDark ? "#4010b981" : "#a7f3d0"
 

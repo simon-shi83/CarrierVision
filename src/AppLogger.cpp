@@ -27,6 +27,26 @@ constexpr uint64_t MAX_SINGLE_FILE_SIZE = 50 * 1024 * 1024ULL;
 // 总日志大小上限：1GB
 constexpr uint64_t MAX_TOTAL_LOGS_SIZE = 1024 * 1024 * 1024ULL;
 
+static AppLogger::LogCallback s_logCallback;
+static std::mutex s_logCallbackMutex;
+static QVariantMap s_latestWarnOrError;
+
+static void notifyLogEntry(const QString &level, const QString &message, const QString &time)
+{
+    std::lock_guard<std::mutex> lock(s_logCallbackMutex);
+    if (level == QStringLiteral("WARN") || level == QStringLiteral("WARNING") ||
+        level == QStringLiteral("ERROR") || level == QStringLiteral("CRITICAL")) {
+        s_latestWarnOrError = QVariantMap{
+            {QStringLiteral("level"), level},
+            {QStringLiteral("message"), message},
+            {QStringLiteral("time"), time}
+        };
+    }
+    if (s_logCallback) {
+        s_logCallback(level, message, time);
+    }
+}
+
 class DailyRollingSizeRetentionSink final : public spdlog::sinks::base_sink<std::mutex>
 {
 public:
@@ -77,6 +97,15 @@ protected:
             fileStream_->flush();
             currentFileSize_ += writeBytes;
             totalBytesWrittenSinceClean_ += writeBytes;
+        }
+
+        // 5. 提取日志级别与通知（针对直接调用 LOG_WARN, LOG_ERROR, LOG_CRITICAL）
+        if (msg.level == spdlog::level::warn || msg.level == spdlog::level::err || msg.level == spdlog::level::critical) {
+            QString lvlStr = (msg.level == spdlog::level::warn) ? QStringLiteral("WARN") :
+                             (msg.level == spdlog::level::err) ? QStringLiteral("ERROR") : QStringLiteral("CRITICAL");
+            QString msgStr = QString::fromUtf8(msg.payload.data(), static_cast<int>(msg.payload.size()));
+            QString timeStr = QString::fromStdString(formatDate(now));
+            notifyLogEntry(lvlStr, msgStr, timeStr);
         }
 
         // 每写入约 10MB 或分卷时进行一次整体容量检查
@@ -235,6 +264,7 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
     if (!lg) return;
 
     std::string text = msg.toStdString();
+    QString timeStr = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
     switch (type) {
     case QtDebugMsg:
         lg->debug(text);
@@ -244,12 +274,15 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
         break;
     case QtWarningMsg:
         lg->warn(text);
+        notifyLogEntry(QStringLiteral("WARN"), msg, timeStr);
         break;
     case QtCriticalMsg:
         lg->error(text);
+        notifyLogEntry(QStringLiteral("ERROR"), msg, timeStr);
         break;
     case QtFatalMsg:
         lg->critical(text);
+        notifyLogEntry(QStringLiteral("CRITICAL"), msg, timeStr);
         break;
     }
 }
@@ -340,6 +373,24 @@ void AppLogger::cleanupOldLogsIfNeeded()
     if (s_retentionSink) {
         s_retentionSink->cleanOldLogsIfNeeded();
     }
+}
+
+void AppLogger::setLogCallback(LogCallback cb)
+{
+    std::lock_guard<std::mutex> lock(s_logCallbackMutex);
+    s_logCallback = std::move(cb);
+}
+
+QVariantMap AppLogger::latestWarningOrError()
+{
+    std::lock_guard<std::mutex> lock(s_logCallbackMutex);
+    return s_latestWarnOrError;
+}
+
+void AppLogger::clearLatestWarningOrError()
+{
+    std::lock_guard<std::mutex> lock(s_logCallbackMutex);
+    s_latestWarnOrError.clear();
 }
 
 void AppLogger::cleanupLogsOlderThanDays(int days)

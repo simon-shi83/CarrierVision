@@ -31,6 +31,12 @@ public:
     static QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize);
     static QVariantMap getLogStats();
 
+    // 实时日志监听回调（level: "INFO"/"WARN"/"ERROR"/"CRITICAL", message, time）
+    using LogCallback = std::function<void(const QString &level, const QString &message, const QString &time)>;
+    static void setLogCallback(LogCallback cb);
+    static QVariantMap latestWarningOrError();
+    static void clearLatestWarningOrError();
+
     // 手动触发容量检查与清理（通常会自动触发）
     static void cleanupOldLogsIfNeeded();
     // 根据保留期限清理超期日志（超过指定天数的日志文件自动删除）

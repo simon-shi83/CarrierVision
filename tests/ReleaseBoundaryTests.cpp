@@ -317,6 +317,37 @@ private slots:
         QCOMPARE(QImage(path2).pixelColor(0, 0), QColor(Qt::blue));
         server.stop();
     }
+    void loggerEscalationAndCallback() {
+        QTemporaryDir dir;
+        AppLogger::init(dir.path());
+        bool callbackCalled = false;
+        QString lastLevel;
+        QString lastMsg;
+        AppLogger::setLogCallback([&](const QString &level, const QString &msg, const QString &/*time*/) {
+            callbackCalled = true;
+            lastLevel = level;
+            lastMsg = msg;
+        });
+
+        LOG_WARN("测试告警消息123");
+        QCOMPARE(lastLevel, QStringLiteral("WARN"));
+        QVERIFY(lastMsg.contains("测试告警消息123"));
+        QVariantMap warnMap = AppLogger::latestWarningOrError();
+        QCOMPARE(warnMap.value("level").toString(), QStringLiteral("WARN"));
+        QVERIFY(warnMap.value("message").toString().contains("测试告警消息123"));
+
+        LOG_ERROR("测试严重错误456");
+        QCOMPARE(lastLevel, QStringLiteral("ERROR"));
+        QVERIFY(lastMsg.contains("测试严重错误456"));
+        QVariantMap errMap = AppLogger::latestWarningOrError();
+        QCOMPARE(errMap.value("level").toString(), QStringLiteral("ERROR"));
+        QVERIFY(errMap.value("message").toString().contains("测试严重错误456"));
+
+        AppLogger::clearLatestWarningOrError();
+        QVERIFY(AppLogger::latestWarningOrError().isEmpty());
+        AppLogger::setLogCallback(nullptr);
+        AppLogger::shutdown();
+    }
 };
 QTEST_GUILESS_MAIN(ReleaseBoundaryTests)
 #include "ReleaseBoundaryTests.moc"

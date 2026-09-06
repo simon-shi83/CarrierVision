@@ -133,9 +133,7 @@ qt_add_qml_module(CarrierVision
         qml/home/DesignShow.qml
         qml/home/DesignShowCore.qml
         qml/home/DesignShowCache.qml
-
-        # 实时批次
-        qml/batch/BatchWorkspace.qml
+        qml/home/RealtimeStationImageView.qml
 
         # 全景监控
         qml/monitor/MonitorWorkspace.qml
