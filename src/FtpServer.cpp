@@ -809,7 +809,7 @@ bool FtpServer::listen(const QHostAddress &addr, quint16 port, const QString &ro
     }
     emit runningChanged(true);
     emit logMessage(ftpLogPrefix() + QStringLiteral("FTP 服务启动: port=%1 root=%2").arg(port).arg(rootDir));
-    LOG_INFO("FTP 底层监听成功: 端口={}, 根目录={}", port, rootDir.toStdString());
+    LOG_DEBUG("FTP 底层监听成功: 端口={}, 根目录={}", port, rootDir.toStdString());
     return true;
 }
 
@@ -839,7 +839,7 @@ void FtpServer::stop()
     emit clientCountChanged(m_clientCount);
     emit runningChanged(false);
     emit logMessage(ftpLogPrefix() + QStringLiteral("FTP 服务停止"));
-    LOG_INFO("FTP 底层服务已停止");
+    LOG_DEBUG("FTP 底层服务已停止");
 }
 
 void FtpServer::setUsers(const QMap<QString, QString> &users, bool allowAnonymous)

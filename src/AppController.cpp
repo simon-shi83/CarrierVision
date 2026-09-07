@@ -477,18 +477,12 @@ AppController::AppController(QObject *parent)
                                cleanMessage.contains(QStringLiteral("失败")) ||
                                cleanMessage.contains(QStringLiteral("failed")) ||
                                cleanMessage.contains(QStringLiteral("error"));
-        const bool isKeyMilestone = cleanMessage.contains(QStringLiteral("上传处理完成")) ||
-                                    cleanMessage.contains(QStringLiteral("服务启动")) ||
-                                    cleanMessage.contains(QStringLiteral("服务停止"));
 
         if (isCritical) {
             LOG_WARN("[FTP] {}", cleanMessage.toStdString());
             setStatusMessage(cleanMessage);
-        } else if (isKeyMilestone) {
-            LOG_INFO("[FTP] {}", cleanMessage.toStdString());
-            setStatusMessage(cleanMessage);
         } else {
-            // 详细协议交互（如 CMD USER/PASS/TYPE/EPSV/STOR, RSP 200/226/150/229, 创建目录, attachDataSocket 等）记录为 DEBUG
+            // 详细协议交互（如 CMD/RSP、服务内部状态、目录与文件事件等）记录为 DEBUG，避免与应用层关键里程碑日志重复
             LOG_DEBUG("[FTP] {}", cleanMessage.toStdString());
         }
 

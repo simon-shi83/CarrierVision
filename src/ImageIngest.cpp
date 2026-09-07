@@ -111,8 +111,8 @@ bool validate(const QString &file, const QString &target, QString &error)
     const qint64 fileSize = info.exists() ? info.size() : -1;
     const QString fileName = QFileInfo(target).fileName();
 
-    LOG_INFO("[INGEST] 收到上传文件: target='{}', staged='{}', 大小={} 字节",
-             target.toStdString(), file.toStdString(), fileSize);
+    LOG_DEBUG("[INGEST] 收到上传文件: target='{}', staged='{}', 大小={} 字节",
+              target.toStdString(), file.toStdString(), fileSize);
 
     Metadata metadata;
     if (!parse(target, metadata, error)) {
