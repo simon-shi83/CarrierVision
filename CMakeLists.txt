@@ -220,7 +220,7 @@ set_target_properties(CarrierVision PROPERTIES
 
 include(GNUInstallDirs)
 if(WIN32)
-    target_sources(CarrierVision PRIVATE src/CarrierVision.rc)
+    target_sources(CarrierVision PRIVATE icons/CarrierVision.rc)
     target_include_directories(CarrierVision PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/icons")
     set_target_properties(CarrierVision PROPERTIES
         OUTPUT_NAME "CarrierVision_app"
@@ -234,7 +234,7 @@ if(WIN32)
     # 根目录放置零外部依赖的轻量 Win32 原生启动器 CarrierVision.exe (透明拉起 lib/CarrierVision_app.exe)
     add_executable(CarrierVisionLauncher WIN32
         src/launcher_win.cpp
-        src/CarrierVision.rc
+        icons/CarrierVision.rc
     )
     target_include_directories(CarrierVisionLauncher PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/icons")
     target_compile_definitions(CarrierVisionLauncher PRIVATE UNICODE _UNICODE)

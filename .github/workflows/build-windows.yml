@@ -47,7 +47,14 @@ jobs:
       - name: Build Project
         shell: pwsh
         run: |
-          cmake --build build --config Release --parallel
+          cmake --build build --config Release --parallel 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Build Failed Log Output"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+            Get-Content build.log -Tail 200 | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+            exit 1
+          }
 
       - name: Deploy Windows Package
         shell: pwsh
