@@ -709,20 +709,20 @@ Item {
                                 Layout.fillWidth: true
                             }
                             Label {
-                                text: "查看本地图像归档及运行日志的实际存储路径"
+                                text: "查看本地点检图像及运行日志的实际存储路径"
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
 
-                        // 历史图像归档目录
+                        // 点检图像存储目录
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
 
                             Label {
-                                text: "图像归档目录:"
+                                text: "图像存储目录:"
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontBody
@@ -743,7 +743,7 @@ Item {
                                     anchors.leftMargin: 10
                                     anchors.rightMargin: 10
                                     verticalAlignment: Text.AlignVCenter
-                                    text: appController ? appController.archiveDirectory : ""
+                                    text: appController ? (appController.imagesDirectory ? appController.imagesDirectory : appController.archiveDirectory) : ""
                                     color: Theme.textPrimary
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontBody
@@ -752,7 +752,7 @@ Item {
                             }
 
                             ActionButton {
-                                text: "打开归档目录"
+                                text: "打开图像目录"
                                 variant: "secondary"
                                 Layout.preferredWidth: 96
                                 Layout.preferredHeight: 32

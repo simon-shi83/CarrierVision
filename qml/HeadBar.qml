@@ -684,7 +684,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "act_open_archive",
-                                title: "打开本地图像归档存储目录",
+                                title: "打开本地点检图像存储目录",
                                 subtitle: "在本地文件管理器中直接定位检测图片存储路径",
                                 category: "数据存储",
                                 icon: "icon_file_text",

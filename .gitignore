@@ -32,8 +32,11 @@ ui_*.h
 qrc_*.cpp
 *.moc
 
-# --- 运行时数据、图像归档与日志 ---
+# --- 运行时数据、点检图像与日志 ---
+images/
+images
 archive/
+archive
 logs/
 bin/logs/
 *.log

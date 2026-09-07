@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/build/Debug/bin/CarrierVision",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/build/Debug/bin/",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -25,7 +25,6 @@
             ],
             "preLaunchTask": "Linux: Debug 编译 (Build)"
         },
-
         // ====================================================================
         //  Windows 调试配置 (Visual Studio MSVC / C++)
         // ====================================================================
@@ -36,12 +35,11 @@
             "program": "${workspaceFolder}/build/Debug/bin/CarrierVision.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/build/Debug/bin/",
             "environment": [],
             "externalConsole": false,
             "preLaunchTask": "Windows: Debug 编译 (Build)"
         },
-
         // ====================================================================
         //  Windows 调试配置 (MinGW / GDB)
         // ====================================================================
@@ -52,7 +50,7 @@
             "program": "${workspaceFolder}/build/Debug/bin/CarrierVision.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/build/Debug/bin/",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

@@ -99,7 +99,7 @@ static void migrateLegacyFiles(QSqlDatabase &db) {
             }
         };
         copyVal("ftp/port", "21");
-        copyVal("ftp/rootDirectory", "archive");
+        copyVal("ftp/rootDirectory", "images");
         copyVal("cleanup/keepDays", "90");
         copyVal("cleanup/logKeepDays", "30");
         copyVal("cleanup/runHour", "1");
@@ -139,8 +139,8 @@ static void migrateLegacyFiles(QSqlDatabase &db) {
                     }
                     if (obj.contains("ftpRoot") && obj["ftpRoot"].is_string()) {
                         QString r = QString::fromStdString(obj["ftpRoot"].get<std::string>()).trimmed();
-                        if (r.endsWith("incoming", Qt::CaseInsensitive)) {
-                            r = "archive";
+                        if (r.endsWith("incoming", Qt::CaseInsensitive) || r.endsWith("archive", Qt::CaseInsensitive)) {
+                            r = "images";
                         }
                         if (!r.isEmpty()) DBSchema::setConfig(db, "ftp/rootDirectory", r);
                     }
@@ -460,7 +460,9 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
 
     // system_config defaults
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/port', '21', datetime('now', 'localtime'))");
-    q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/rootDirectory', 'archive', datetime('now', 'localtime'))");
+    q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/rootDirectory', 'images', datetime('now', 'localtime'))");
+    // 自动将历史默认配置 'archive' 升级为规范的 'images'
+    q.exec("UPDATE system_config SET value = 'images', updated_at = datetime('now', 'localtime') WHERE key = 'ftp/rootDirectory' AND value = 'archive'");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('cleanup/keepDays', '90', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('cleanup/logKeepDays', '30', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('cleanup/runHour', '1', datetime('now', 'localtime'))");

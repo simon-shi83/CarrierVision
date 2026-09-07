@@ -196,7 +196,7 @@ private slots:
         server.stop();
     }
     void databaseDefaultsAndHelpers() {
-        QCOMPARE(DBSchema::getConfig(db, "ftp/rootDirectory", ""), QString("archive"));
+        QCOMPARE(DBSchema::getConfig(db, "ftp/rootDirectory", ""), QString("images"));
         QCOMPARE(DBSchema::getConfigInt(db, "cleanup/keepDays", 0), 90);
         QCOMPARE(DBSchema::getConfigBool(db, "ui/isDark", true), false);
 

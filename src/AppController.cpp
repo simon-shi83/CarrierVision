@@ -62,7 +62,55 @@ bool isSafeArchiveRoot(const QString &path)
     const QString home = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     const QString appDir = QDir::cleanPath(QCoreApplication::applicationDirPath());
     if (clean == root || clean == home || clean == appDir) return false;
-    return QFileInfo(QDir(clean).filePath(QStringLiteral(".carriervision-archive"))).isFile();
+    return QFileInfo(QDir(clean).filePath(QStringLiteral(".carriervision-images"))).isFile()
+        || QFileInfo(QDir(clean).filePath(QStringLiteral(".carriervision-archive"))).isFile();
+}
+
+static QString resolveImagePath(const QString &rawName, const QString &archiveDir, const QString &sourceDir)
+{
+    if (rawName.trimmed().isEmpty()) return QString();
+    if (QFile::exists(rawName)) return QFileInfo(rawName).absoluteFilePath();
+
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList candidateRoots = {
+        archiveDir,
+        sourceDir,
+        QDir(appDir).filePath(QStringLiteral("images")),
+        QDir(appDir).filePath(QStringLiteral("archive")),
+        QDir(appDir).filePath(QStringLiteral("../images")),
+        QDir(appDir).filePath(QStringLiteral("../archive")),
+        QDir(appDir).filePath(QStringLiteral("../../../images")),
+        QDir(appDir).filePath(QStringLiteral("../../../archive")),
+        QDir(appDir).filePath(QStringLiteral("../../../../images")),
+        QDir(appDir).filePath(QStringLiteral("../../../../archive"))
+    };
+
+    // 1. 尝试直接从各候选根路径拼接
+    for (const QString &root : candidateRoots) {
+        if (root.isEmpty()) continue;
+        const QString candidate = QDir(root).filePath(rawName);
+        if (QFile::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
+    }
+
+    // 2. 剥离历史前缀（例如 ../../../../archive/、archive/ 或 images/）提取相对子路径
+    QString subPath = rawName;
+    int idx = subPath.indexOf(QStringLiteral("images/"));
+    if (idx >= 0) {
+        subPath = subPath.mid(idx + 7);
+    } else {
+        idx = subPath.indexOf(QStringLiteral("archive/"));
+        if (idx >= 0) subPath = subPath.mid(idx + 8);
+    }
+
+    if (!subPath.isEmpty() && subPath != rawName) {
+        for (const QString &root : candidateRoots) {
+            if (root.isEmpty()) continue;
+            const QString candidate = QDir(root).filePath(subPath);
+            if (QFile::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
+        }
+    }
+
+    return QString();
 }
 
 bool parseResultFilter(const QString &text, int &result)
@@ -170,10 +218,10 @@ void AppController::triggerCleanup()
     const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
 
     const QString archiveRoot = m_archiveDirectory.isEmpty()
-        ? (QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive"))
+        ? (QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("images"))
         : m_archiveDirectory;
     if (!isSafeArchiveRoot(archiveRoot)) {
-        setStatusMessage(QStringLiteral("已拒绝清理未标记或危险的归档目录: %1").arg(archiveRoot));
+        setStatusMessage(QStringLiteral("已拒绝清理未标记或危险的图像目录: %1").arg(archiveRoot));
         return;
     }
 
@@ -894,14 +942,9 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
         return image;
     }
 
-    const QString imageName = query.value(0).toString();
-    QString imagePath = imageName;
-    if (QDir::isRelativePath(imagePath)) {
-        const QString archiveDirectory = m_archiveDirectory.isEmpty()
-            ? QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("archive"))
-            : m_archiveDirectory;
-        imagePath = QDir(archiveDirectory).filePath(imagePath);
-    }
+    const QString imageName = query.value(0).toString().trimmed();
+    QString imagePath = resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory);
+    if (imagePath.isEmpty()) imagePath = imageName;
 
     image.insert(QStringLiteral("filePath"), imagePath);
     image.insert(QStringLiteral("fileName"), QFileInfo(imagePath).fileName());
@@ -1396,18 +1439,7 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                 item.dist_norm = q.value(8).toInt();
 
                 const QString rawName = q.value(5).toString().trimmed();
-                if (QFile::exists(rawName)) {
-                    item.filePath = QFileInfo(rawName).absoluteFilePath();
-                } else {
-                    const QStringList candidates = {
-                        QDir(m_archiveDirectory).filePath(rawName),
-                        QDir(m_sourceDirectory).filePath(rawName),
-                        QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
-                    };
-                    for (const QString &candidate : candidates) {
-                        if (QFile::exists(candidate)) { item.filePath = QFileInfo(candidate).absoluteFilePath(); break; }
-                    }
-                }
+                item.filePath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
                 if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
                 items.append(item);
             }
@@ -1540,23 +1572,7 @@ void AppController::search(const QString &startText, const QString &endText, con
                     it.dist_norm = q.value(7).toInt();
                     it.fileName = QFileInfo(rawName).fileName();
                     // Resolve stored relative path to an absolute local file path for preview/use in QML.
-                    QString resolvedPath;
-                    if (QFile::exists(rawName)) {
-                        resolvedPath = QFileInfo(rawName).absoluteFilePath();
-                    } else {
-                        const QStringList candidates = {
-                            QDir(m_archiveDirectory).filePath(rawName),
-                            QDir(m_sourceDirectory).filePath(rawName),
-                            QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
-                        };
-                        for (const QString &candidate : candidates) {
-                            if (QFile::exists(candidate)) {
-                                resolvedPath = QFileInfo(candidate).absoluteFilePath();
-                                break;
-                            }
-                        }
-                    }
-
+                    const QString resolvedPath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
                     if (resolvedPath.isEmpty() || !QFile::exists(resolvedPath)) {
                         LOG_WARN("搜索记录中图片文件缺失: raw={} resolved={}", rawName.toStdString(), resolvedPath.toStdString());
                         continue;
@@ -1696,18 +1712,7 @@ void AppController::searchPaged(const QString &startText, const QString &endText
             it.dist_norm = q.value(7).toInt();
             it.fileName = QFileInfo(rawName).fileName();
 
-            QString resolvedPath;
-            if (QFile::exists(rawName)) resolvedPath = QFileInfo(rawName).absoluteFilePath();
-            else {
-                const QStringList candidates = {
-                    QDir(m_archiveDirectory).filePath(rawName),
-                    QDir(m_sourceDirectory).filePath(rawName),
-                    QDir(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive")).filePath(rawName)
-                };
-                for (const QString &candidate : candidates) {
-                    if (QFile::exists(candidate)) { resolvedPath = QFileInfo(candidate).absoluteFilePath(); break; }
-                }
-            }
+            const QString resolvedPath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
 
             if (resolvedPath.isEmpty() || !QFile::exists(resolvedPath)) {
                 LOG_WARN("分页搜索结果中图片文件缺失: raw={} resolved={}", rawName.toStdString(), resolvedPath.toStdString());
@@ -1818,8 +1823,8 @@ void AppController::alertSearchPaged(const QString &startText, const QString &en
             item.distance = dataQuery.value(5).toInt();
             item.dist_max = dataQuery.value(6).toInt();
             item.dist_norm = dataQuery.value(7).toInt();
-            const QString imagePath = QFile::exists(imageName) ? imageName : QDir(m_archiveDirectory).filePath(imageName);
-            if (QFile::exists(imagePath)) {
+            const QString imagePath = resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory);
+            if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
                 item.filePath = QFileInfo(imagePath).absoluteFilePath();
                 item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
             }
@@ -1857,7 +1862,11 @@ void AppController::loadFtpSettingsFromFile()
     m_ftpAllowAnonymous = false; // 内置服务不允许匿名上传。
 
     // Load root directory & port from system_config table
-    QString root = DBSchema::getConfig(db, "ftp/rootDirectory", QStringLiteral("archive"));
+    QString root = DBSchema::getConfig(db, "ftp/rootDirectory", QStringLiteral("images"));
+    if (root == QStringLiteral("archive") || root.endsWith(QStringLiteral("/archive"))) {
+        root = QStringLiteral("images");
+        DBSchema::setConfig(db, "ftp/rootDirectory", root);
+    }
     m_ftpRoot = AgcUtils::normalizedPath(root);
     const QString fsRoot = QDir::cleanPath(QDir(m_ftpRoot).rootPath());
     const QString home = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
@@ -2413,7 +2422,7 @@ void AppController::removeFtpAccount(const QString &user)
 
 void AppController::ensureDirectories()
 {
-    // 保证配置的源目录与归档目录存在
+    // 保证配置的源目录与点检图像目录存在
     if (!m_sourceDirectory.isEmpty()) {
         if (QDir().mkpath(m_sourceDirectory)) {
             LOG_DEBUG("创建/确认源目录成功: {}", m_sourceDirectory.toStdString());
@@ -2422,22 +2431,22 @@ void AppController::ensureDirectories()
 
     if (!m_archiveDirectory.isEmpty()) {
         if (QDir().mkpath(m_archiveDirectory)) {
-            LOG_DEBUG("创建/确认归档目录成功: {}", m_archiveDirectory.toStdString());
-            const QString markerPath = QDir(m_archiveDirectory).filePath(QStringLiteral(".carriervision-archive"));
+            LOG_DEBUG("创建/确认图像目录成功: {}", m_archiveDirectory.toStdString());
+            const QString markerPath = QDir(m_archiveDirectory).filePath(QStringLiteral(".carriervision-images"));
             QFile marker(markerPath);
             if (!marker.exists() && marker.open(QIODevice::WriteOnly)) {
-                marker.write("CarrierVision managed archive\n");
+                marker.write("CarrierVision managed images\n");
             }
         }
     }
 
-    // 额外确保运行目录下的 archive 也存在（兼容用户直接查看工作目录）
-    const QString appArchive = QDir::cleanPath(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("archive"));
-    if (QDir().mkpath(appArchive)) {
-        LOG_DEBUG("创建/确认应用 archive 目录成功: {}", appArchive.toStdString());
-        QFile marker(QDir(appArchive).filePath(QStringLiteral(".carriervision-archive")));
+    // 额外确保运行目录下的 images 也存在（兼容用户直接查看工作目录）
+    const QString appImages = QDir::cleanPath(QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("images"));
+    if (QDir().mkpath(appImages)) {
+        LOG_DEBUG("创建/确认应用 images 目录成功: {}", appImages.toStdString());
+        QFile marker(QDir(appImages).filePath(QStringLiteral(".carriervision-images")));
         if (!marker.exists() && marker.open(QIODevice::WriteOnly)) {
-            marker.write("CarrierVision managed archive\n");
+            marker.write("CarrierVision managed images\n");
         }
     }
 }
@@ -2695,14 +2704,25 @@ void AppController::clearSearch()
 void AppController::loadSettings()
 {
     // Minimal settings loader for build-time: set sensible defaults
-    // 默认源目录固定为归档目录（避免显示运行目录下的 incoming）
-    const QString defaultSource = QDir::cleanPath(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("archive")));
-    const QString defaultArchive = QDir::cleanPath(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("archive")));
+    // 默认点检图像存储目录为 images
+    const QString defaultImages = QDir::cleanPath(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("images")));
+    const QString legacyArchive = QDir::cleanPath(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("archive")));
+    if (!QDir(defaultImages).exists() && QDir(legacyArchive).exists()) {
+        if (QDir().rename(legacyArchive, defaultImages)) {
+            LOG_INFO("AppController: 已自动将历史图像目录 '{}' 迁移为 '{}'", legacyArchive.toStdString(), defaultImages.toStdString());
+        }
+    }
     const QString envSource = qEnvironmentVariable("AGCFTP_SOURCE_DIR").trimmed();
     const QString envArchive = qEnvironmentVariable("AGCFTP_ARCHIVE_DIR").trimmed();
 
-    m_sourceDirectory = AgcUtils::normalizedPath(envSource.isEmpty() ? defaultSource : envSource);
-    m_archiveDirectory = AgcUtils::normalizedPath(envArchive.isEmpty() ? defaultArchive : envArchive);
+    m_sourceDirectory = AgcUtils::normalizedPath(envSource.isEmpty() ? defaultImages : envSource);
+    m_archiveDirectory = AgcUtils::normalizedPath(envArchive.isEmpty() ? defaultImages : envArchive);
+    if (m_archiveDirectory.endsWith(QStringLiteral("/archive"))) {
+        QString updated = m_archiveDirectory;
+        updated.chop(7);
+        updated += QStringLiteral("images");
+        m_archiveDirectory = updated;
+    }
     // Load persisted FTP-related settings (includes slot mapping)
     loadFtpSettingsFromFile();
     // ensure ftp server has the current users before start

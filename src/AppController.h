@@ -22,6 +22,7 @@ class AppController : public QObject
     Q_OBJECT
     Q_PROPERTY(QString sourceDirectory READ sourceDirectory NOTIFY sourceDirectoryChanged)
     Q_PROPERTY(QString archiveDirectory READ archiveDirectory NOTIFY archiveDirectoryChanged)
+    Q_PROPERTY(QString imagesDirectory READ archiveDirectory NOTIFY archiveDirectoryChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString currentSerialsRaw READ currentSerialsRaw NOTIFY currentBatchChanged)
     Q_PROPERTY(QString currentReceivedAtText READ currentReceivedAtText NOTIFY currentBatchChanged)
@@ -145,6 +146,7 @@ public:
     // 槽位映射与目录管理接口
     Q_INVOKABLE void resetSlotMapping();
     Q_INVOKABLE void openArchiveDirectory();
+    Q_INVOKABLE void openImagesDirectory() { openArchiveDirectory(); }
     Q_INVOKABLE void openFtpRootDirectory();
 
     QVariantList gearSumResult() const;
