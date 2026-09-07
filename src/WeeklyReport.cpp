@@ -164,6 +164,9 @@ bool generateForWeek(const QDate &monday){
                                     dbOk = false;
                                 }
                             }
+                            if (dbOk) {
+                                LOG_INFO("WeeklyReport: 生成完成: {} 与 {}", driversPath.toStdString(), deformedPath.toStdString());
+                            }
                         }
                     } else {
                         ok1 = true;
@@ -178,7 +181,6 @@ bool generateForWeek(const QDate &monday){
         QSqlDatabase::removeDatabase("weekly_report_conn");
     }
 
-    LOG_INFO("WeeklyReport: 生成完成: {} 与 {}", driversPath.toStdString(), deformedPath.toStdString());
     return ok1 && ok2 && dbOk;
 }
 
