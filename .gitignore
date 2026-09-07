@@ -1,12 +1,78 @@
+# ==============================================================================
+# CarrierVision .gitignore
+# ==============================================================================
+
+# --- 构建与输出目录 (CMake / C++) ---
 build/
+build-*/
+cmake-build-*/
+out/
+bin/
 install/
-__pycache__/
-*.py[cod]
-*.user
-.cache/
+
+# --- CMake 缓存与构建中间文件 ---
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CMakeUserPresets.json
+.ninja_*
+
+# --- 编译生成的源码与 Qt 缓存 ---
+/src/version.h
+.rcc/
+*.qmlc
+*.jsc
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.moc
+
+# --- 运行时数据、图像归档与日志 ---
+archive/
 logs/
 bin/logs/
-bin/data/*.csv
-src/version.h
-Testing/
-archive/
+*.log
+data/
+bin/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.csv
+
+# --- IDE 与编辑器专属文件 ---
+# Qt Creator
+*.user
+*.user.*
+*.autosave
+CMakeLists.txt.user*
+
+# Visual Studio / VS Code
+.vs/
+*.suo
+*.userosv
+*.sln.docstates
+.vscode/*.log
+.vscode/*.user
+.vscode/.browse.*
+
+# CLion / JetBrains
+.idea/
+
+# --- 临时文件与操作系统缓存 ---
+.cache/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# --- Python 运行缓存 ---
+__pycache__/
+*.py[cod]
