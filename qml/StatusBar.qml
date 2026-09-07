@@ -31,7 +31,6 @@ Rectangle {
 
     // 动态运行期覆盖状态消息
     property string overrideStatusMessage: ""
-    property bool tcpPacketPulse: false
 
     // 信号
     signal itemClicked(int index, var itemData)
@@ -39,8 +38,6 @@ Rectangle {
 
     // ==================== 智能解析状态项 ====================
     readonly property var statusItemObj: findItem("status")
-    readonly property var tcpStatusItemObj: findItem("tcpstatus")
-    readonly property var tcpDataItemObj: findItem("tcpdata")
 
     readonly property string systemStatusText: {
         // 1. 如果子页面 Loader 正在加载，优先反映加载状态
@@ -48,14 +45,8 @@ Rectangle {
             return String(statusItemObj.text);
         }
         // 2. 真实服务健康度感知：杜绝服务异常时盲目显示“系统就绪”
-        if (!statusBar.tcpRunning && !statusBar.ftpRunning) {
-            return "服务停止";
-        }
-        if (statusBar.tcpRunning && !statusBar.ftpRunning) {
+        if (!statusBar.ftpRunning) {
             return "FTP 异常";
-        }
-        if (!statusBar.tcpRunning && statusBar.ftpRunning) {
-            return "TCP 异常";
         }
         if (statusItemObj && statusItemObj.text !== undefined && String(statusItemObj.text).length > 0) {
             return String(statusItemObj.text);
@@ -67,10 +58,7 @@ Rectangle {
         if (statusItemObj && statusItemObj.text !== undefined && String(statusItemObj.text).indexOf("加载") >= 0) {
             return Theme.warning;
         }
-        if (!statusBar.tcpRunning && !statusBar.ftpRunning) {
-            return Theme.ng;
-        }
-        if (!statusBar.tcpRunning || !statusBar.ftpRunning) {
+        if (!statusBar.ftpRunning) {
             return Theme.warning;
         }
         if (statusItemObj && statusItemObj.textColor !== undefined) {
@@ -90,8 +78,8 @@ Rectangle {
         return null;
     }
 
-    // 致命服务是否异常：TCP 或 FTP 异常均属于致命故障，因为软件核心检测与接收功能已无法进行
-    readonly property bool hasFatalServiceFault: !statusBar.tcpRunning || !statusBar.ftpRunning
+    // 致命服务是否异常：FTP 异常属于致命故障，因为软件核心图像接收功能已无法进行
+    readonly property bool hasFatalServiceFault: !statusBar.ftpRunning
 
     // 动态提示流当前严重等级: "FATAL" | "CRITICAL" | "ERROR" | "WARN" | "INFO"
     readonly property string operationalMessageLevel: {
@@ -109,15 +97,9 @@ Rectangle {
 
     // 动态业务事件与提示文本（严格调度优先级：致命服务异常 > 日志错误 > 日志警告 > 业务/操作提示）
     readonly property string operationalMessageText: {
-        // 1. 最高优先级：服务异常（致命故障：TCP 或 FTP 停止）
-        if (!statusBar.tcpRunning && !statusBar.ftpRunning) {
-            return "【致命故障】TCP点检通信服务与FTP图像服务均未启动！系统已无法接收点检与图像数据";
-        }
+        // 1. 最高优先级：服务异常（致命故障：FTP 停止）
         if (!statusBar.ftpRunning) {
             return "【致命故障】FTP图像接收服务未运行或端口冲突！无法接收检测机台上传的轮对图像";
-        }
-        if (!statusBar.tcpRunning) {
-            return "【致命故障】TCP点检通信服务未启动！无法与PLC/机台进行点检闭环交互";
         }
 
         // 2. 第二/三优先级：日志中的 CRITICAL / ERROR / WARN 级日志
@@ -134,9 +116,6 @@ Rectangle {
         // 3. 第四优先级：常规运行期提示与操作流
         if (overrideStatusMessage.length > 0) {
             return overrideStatusMessage;
-        }
-        if (tcpDataItemObj && tcpDataItemObj.text !== undefined && String(tcpDataItemObj.text).length > 0) {
-            return String(tcpDataItemObj.text);
         }
         if (typeof appController !== "undefined" && appController && appController.statusMessage && appController.statusMessage.length > 0) {
             return appController.statusMessage;
@@ -178,27 +157,6 @@ Rectangle {
     }
 
     // 硬件与服务遥测数据
-    readonly property bool tcpRunning: {
-        if (typeof appController !== "undefined" && appController) {
-            return appController.serverRunning;
-        }
-        return true;
-    }
-
-    readonly property int tcpPort: {
-        if (typeof appController !== "undefined" && appController && appController.listenPort > 0) {
-            return appController.listenPort;
-        }
-        return 22345;
-    }
-
-    readonly property string lastTcpMsg: {
-        if (typeof appController !== "undefined" && appController && appController.lastTcpMessage) {
-            return appController.lastTcpMessage;
-        }
-        return "";
-    }
-
     readonly property bool ftpRunning: {
         if (typeof appController !== "undefined" && appController) {
             return appController.ftpRunning;
@@ -241,27 +199,15 @@ Rectangle {
         return 0;
     }
 
-    // ==================== TCP 点检数据包接收脉冲动画 ====================
+    // ==================== 状态通知监听 ====================
     Connections {
         target: (typeof appController !== "undefined") ? appController : null
-        function onLastTcpMessageChanged() {
-            if (appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0) {
-                tcpPulseTimer.restart();
-                statusBar.tcpPacketPulse = true;
-            }
-        }
         function onStatusMessageChanged() {
             // 当后端产生新通知时重置覆盖态以展示最新系统通知
             if (appController && appController.statusMessage && appController.statusMessage.length > 0) {
                 statusBar.overrideStatusMessage = appController.statusMessage;
             }
         }
-    }
-
-    Timer {
-        id: tcpPulseTimer
-        interval: 650
-        onTriggered: statusBar.tcpPacketPulse = false
     }
 
     // 复制反馈计时器
@@ -403,9 +349,8 @@ Rectangle {
                         statusBar.copiedFeedback = true;
                         copyFeedbackTimer.restart();
                     }
-                    var idx = statusBar.findIndexById("tcpdata");
-                    statusBar.itemClicked(idx >= 0 ? idx : 2, statusBar.tcpDataItemObj || {
-                        modelId: "tcpdata",
+                    statusBar.itemClicked(0, {
+                        modelId: "message",
                         text: textToCopy
                     });
                 }
@@ -483,7 +428,7 @@ Rectangle {
                 var customList = [];
                 for (var i = 0; i < statusItems.length; i++) {
                     var item = statusItems[i];
-                    if (item && item.modelId !== "status" && item.modelId !== "tcpstatus" && item.modelId !== "tcpdata") {
+                    if (item && item.modelId !== "status") {
                         customList.push({
                             index: i,
                             data: item
@@ -555,113 +500,6 @@ Rectangle {
         RowLayout {
             spacing: 6
             Layout.alignment: Qt.AlignVCenter
-
-            // 4.1 TCP 点检通讯信号胶囊
-            Rectangle {
-                id: tcpTelemetryPill
-                Layout.preferredHeight: 22
-                implicitWidth: tcpRow.implicitWidth + 14
-                radius: Theme.radiusPill
-                color: {
-                    if (statusBar.tcpPacketPulse)
-                        return Theme.primaryGlow;
-                    if (tcpPillMouse.containsMouse)
-                        return Theme.bgCardActive;
-                    return statusBar.tcpRunning ? (Theme.isDark ? "#1210b981" : "#ecfdf5") : (Theme.isDark ? "#18f59e0b" : "#fffbeb");
-                }
-                border.width: 1
-                border.color: {
-                    if (statusBar.tcpPacketPulse)
-                        return Theme.primary;
-                    if (tcpPillMouse.containsMouse)
-                        return Theme.borderHover;
-                    return statusBar.tcpRunning ? Theme.okBorder : Theme.warningBorder;
-                }
-
-                Behavior on color {
-                    ColorAnimation {
-                        duration: Theme.animFast
-                    }
-                }
-                Behavior on border.color {
-                    ColorAnimation {
-                        duration: Theme.animFast
-                    }
-                }
-
-                RowLayout {
-                    id: tcpRow
-                    anchors.centerIn: parent
-                    spacing: 5
-
-                    Rectangle {
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: statusBar.tcpPacketPulse ? Theme.primaryLight : (statusBar.tcpRunning ? Theme.ok : Theme.warning)
-                    }
-
-                    Text {
-                        text: "TCP :" + statusBar.tcpPort
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
-                        font.weight: Theme.weightBold
-                        color: statusBar.tcpPacketPulse ? Theme.primaryLight : (statusBar.tcpRunning ? Theme.okLight : Theme.warningLight)
-                    }
-                }
-
-                MouseArea {
-                    id: tcpPillMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        var idx = statusBar.findIndexById("tcpstatus");
-                        statusBar.itemClicked(idx >= 0 ? idx : 1, statusBar.tcpStatusItemObj || {
-                            modelId: "tcpstatus",
-                            text: "TCP :" + statusBar.tcpPort
-                        });
-                    }
-                }
-
-                ToolTip {
-                    visible: tcpPillMouse.containsMouse
-                    delay: 350
-                    background: Rectangle {
-                        color: Theme.bgPopup
-                        border.color: Theme.borderMedium
-                        radius: Theme.radiusSm
-                    }
-                    contentItem: ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "TCP 点检触发通信服务"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontCaption
-                            font.weight: Theme.weightBold
-                            color: Theme.textPrimary
-                        }
-                        Text {
-                            text: "服务状态: " + (statusBar.tcpRunning ? "🟢 正常监听中" : "🟠 服务未运行/异常")
-                            color: statusBar.tcpRunning ? Theme.okLight : Theme.warningLight
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
-                        }
-                        Text {
-                            text: "监听端口: " + statusBar.tcpPort
-                            color: Theme.textSecondary
-                            font.family: Theme.fontMono
-                            font.pixelSize: 10
-                        }
-                        Text {
-                            text: statusBar.lastTcpMsg.length > 0 ? ("最近点检报文: " + statusBar.lastTcpMsg) : "暂无点检报文 (等待外部 PLC 信号)"
-                            color: statusBar.lastTcpMsg.length > 0 ? Theme.primaryLight : Theme.textMuted
-                            font.family: Theme.fontMono
-                            font.pixelSize: 10
-                        }
-                    }
-                }
-            }
 
             // 4.2 FTP 图像接收通道胶囊
             Rectangle {
@@ -1025,9 +863,6 @@ Rectangle {
 
     function updateStatus(text) {
         overrideStatusMessage = text;
-        updateById("tcpdata", {
-            text: text
-        });
         if (statusItems.length > 0 && statusItems[0] && statusItems[0].modelId !== "status") {
             updateText(0, text);
         }

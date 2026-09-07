@@ -59,8 +59,6 @@ qt_add_executable(CarrierVision
     src/main.cpp
     src/AppController.cpp
     src/AppController.h
-    src/TcpMessageServer.cpp
-    src/TcpMessageServer.h
     src/FtpServer.cpp
     src/FtpServer.h
     src/ImageListModel.cpp

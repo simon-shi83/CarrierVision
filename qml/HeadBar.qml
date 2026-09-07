@@ -19,42 +19,31 @@ Rectangle {
 
     // ===== 服务运行真实状态监听 =====
     readonly property bool hasAppController: typeof appController !== "undefined" && appController !== null
-    readonly property bool tcpRunning: hasAppController && Boolean(appController.serverRunning)
     readonly property bool ftpRunning: hasAppController && Boolean(appController.ftpRunning)
-    readonly property bool allServicesRunning: tcpRunning && ftpRunning
+    readonly property bool allServicesRunning: ftpRunning
 
     readonly property string masterStatusText: {
-        if (tcpRunning && ftpRunning)
+        if (ftpRunning)
             return "正常运行";
-        if (tcpRunning && !ftpRunning)
-            return "FTP 异常";
-        if (!tcpRunning && ftpRunning)
-            return "TCP 异常";
-        return "服务离线";
+        return "FTP 异常";
     }
 
     readonly property color masterStatusColor: {
-        if (tcpRunning && ftpRunning)
+        if (ftpRunning)
             return Theme.ok;
-        if (tcpRunning || ftpRunning)
-            return Theme.warning;
-        return Theme.ng;
+        return Theme.warning;
     }
 
     readonly property color masterStatusBg: {
-        if (tcpRunning && ftpRunning)
+        if (ftpRunning)
             return Theme.okBg;
-        if (tcpRunning || ftpRunning)
-            return Theme.warningBg;
-        return Theme.ngBg;
+        return Theme.warningBg;
     }
 
     readonly property color masterStatusBorder: {
-        if (tcpRunning && ftpRunning)
+        if (ftpRunning)
             return Theme.okBorder;
-        if (tcpRunning || ftpRunning)
-            return Theme.warningBorder;
-        return Theme.ngBorder;
+        return Theme.warningBorder;
     }
 
     // ===== 信号 =====
@@ -224,7 +213,6 @@ Rectangle {
                         ToolTip.delay: 200
                         ToolTip.text: {
                             var tip = "【系统服务运行状态】\n";
-                            tip += "• TCP 消息服务: " + (root.tcpRunning ? ("正常监听中 (端口 " + (root.hasAppController ? appController.listenPort : 22345) + ")") : "未启动或异常停止") + "\n";
                             tip += "• FTP 图像服务: " + (root.ftpRunning ? ("正常运行中 (端口 " + (root.hasAppController ? appController.ftpPort : 21) + ")") : "未启动或异常停止 (端口可能被占用)");
                             return tip;
                         }
@@ -632,7 +620,7 @@ Rectangle {
                                 cmdId: "ws_settings",
                                 wsIndex: 6,
                                 title: "切换至「系统设置」工作区",
-                                subtitle: "TCP通讯管理、FTP服务、清理与安全密码",
+                                subtitle: "FTP服务、清理与安全密码",
                                 category: "工作区",
                                 icon: "nav_settings",
                                 defaultOrder: 18
@@ -677,22 +665,7 @@ Rectangle {
                                 icon: Theme.isDark ? "icon_sun" : "icon_moon",
                                 defaultOrder: 22
                             },
-                            {
-                                cmdId: "act_tcp_start",
-                                title: "启动 TCP 点检通信服务",
-                                subtitle: "开启 22345 端口监听，接收外部 PLC 点检信号",
-                                category: "通信控制",
-                                icon: "icon_check_circle",
-                                defaultOrder: 23
-                            },
-                            {
-                                cmdId: "act_tcp_stop",
-                                title: "停止 TCP 点检通信服务",
-                                subtitle: "暂时停止 TCP 端口监听，暂停点检信号接收",
-                                category: "通信控制",
-                                icon: "icon_close",
-                                defaultOrder: 24
-                            },
+
                             {
                                 cmdId: "act_ftp_start",
                                 title: "启动 FTP 图像接收服务",
@@ -876,14 +849,6 @@ Rectangle {
                             root.toggleFullScreen();
                         } else if (item.cmdId === "act_theme") {
                             Theme.toggleTheme();
-                        } else if (item.cmdId === "act_tcp_start") {
-                            if (typeof appController !== "undefined" && appController && appController.startTcpServer) {
-                                appController.startTcpServer();
-                            }
-                        } else if (item.cmdId === "act_tcp_stop") {
-                            if (typeof appController !== "undefined" && appController && appController.stopTcpServer) {
-                                appController.stopTcpServer();
-                            }
                         } else if (item.cmdId === "act_ftp_start") {
                             if (typeof appController !== "undefined" && appController && appController.startFtpServer) {
                                 appController.startFtpServer();

@@ -9,3 +9,4 @@ bin/logs/
 bin/data/*.csv
 src/version.h
 Testing/
+archive/

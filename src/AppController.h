@@ -2,7 +2,6 @@
 
 #include "BatchTypes.h"
 #include "ImageListModel.h"
-#include "TcpMessageServer.h"
 #include "FtpServer.h"
 
 #include <QObject>
@@ -23,11 +22,8 @@ class AppController : public QObject
     Q_OBJECT
     Q_PROPERTY(QString sourceDirectory READ sourceDirectory NOTIFY sourceDirectoryChanged)
     Q_PROPERTY(QString archiveDirectory READ archiveDirectory NOTIFY archiveDirectoryChanged)
-    Q_PROPERTY(int listenPort READ listenPort NOTIFY listenPortChanged)
-    Q_PROPERTY(bool serverRunning READ serverRunning NOTIFY serverRunningChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString currentSerialsRaw READ currentSerialsRaw NOTIFY currentBatchChanged)
-    Q_PROPERTY(QString lastTcpMessage READ lastTcpMessage NOTIFY lastTcpMessageChanged)
     Q_PROPERTY(QString currentReceivedAtText READ currentReceivedAtText NOTIFY currentBatchChanged)
     Q_PROPERTY(int currentRoundNumber READ currentRoundNumber NOTIFY currentBatchChanged)
     Q_PROPERTY(int currentCopiedCount READ currentCopiedCount NOTIFY currentBatchChanged)
@@ -57,11 +53,8 @@ public:
 
     QString sourceDirectory() const;
     QString archiveDirectory() const;
-    int listenPort() const;
-    bool serverRunning() const;
     QString statusMessage() const;
     QString currentSerialsRaw() const;
-    QString lastTcpMessage() const;
     QString currentReceivedAtText() const;
     int currentRoundNumber() const;
     int currentCopiedCount() const;
@@ -149,10 +142,7 @@ public:
     Q_INVOKABLE void openLogDirectory();
     Q_INVOKABLE void copyToClipboard(const QString &text);
 
-    // TCP 服务与槽位映射管理接口
-    Q_INVOKABLE void startTcpServer();
-    Q_INVOKABLE void stopTcpServer();
-    Q_INVOKABLE void setListenPort(int port);
+    // 槽位映射与目录管理接口
     Q_INVOKABLE void resetSlotMapping();
     Q_INVOKABLE void openArchiveDirectory();
     Q_INVOKABLE void openFtpRootDirectory();
@@ -167,11 +157,8 @@ signals:
     void latestWarnOrErrorChanged();
     void sourceDirectoryChanged();
     void archiveDirectoryChanged();
-    void listenPortChanged();
-    void serverRunningChanged();
     void statusMessageChanged();
     void currentBatchChanged();
-    void lastTcpMessageChanged();
     void searchSummaryChanged();
     void defaultSearchRangeChanged();
     void homepageDescriptionChanged();
@@ -187,8 +174,6 @@ signals:
     void rackWheelMonitorUpdated();
 
 private:
-    static constexpr int kListenPort = 22345;
-
     void startLogQuery();
     bool ingestStoredImage(const QString &filePath);
     void recoverPendingUploads();
@@ -220,13 +205,10 @@ private:
 
     QString m_sourceDirectory;
     QString m_archiveDirectory;
-    int m_listenPort = kListenPort;
-    bool m_serverRunning = false;
     QString m_statusMessage;
 
     QString m_currentBatchId;
     QString m_currentSerialsRaw;
-    QString m_lastTcpMessage;
     QString m_currentReceivedAtText;
     int m_currentRoundNumber = 0;
     int m_currentCopiedCount = 0;
@@ -255,7 +237,6 @@ private:
     QList<BatchRecord> m_records;
     ImageListModel m_currentImagesModel;
     ImageListModel m_searchImagesModel;
-    TcpMessageServer m_tcpServer;
     // CopyWorker removed; file-moving/archiving handled by FtpServer and archive logic
     QVariantList m_gearSumResult;
     QHash<QString, int> m_lastTotalByRack;

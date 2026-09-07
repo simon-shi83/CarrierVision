@@ -13,11 +13,9 @@ Rectangle {
 
     property var imageModel: (typeof appController !== 'undefined' && appController) ? appController.currentImagesModel : null
     property string titleText: "实时工位图像监控"
-    property string summaryText: (appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0)
-                                     ? ("TCP 消息: " + appController.lastTcpMessage)
-                                     : ((appController && appController.currentSerialsRaw.length > 0)
-                                         ? ("当前序列号: " + appController.currentSerialsRaw)
-                                         : "等待新的 TCP 点检信号...")
+    property string summaryText: (appController && appController.currentSerialsRaw && appController.currentSerialsRaw.length > 0)
+                                     ? ("当前序列号: " + appController.currentSerialsRaw)
+                                     : "等待点检数据..."
     property string emptyText: "等待新的批次图像到达"
 
     property int refreshEpoch: 0
@@ -85,7 +83,7 @@ Rectangle {
 
             Rectangle {
                 Layout.preferredHeight: 22
-                implicitWidth: tcpMsgText.implicitWidth + 16
+                implicitWidth: serialMsgText.implicitWidth + 16
                 radius: Theme.radiusPill
                 color: Theme.bgCardElevated
                 border.color: Theme.borderSubtle
@@ -93,7 +91,7 @@ Rectangle {
                 visible: root.summaryText.length > 0
 
                 Text {
-                    id: tcpMsgText
+                    id: serialMsgText
                     anchors.centerIn: parent
                     text: root.summaryText
                     color: Theme.primaryLight

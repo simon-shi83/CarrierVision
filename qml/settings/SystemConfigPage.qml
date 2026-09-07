@@ -46,7 +46,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
                             Label {
                                 text: "系统常规与显示偏好"
                                 color: Theme.textPrimary
@@ -54,7 +59,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Label {
                                 text: "支持定制主页左上角展示的标语与界面视觉模式"
                                 color: Theme.textSecondary
@@ -87,7 +94,9 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             ActionButton {
                                 Layout.preferredWidth: 84
                                 Layout.preferredHeight: 32
@@ -95,7 +104,7 @@ Item {
                                 variant: "primary"
                                 onClicked: {
                                     if (appController && appController.saveHomepageDescription(descriptionInput.text))
-                                        descriptionInput.text = appController.homepageDescription
+                                        descriptionInput.text = appController.homepageDescription;
                                 }
                             }
                         }
@@ -138,7 +147,9 @@ Item {
                                     }
                                 }
 
-                                Item { Layout.fillWidth: true }
+                                Item {
+                                    Layout.fillWidth: true
+                                }
 
                                 ActionButton {
                                     text: Theme.isDark ? "切换为亮色模式" : "切换为暗色模式"
@@ -171,7 +182,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
                             Label {
                                 text: "工位相机通道映射配置"
                                 color: Theme.textPrimary
@@ -179,7 +195,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Label {
                                 text: "配置物理工业相机采集通道 (1~12) 映射至显示槽位 (Slot 1~12)"
                                 color: Theme.textSecondary
@@ -261,11 +279,7 @@ Item {
                                             id: slotCombo
                                             Layout.fillWidth: true
                                             Layout.preferredHeight: 30
-                                            model: [
-                                                "槽位 01", "槽位 02", "槽位 03", "槽位 04",
-                                                "槽位 05", "槽位 06", "槽位 07", "槽位 08",
-                                                "槽位 09", "槽位 10", "槽位 11", "槽位 12"
-                                            ]
+                                            model: ["槽位 01", "槽位 02", "槽位 03", "槽位 04", "槽位 05", "槽位 06", "槽位 07", "槽位 08", "槽位 09", "槽位 10", "槽位 11", "槽位 12"]
                                             currentIndex: Math.max(0, Math.min(11, camItem.currentSlot - 1))
                                             font.family: Theme.fontMono
                                             font.pixelSize: Theme.fontBody
@@ -308,7 +322,9 @@ Item {
                                 font.pixelSize: Theme.fontCaption
                             }
 
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
 
                             ActionButton {
                                 Layout.preferredWidth: 108
@@ -316,174 +332,15 @@ Item {
                                 text: "恢复默认 (1:1)"
                                 variant: "secondary"
                                 onClicked: {
-                                    if (appController) appController.resetSlotMapping()
+                                    if (appController)
+                                        appController.resetSlotMapping();
                                 }
                             }
                         }
                     }
                 }
 
-                // ==================== 3. TCP 点检通信服务管理 ====================
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: tcpCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
-                    border.width: 1
-                    border.color: Theme.borderMedium
-
-                    ColumnLayout {
-                        id: tcpCol
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 12
-
-                        // 标题与运行状态徽章
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
-                            Label {
-                                text: "TCP 点检通信服务管理"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
-                            }
-                            Item { Layout.fillWidth: true }
-
-                            Rectangle {
-                                Layout.preferredHeight: 24
-                                implicitWidth: tcpStatusText.implicitWidth + 20
-                                radius: Theme.radiusPill
-                                color: (appController && appController.serverRunning) ? Theme.okBg : Theme.ngBg
-                                border.color: (appController && appController.serverRunning) ? Theme.okBorder : Theme.ngBorder
-                                border.width: 1
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 5
-                                    Rectangle {
-                                        width: 6
-                                        height: 6
-                                        radius: 3
-                                        color: (appController && appController.serverRunning) ? Theme.ok : Theme.ng
-                                    }
-                                    Text {
-                                        id: tcpStatusText
-                                        text: (appController && appController.serverRunning) ? "TCP 监听中" : "服务已停止"
-                                        color: (appController && appController.serverRunning) ? Theme.okLight : Theme.ngLight
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontCaption
-                                        font.weight: Theme.weightMedium
-                                    }
-                                }
-                            }
-                        }
-
-                        // 端口配置与启停控制
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: "监听端口:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
-                            }
-
-                            TextField {
-                                id: tcpPortInput
-                                text: appController ? String(appController.listenPort) : "22345"
-                                Layout.preferredWidth: 90
-                                Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontBody
-                                background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: tcpPortInput.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
-                                }
-                            }
-
-                            ActionButton {
-                                text: "保存端口"
-                                variant: "secondary"
-                                Layout.preferredWidth: 78
-                                Layout.preferredHeight: 32
-                                onClicked: {
-                                    if (appController) {
-                                        appController.setListenPort(Number(tcpPortInput.text))
-                                    }
-                                }
-                            }
-
-                            Item { Layout.fillWidth: true }
-
-                            ActionButton {
-                                text: (appController && appController.serverRunning) ? "停止服务" : "启动服务"
-                                variant: (appController && appController.serverRunning) ? "danger" : "success"
-                                Layout.preferredWidth: 90
-                                Layout.preferredHeight: 32
-                                onClicked: {
-                                    if (appController) {
-                                        if (appController.serverRunning) appController.stopTcpServer()
-                                        else appController.startTcpServer()
-                                    }
-                                }
-                            }
-                        }
-
-                        // 实时报文状态栏
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            radius: Theme.radiusSm
-                            color: Theme.bgInput
-                            border.width: 1
-                            border.color: Theme.borderSubtle
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                spacing: 8
-
-                                Text {
-                                    text: "最近接收点检报文:"
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                    font.weight: Theme.weightMedium
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: (appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0)
-                                          ? appController.lastTcpMessage
-                                          : "暂无点检信号 (等待外部 PLC/控制终端发送)"
-                                    color: (appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0)
-                                           ? Theme.okLight : Theme.textMuted
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontBody
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    text: "协议: [架号,轮号,累计数]"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontCaption
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ==================== 4. FTP 传输服务管理 ====================
+                // ==================== 3. FTP 传输服务管理 ====================
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: ftpCol.implicitHeight + 28
@@ -502,7 +359,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
                             Label {
                                 text: "FTP 传输服务管理"
                                 color: Theme.textPrimary
@@ -510,7 +372,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
 
                             Rectangle {
                                 Layout.preferredHeight: 24
@@ -577,7 +441,7 @@ Item {
                                 Layout.preferredHeight: 32
                                 onClicked: {
                                     if (appController && ftpRootInput.text.length > 0) {
-                                        appController.setFtpRoot(ftpRootInput.text)
+                                        appController.setFtpRoot(ftpRootInput.text);
                                     }
                                 }
                             }
@@ -588,7 +452,8 @@ Item {
                                 Layout.preferredWidth: 78
                                 Layout.preferredHeight: 32
                                 onClicked: {
-                                    if (appController) appController.openFtpRootDirectory()
+                                    if (appController)
+                                        appController.openFtpRootDirectory();
                                 }
                             }
                         }
@@ -638,9 +503,9 @@ Item {
                                 Layout.preferredHeight: 32
                                 onClicked: {
                                     if (appController && newUser.text.length > 0) {
-                                        appController.addFtpAccount(newUser.text, newPass.text)
-                                        newUser.text = ""
-                                        newPass.text = ""
+                                        appController.addFtpAccount(newUser.text, newPass.text);
+                                        newUser.text = "";
+                                        newPass.text = "";
                                     }
                                 }
                             }
@@ -664,10 +529,18 @@ Item {
                                 spacing: 3
 
                                 delegate: Rectangle {
+                                    id: accountDelegateRoot
                                     width: accountsList.width
                                     height: 34
                                     radius: Theme.radiusSm
                                     color: itemMouse.containsMouse ? Theme.bgCardActive : "transparent"
+
+                                    MouseArea {
+                                        id: itemMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.NoButton
+                                    }
 
                                     RowLayout {
                                         anchors.fill: parent
@@ -684,7 +557,7 @@ Item {
                                                 color: Theme.primaryLight
                                             }
                                             Text {
-                                                text: modelData.user
+                                                text: (modelData && modelData.user) ? modelData.user : ""
                                                 color: Theme.textPrimary
                                                 font.family: Theme.fontMono
                                                 font.pixelSize: Theme.fontBody
@@ -694,37 +567,25 @@ Item {
                                         }
 
                                         Text {
-                                            text: modelData.hasPassword ? "••••••••" : "(无密码)"
+                                            text: (modelData && modelData.hasPassword) ? "••••••••" : "(无密码)"
                                             color: Theme.textMuted
                                             font.family: Theme.fontMono
                                             font.pixelSize: Theme.fontBody
                                             Layout.fillWidth: true
                                         }
 
-                                        Button {
+                                        ActionButton {
                                             text: "删除"
-                                            Layout.preferredWidth: 50
-                                            Layout.preferredHeight: 24
-                                            onClicked: appController && appController.removeFtpAccount(modelData.user)
-                                            contentItem: Text {
-                                                text: parent.text
-                                                color: Theme.ngLight
-                                                font.pixelSize: Theme.fontCaption
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignVCenter
-                                            }
-                                            background: Rectangle {
-                                                radius: Theme.radiusSm
-                                                color: parent.hovered ? Theme.ngBg : "transparent"
-                                                border.color: Theme.ngBorder
+                                            variant: "danger"
+                                            btnRadius: Theme.radiusSm
+                                            Layout.preferredWidth: 52
+                                            Layout.preferredHeight: 26
+                                            onClicked: {
+                                                if (appController && modelData && modelData.user) {
+                                                    appController.removeFtpAccount(modelData.user);
+                                                }
                                             }
                                         }
-                                    }
-
-                                    MouseArea {
-                                        id: itemMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
                                     }
                                 }
                             }
@@ -786,12 +647,14 @@ Item {
                                 Layout.preferredHeight: 32
                                 onClicked: {
                                     if (appController) {
-                                        appController.setFtpPort(Number(rootFtpPort.text))
+                                        appController.setFtpPort(Number(rootFtpPort.text));
                                     }
                                 }
                             }
 
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
 
                             ActionButton {
                                 text: (appController && appController.ftpRunning) ? "停止服务" : "启动服务"
@@ -800,8 +663,10 @@ Item {
                                 Layout.preferredHeight: 32
                                 onClicked: {
                                     if (appController) {
-                                        if (appController.ftpRunning) appController.stopFtpServer()
-                                        else appController.startFtpServer()
+                                        if (appController.ftpRunning)
+                                            appController.stopFtpServer();
+                                        else
+                                            appController.startFtpServer();
                                     }
                                 }
                             }
@@ -809,7 +674,7 @@ Item {
                     }
                 }
 
-                // ==================== 5. 系统数据与存储路径管理 ====================
+                // ==================== 4. 系统数据与存储路径管理 ====================
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: storageCol.implicitHeight + 28
@@ -827,7 +692,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
                             Label {
                                 text: "系统数据与存储路径管理"
                                 color: Theme.textPrimary
@@ -835,7 +705,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Label {
                                 text: "查看本地图像归档及运行日志的实际存储路径"
                                 color: Theme.textSecondary
@@ -885,7 +757,8 @@ Item {
                                 Layout.preferredWidth: 96
                                 Layout.preferredHeight: 32
                                 onClicked: {
-                                    if (appController) appController.openArchiveDirectory()
+                                    if (appController)
+                                        appController.openArchiveDirectory();
                                 }
                             }
                         }
@@ -931,14 +804,15 @@ Item {
                                 Layout.preferredWidth: 96
                                 Layout.preferredHeight: 32
                                 onClicked: {
-                                    if (appController) appController.openLogDirectory()
+                                    if (appController)
+                                        appController.openLogDirectory();
                                 }
                             }
                         }
                     }
                 }
 
-                // ==================== 6. 磁盘与历史数据自动清理 ====================
+                // ==================== 5. 磁盘与历史数据自动清理 ====================
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: cleanCol.implicitHeight + 28
@@ -957,7 +831,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.warning }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.warning
+                            }
                             Label {
                                 text: "磁盘与历史数据自动清理"
                                 color: Theme.textPrimary
@@ -965,7 +844,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Label {
                                 text: "系统每日定时扫描，超期图像与日志自动删除"
                                 color: Theme.textSecondary
@@ -1005,7 +886,9 @@ Item {
                                             font.pixelSize: Theme.fontBody
                                             font.weight: Theme.weightMedium
                                         }
-                                        Item { Layout.fillWidth: true }
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
                                         SpinBox {
                                             id: imageKeepDaysBox
                                             Layout.preferredWidth: 96
@@ -1014,7 +897,8 @@ Item {
                                             to: 3650
                                             value: appController ? appController.cleanupKeepDays() : 90
                                             onValueChanged: {
-                                                if (appController) appController.setCleanupKeepDays(value)
+                                                if (appController)
+                                                    appController.setCleanupKeepDays(value);
                                             }
                                             font.family: Theme.fontMono
                                             font.pixelSize: Theme.fontBody
@@ -1070,7 +954,9 @@ Item {
                                             font.pixelSize: Theme.fontBody
                                             font.weight: Theme.weightMedium
                                         }
-                                        Item { Layout.fillWidth: true }
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
                                         SpinBox {
                                             id: logKeepDaysBox
                                             Layout.preferredWidth: 96
@@ -1079,7 +965,8 @@ Item {
                                             to: 3650
                                             value: appController ? appController.cleanupLogKeepDays() : 30
                                             onValueChanged: {
-                                                if (appController) appController.setCleanupLogKeepDays(value)
+                                                if (appController)
+                                                    appController.setCleanupLogKeepDays(value);
                                             }
                                             font.family: Theme.fontMono
                                             font.pixelSize: Theme.fontBody
@@ -1129,14 +1016,16 @@ Item {
                                 id: runHourBoxRight
                                 Layout.preferredWidth: 88
                                 Layout.preferredHeight: 32
-                                model: (function() {
-                                    var a = []
-                                    for (var i = 0; i < 24; i++) a.push((i < 10 ? "0" : "") + i + ":00")
-                                    return a
-                                })()
+                                model: (function () {
+                                        var a = [];
+                                        for (var i = 0; i < 24; i++)
+                                            a.push((i < 10 ? "0" : "") + i + ":00");
+                                        return a;
+                                    })()
                                 currentIndex: appController ? appController.cleanupRunHour() : 1
                                 onCurrentIndexChanged: {
-                                    if (appController) appController.setCleanupRunHour(currentIndex)
+                                    if (appController)
+                                        appController.setCleanupRunHour(currentIndex);
                                 }
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontBody
@@ -1162,7 +1051,9 @@ Item {
                                 font.pixelSize: Theme.fontCaption
                             }
 
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
 
                             ActionButton {
                                 Layout.preferredWidth: 108
@@ -1171,14 +1062,14 @@ Item {
                                 variant: "danger"
                                 onClicked: {
                                     if (appController)
-                                        appController.triggerCleanup()
+                                        appController.triggerCleanup();
                                 }
                             }
                         }
                     }
                 }
 
-                // ==================== 7. 管理员安全密码设置 ====================
+                // ==================== 6. 管理员安全密码设置 ====================
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: pwdCol.implicitHeight + 28
@@ -1199,7 +1090,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle { width: 3.5; height: 16; radius: 2; color: Theme.primary }
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
                             Label {
                                 text: "管理安全密码设置"
                                 color: Theme.textPrimary
@@ -1207,7 +1103,9 @@ Item {
                                 font.pixelSize: Theme.fontH2
                                 font.weight: Theme.weightSemiBold
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Label {
                                 text: "修改进入系统高级设置与参数调整的安全保护密码 (默认: 123456)"
                                 color: Theme.textSecondary
@@ -1309,26 +1207,24 @@ Item {
                                 variant: "primary"
                                 Layout.preferredHeight: 32
                                 Layout.preferredWidth: 84
-                                enabled: currentPasswordField.text.length > 0
-                                         && newPasswordField.text.length >= 6
-                                         && confirmPasswordField.text.length > 0
-                                         && newPasswordField.text === confirmPasswordField.text
+                                enabled: currentPasswordField.text.length > 0 && newPasswordField.text.length >= 6 && confirmPasswordField.text.length > 0 && newPasswordField.text === confirmPasswordField.text
                                 onClicked: {
-                                    if (!appController) return
+                                    if (!appController)
+                                        return;
                                     if (newPasswordField.text !== confirmPasswordField.text) {
-                                        pwdCol.parent.message = "两次密码不一致"
-                                        pwdCol.parent.messageIsError = true
-                                        return
+                                        pwdCol.parent.message = "两次密码不一致";
+                                        pwdCol.parent.messageIsError = true;
+                                        return;
                                     }
                                     if (appController.changeSettingsPassword(currentPasswordField.text, newPasswordField.text)) {
-                                        pwdCol.parent.message = "密码修改成功"
-                                        pwdCol.parent.messageIsError = false
-                                        currentPasswordField.text = ""
-                                        newPasswordField.text = ""
-                                        confirmPasswordField.text = ""
+                                        pwdCol.parent.message = "密码修改成功";
+                                        pwdCol.parent.messageIsError = false;
+                                        currentPasswordField.text = "";
+                                        newPasswordField.text = "";
+                                        confirmPasswordField.text = "";
                                     } else {
-                                        pwdCol.parent.message = "原密码错误或保存失败"
-                                        pwdCol.parent.messageIsError = true
+                                        pwdCol.parent.message = "原密码错误或保存失败";
+                                        pwdCol.parent.messageIsError = true;
                                     }
                                 }
                             }
@@ -1340,8 +1236,8 @@ Item {
                                 Layout.preferredWidth: 84
                                 onClicked: {
                                     if (appController && appController.resetSettingsPassword()) {
-                                        pwdCol.parent.message = "已恢复为默认 123456"
-                                        pwdCol.parent.messageIsError = false
+                                        pwdCol.parent.message = "已恢复为默认 123456";
+                                        pwdCol.parent.messageIsError = false;
                                     }
                                 }
                             }

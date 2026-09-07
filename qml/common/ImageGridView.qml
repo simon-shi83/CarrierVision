@@ -68,13 +68,20 @@ Rectangle {
 
             delegate: Rectangle {
                 readonly property int itemIndex: root.enableInternalPaging ? (root.currentPage * root.itemsPerPage + index) : index
-                readonly property var itemData: (root.refreshEpoch >= 0 && root.model && itemIndex < root.count) ? root.model.get(itemIndex) : null
+                readonly property var itemData: {
+                    if (root.refreshEpoch < 0 || !root.model || itemIndex < 0 || itemIndex >= root.count)
+                        return null
+                    var data = root.model.get(itemIndex)
+                    if (!data || data.fileName === undefined || Object.keys(data).length === 0)
+                        return null
+                    return data
+                }
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.preferredWidth: Math.floor((imageGrid.width - (root.columns - 1) * imageGrid.columnSpacing) / root.columns)
                 Layout.preferredHeight: Math.floor((imageGrid.height - (root.rowsPerPage - 1) * imageGrid.rowSpacing) / root.rowsPerPage)
-                visible: itemData !== null
+                visible: itemData !== null && itemData !== undefined
 
                 color: itemMouse.containsMouse ? Theme.bgCardActive : Theme.bgInput
                 radius: Theme.radiusMd
@@ -91,10 +98,14 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        root.imageClicked(itemData ? itemData.fileName : "", itemData ? itemData.receivedAtText : "", itemData ? itemData.fileUrl : "")
+                        if (itemData) {
+                            root.imageClicked(itemData.fileName || "", itemData.receivedAtText || "", itemData.fileUrl || "")
+                        }
                     }
                     onDoubleClicked: {
-                        root.imageClicked(itemData ? itemData.fileName : "", itemData ? itemData.receivedAtText : "", itemData ? itemData.fileUrl : "")
+                        if (itemData) {
+                            root.imageClicked(itemData.fileName || "", itemData.receivedAtText || "", itemData.fileUrl || "")
+                        }
                     }
                 }
 
@@ -113,7 +124,7 @@ Rectangle {
                         Image {
                             anchors.fill: parent
                             anchors.margins: 2
-                            source: itemData ? itemData.fileUrl : ""
+                            source: (itemData && itemData.fileUrl) ? itemData.fileUrl : ""
                             sourceSize.width: Math.min(4096, Math.max(1, width * 2))
                             sourceSize.height: Math.min(4096, Math.max(1, height * 2))
                             fillMode: Image.PreserveAspectFit
@@ -146,12 +157,12 @@ Rectangle {
                             border.width: 1
                             border.color: Theme.borderSubtle
                             implicitWidth: rackSlotTxt.implicitWidth + 10
-                            visible: itemData && itemData.rack !== undefined
+                            visible: itemData && itemData.rack !== undefined && itemData.slot !== undefined
 
                             Text {
                                 id: rackSlotTxt
                                 anchors.centerIn: parent
-                                text: itemData ? ("架 #" + itemData.rack + " ╎ 轮 " + itemData.slot) : ""
+                                text: (itemData && itemData.rack !== undefined && itemData.slot !== undefined) ? ("架 #" + itemData.rack + " ╎ 轮 " + itemData.slot) : ""
                                 color: Theme.textSecondary
                                 font.family: Theme.fontMono
                                 font.bold: true
@@ -175,7 +186,7 @@ Rectangle {
                             Text {
                                 id: resTxt
                                 anchors.centerIn: parent
-                                text: itemData ? (itemData.result === 1 ? "OK 正常" : "NG 异常") : ""
+                                text: (itemData && itemData.result !== undefined) ? (itemData.result === 1 ? "OK 正常" : "NG 异常") : ""
                                 color: itemData && itemData.result === 1 ? Theme.okLight : Theme.ngLight
                                 font.family: Theme.fontFamily
                                 font.bold: true
@@ -186,7 +197,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
-                        text: itemData ? itemData.fileName : ""
+                        text: (itemData && itemData.fileName) ? itemData.fileName : ""
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSizeSmall
                         font.bold: true
@@ -197,7 +208,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
-                        text: itemData ? itemData.receivedAtText : ""
+                        text: (itemData && itemData.receivedAtText) ? itemData.receivedAtText : ""
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSizeTiny
                         color: Theme.textSecondary

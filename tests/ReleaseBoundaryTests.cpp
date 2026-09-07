@@ -196,7 +196,6 @@ private slots:
         server.stop();
     }
     void databaseDefaultsAndHelpers() {
-        QCOMPARE(DBSchema::getConfigInt(db, "network/tcpPort", 0), 22345);
         QCOMPARE(DBSchema::getConfig(db, "ftp/rootDirectory", ""), QString("archive"));
         QCOMPARE(DBSchema::getConfigInt(db, "cleanup/keepDays", 0), 90);
         QCOMPARE(DBSchema::getConfigBool(db, "ui/isDark", true), false);

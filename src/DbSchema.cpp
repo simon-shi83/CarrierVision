@@ -98,7 +98,6 @@ static void migrateLegacyFiles(QSqlDatabase &db) {
                 }
             }
         };
-        copyVal("network/tcpPort", "22345");
         copyVal("ftp/port", "21");
         copyVal("ftp/rootDirectory", "archive");
         copyVal("cleanup/keepDays", "90");
@@ -459,9 +458,7 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    // Seed defaults if tables are empty
     // system_config defaults
-    q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('network/tcpPort', '22345', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/port', '21', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/rootDirectory', 'archive', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('cleanup/keepDays', '90', datetime('now', 'localtime'))");

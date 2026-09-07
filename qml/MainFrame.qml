@@ -218,19 +218,6 @@ Window {
             text: "系统就绪",
             textColor: Theme.ok,
             width: 110
-        },
-        {
-            modelId: "tcpstatus",
-            iconText: "⚡",
-            text: "等待连接",
-            textColor: Theme.textSecondary,
-            width: 110
-        },
-        {
-            modelId: "tcpdata",
-            iconText: "◈",
-            text: "",
-            textColor: Theme.textSecondary
         }
     ]
 

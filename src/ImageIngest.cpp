@@ -1,5 +1,6 @@
 #include "ImageIngest.h"
 #include "AgcUtils.h"
+#include "AppLogger.h"
 #include <QFileInfo>
 #include <QFile>
 #include <QSaveFile>
@@ -106,19 +107,35 @@ bool record(QSqlDatabase db, const Metadata &metadata, const QString &imageName,
 
 bool validate(const QString &file, const QString &target, QString &error)
 {
-    Metadata metadata;
-    if (!parse(target, metadata, error)) return false;
     const QFileInfo info(file);
-    if (!info.isFile() || info.isSymbolicLink() || info.size() <= 0
-        || info.size() > 512LL * 1024 * 1024 || !AgcUtils::isImageFile(target)) {
-        error = QStringLiteral("上传文件类型或大小无效"); return false;
+    const qint64 fileSize = info.exists() ? info.size() : -1;
+    const QString fileName = QFileInfo(target).fileName();
+
+    LOG_INFO("[INGEST] 收到上传文件: target='{}', staged='{}', 大小={} 字节",
+             target.toStdString(), file.toStdString(), fileSize);
+
+    Metadata metadata;
+    if (!parse(target, metadata, error)) {
+        LOG_WARN("[INGEST] 文件名解析未通过: target='{}', error='{}'",
+                 target.toStdString(), error.toStdString());
+        return false;
+    }
+
+    if (!info.isFile() || info.isSymbolicLink() || fileSize <= 0
+        || fileSize > 512LL * 1024 * 1024 || !AgcUtils::isImageFile(target)) {
+        error = QStringLiteral("上传文件类型或大小无效");
+        LOG_WARN("[INGEST] 文件类型或大小无效: target='{}', 大小={}", target.toStdString(), fileSize);
+        return false;
     }
     QImageReader reader(file);
     reader.setDecideFormatFromContent(true);
     const QSize size = reader.size();
     if (!size.isValid() || qint64(size.width()) * size.height() > 200LL * 1000 * 1000
-        || !reader.canRead() || reader.read().isNull()) {
-        error = QStringLiteral("上传图片损坏或无法解码: %1").arg(reader.errorString()); return false;
+        || !reader.canRead()) {
+        error = QStringLiteral("上传图片损坏或无法解码: %1").arg(reader.errorString());
+        LOG_WARN("[INGEST] 图片解码校验失败: file='{}', target='{}', error='{}'",
+                 file.toStdString(), target.toStdString(), error.toStdString());
+        return false;
     }
     return true;
 }
@@ -140,25 +157,37 @@ bool accept(const QString &staged, const QString &target,
     if (!validate(staged, target, error)) return false;
     const bool exists = QFileInfo::exists(target);
     if (QFileInfo(target).isSymbolicLink() || (exists && !sameContent(staged, target))) {
-        error = QStringLiteral("同名文件内容不同，已保留原图: %1").arg(target); return false;
+        error = QStringLiteral("同名文件内容不同，已保留原图: %1").arg(target);
+        LOG_WARN("[INGEST] 同名文件内容不同，保留原图: target='{}'", target.toStdString());
+        return false;
     }
     const QString marker = target + QStringLiteral(".cv-pending");
     if (!QFileInfo::exists(marker)) {
         QSaveFile journal(marker);
         const QByteArray data = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss").toUtf8();
         if (!journal.open(QIODevice::WriteOnly) || journal.write(data) != data.size() || !journal.commit()) {
-            error = QStringLiteral("无法保存上传恢复记录"); return false;
+            error = QStringLiteral("无法保存上传恢复记录");
+            LOG_ERROR("[INGEST] 无法保存上传恢复记录: {}", marker.toStdString());
+            return false;
         }
     }
     if (!exists && !QFile::rename(staged, target)) {
-        error = QStringLiteral("无法提交上传文件，原图未替换"); return false;
+        error = QStringLiteral("无法提交上传文件，原图未替换");
+        LOG_ERROR("[INGEST] 无法重命名临时文件至目标文件: staged='{}', target='{}'",
+                  staged.toStdString(), target.toStdString());
+        return false;
     }
     if (!ingest || !ingest(target)) {
-        error = QStringLiteral("文件已保存，数据库处理失败；保留恢复记录等待重试"); return false;
+        error = QStringLiteral("文件已保存，数据库处理失败；保留恢复记录等待重试");
+        LOG_ERROR("[INGEST] 文件入库处理失败，保留恢复记录: target='{}'", target.toStdString());
+        return false;
     }
     if (!QFile::remove(marker)) {
-        error = QStringLiteral("无法清除上传恢复记录"); return false;
+        error = QStringLiteral("无法清除上传恢复记录");
+        LOG_WARN("[INGEST] 无法清除恢复记录标记: {}", marker.toStdString());
+        return false;
     }
+    LOG_INFO("[INGEST] 图像入库及文件归档成功: target='{}'", target.toStdString());
     return true;
 }
 }

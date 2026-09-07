@@ -453,20 +453,10 @@ AppController::AppController(QObject *parent)
     // try loading existing ftp log file
     loadFtpLogs();
 
-    connect(&m_tcpServer, &TcpMessageServer::statusChanged, this, [this](const QString &message) {
-        setStatusMessage(message);
-    });
-
     AppLogger::setLogCallback([this](const QString &/*level*/, const QString &/*message*/, const QString &/*time*/) {
         QMetaObject::invokeMethod(this, [this]() {
             emit latestWarnOrErrorChanged();
         }, Qt::QueuedConnection);
-    });
-
-    // 仅在构造时单次连接原始消息，避免每次收到架子信号时重复 connect 造成信号泄漏
-    connect(&m_tcpServer, &TcpMessageServer::rawMessageReceived, this, [this](const QString &msg) {
-        m_lastTcpMessage = msg;
-        emit lastTcpMessageChanged();
     });
 
     connect(&m_ftpServer, &FtpServer::runningChanged, this, [this](bool) {
@@ -477,7 +467,31 @@ AppController::AppController(QObject *parent)
     });
     connect(&m_ftpServer, &FtpServer::logMessage, this, [this](const QString &message) {
         const QString boundedMessage = message.left(2048);
-        setStatusMessage(boundedMessage);
+
+        // 去除 FtpServer 内部前缀中重复的时间戳与 [FTP] 标识，使系统日志格式保持工整统一
+        QString cleanMessage = boundedMessage;
+        static const QRegularExpression prefixRx(QStringLiteral(R"(^\d{4}-\d{2}-\d{2}T[^\s]+\s+\[FTP\]\s+)"));
+        cleanMessage.remove(prefixRx);
+
+        const bool isCritical = cleanMessage.contains(QStringLiteral("异常")) ||
+                               cleanMessage.contains(QStringLiteral("失败")) ||
+                               cleanMessage.contains(QStringLiteral("failed")) ||
+                               cleanMessage.contains(QStringLiteral("error"));
+        const bool isKeyMilestone = cleanMessage.contains(QStringLiteral("上传处理完成")) ||
+                                    cleanMessage.contains(QStringLiteral("服务启动")) ||
+                                    cleanMessage.contains(QStringLiteral("服务停止"));
+
+        if (isCritical) {
+            LOG_WARN("[FTP] {}", cleanMessage.toStdString());
+            setStatusMessage(cleanMessage);
+        } else if (isKeyMilestone) {
+            LOG_INFO("[FTP] {}", cleanMessage.toStdString());
+            setStatusMessage(cleanMessage);
+        } else {
+            // 详细协议交互（如 CMD USER/PASS/TYPE/EPSV/STOR, RSP 200/226/150/229, 创建目录, attachDataSocket 等）记录为 DEBUG
+            LOG_DEBUG("[FTP] {}", cleanMessage.toStdString());
+        }
+
         const QString entry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + " " + boundedMessage;
         m_ftpLogLines.append(entry);
         while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
@@ -510,15 +524,6 @@ AppController::AppController(QObject *parent)
     connect(&m_ingestRetryTimer, &QTimer::timeout, this, &AppController::recoverPendingUploads);
     m_ingestRetryTimer.start(1000);
 
-    connect(&m_tcpServer, &TcpMessageServer::serverStateChanged, this, [this](bool running, quint16 port) {
-        const bool changed = (m_serverRunning != running);
-        m_serverRunning = running;
-        Q_UNUSED(port);
-        if (changed) {
-            emit serverRunningChanged();
-        }
-    });
-
     // start integrated FTP server
     startFtpServer();
     LOG_DEBUG("内置 FTP 服务初始化检测: ftpRunning={}", ftpRunning());
@@ -530,75 +535,9 @@ AppController::AppController(QObject *parent)
         // 不退出，允许 UI 界面启动以便调试和使用其他功能
     }
 
-    connect(
-        &m_tcpServer,
-        &TcpMessageServer::rackMessageReceived,
-        this,
-        [this](const QString &rackNumber, int roundNumber, int currentTotal)
-        {
-            const QString rackKey = rackNumber.trimmed();
-            closeoutPreviousSession(rackKey);
-
-            if (m_lastTotalByRack.contains(rackKey)) {
-                const int prev = m_lastTotalByRack.value(rackKey);
-                if (qint64(currentTotal) > qint64(prev) + 1) {
-                    const QString gapMsg = QStringLiteral("检测到TCP跳号: rack=%1 total %2 -> %3")
-                                               .arg(rackKey)
-                                               .arg(prev)
-                                               .arg(currentTotal);
-                    setStatusMessage(gapMsg);
-                    LOG_WARN("检测到TCP报文跳号: 架号={}, 上次计数={}, 当前计数={}", rackKey.toStdString(), prev, currentTotal);
-                }
-            }
-            m_lastTotalByRack.insert(rackKey, currentTotal);
-
-            LOG_INFO("TCP接收架轮报文: 架号={}, 轮号={}, 累计总数={}", rackNumber.toStdString(), roundNumber, currentTotal);
-
-            // 更新可供 QML 显示的原始 TCP 消息
-            m_lastTcpMessage = QStringLiteral("%1,%2,%3").arg(rackNumber).arg(roundNumber).arg(currentTotal);
-            emit lastTcpMessageChanged();
-
-            m_currentBatchId = QStringLiteral("RACK_%1_R%2_%3")
-                .arg(rackNumber)
-                .arg(roundNumber)
-                .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz")));
-            m_currentRoundNumber = roundNumber;
-            m_currentReceivedAtText = AgcUtils::formatDateTime(QDateTime::currentDateTime());
-            if (roundNumber == 0) {
-                m_currentSerialsRaw = QStringLiteral("%1,%2").arg(rackNumber).arg(currentTotal);
-            } else {
-                m_currentSerialsRaw = QStringLiteral("%1,%2,%3").arg(rackNumber).arg(roundNumber).arg(currentTotal);
-            }
-            m_currentCopiedCount = 0;
-            emit currentBatchChanged();
-
-            RackSession session;
-            session.rack = rackKey;
-            session.batchId = m_currentBatchId;
-            session.roundNumber = roundNumber;
-            session.startedAt = QDateTime::currentDateTime();
-            session.completed = false;
-            m_activeRackSessions[rackKey] = session;
-            m_currentSessionRack = rackKey;
-
-            if (!m_safetyTimeoutTimer.isActive()) {
-                m_safetyTimeoutTimer.start(30000);
-            }
-
-            LOG_DEBUG("收到架轮数据批次: batchId={} serials={}", m_currentBatchId.toStdString(), m_currentSerialsRaw.toStdString());
-            setStatusMessage(
-                QStringLiteral("架子 %1 轮号 %2 当前总数 %3 已接收")
-                    .arg(rackNumber)
-                    .arg(roundNumber)
-                    .arg(currentTotal));
-        });
-
-    // CopyWorker removed — batchUpdated/completion now handled by FTP events
-    m_tcpServer.start(static_cast<quint16>(m_listenPort));
     setStatusMessage(
-        QStringLiteral("源目录 %1，归档目录 %2，TCP 端口 %3")
-            .arg(m_sourceDirectory, m_archiveDirectory)
-            .arg(m_listenPort));
+        QStringLiteral("源目录 %1，归档目录 %2")
+            .arg(m_sourceDirectory, m_archiveDirectory));
 }
 
 QString AppController::ftpLog() const
@@ -815,7 +754,7 @@ QVariantMap AppController::homepageCurrentDetection() const
     }
 
     bool rackOk = false;
-    const int currentRack = m_lastTcpMessage.section(',', 0, 0).trimmed().toInt(&rackOk);
+    const int currentRack = m_currentSerialsRaw.section(',', 0, 0).trimmed().toInt(&rackOk);
     int rackNumber = rackOk && currentRack >= 1 && currentRack <= 50 ? currentRack : 0;
     if (rackNumber == 0) {
         QSqlQuery latestRackQuery(db);
@@ -1160,19 +1099,41 @@ bool AppController::ingestStoredImage(const QString &filePath)
     const QString imageName = QDir(m_archiveDirectory).relativeFilePath(file.absoluteFilePath());
 
     const QString rackKey = QString::number(metadata.rack);
-    QString batchId;
-    int roundNo = 0;
-    if (m_activeRackSessions.contains(rackKey)) {
-        const RackSession &session = m_activeRackSessions[rackKey];
-        batchId = session.batchId;
-        roundNo = session.roundNumber;
+    if (!m_activeRackSessions.contains(rackKey)) {
+        closeoutPreviousSession(rackKey);
+        RackSession newSession;
+        newSession.rack = rackKey;
+        newSession.roundNumber = 0;
+        newSession.batchId = QStringLiteral("RACK_%1_%2")
+            .arg(metadata.rack)
+            .arg(received.toString(QStringLiteral("yyyyMMdd_HHmmss")));
+        newSession.startedAt = received;
+        newSession.completed = false;
+        m_activeRackSessions[rackKey] = newSession;
+        m_currentSessionRack = rackKey;
+
+        m_currentBatchId = newSession.batchId;
+        m_currentRoundNumber = 0;
+        m_currentReceivedAtText = AgcUtils::formatDateTime(received);
+        m_currentSerialsRaw = QStringLiteral("%1,%2").arg(metadata.rack).arg(metadata.camera);
+        m_currentCopiedCount = 0;
+        emit currentBatchChanged();
+
+        if (!m_safetyTimeoutTimer.isActive()) {
+            m_safetyTimeoutTimer.start(30000);
+        }
     }
 
+    const RackSession &session = m_activeRackSessions[rackKey];
+    QString batchId = session.batchId;
+    int roundNo = session.roundNumber;
+
     bool inserted = false;
+    const QVariantList standards = rackWheelDistances(metadata.rack);
     {
         QMutexLocker lock(&m_dbMutex);
         if (!ImageIngest::record(QSqlDatabase::database(), metadata, imageName,
-                                AgcUtils::formatDateTime(received), rackWheelDistances(metadata.rack), inserted, error,
+                                AgcUtils::formatDateTime(received), standards, inserted, error,
                                 batchId, roundNo)) {
             LOG_ERROR("图片入库失败: {}: {}", filePath.toStdString(), error.toStdString());
             setStatusMessage(QStringLiteral("图片入库失败，等待重试: %1").arg(file.fileName()));
@@ -1185,6 +1146,9 @@ bool AppController::ingestStoredImage(const QString &filePath)
     if (m_activeRackSessions.contains(rackKey)) {
         RackSession &session = m_activeRackSessions[rackKey];
         session.receivedSlots.insert(metadata.camera);
+        m_currentCopiedCount = session.receivedSlots.size();
+        m_currentSerialsRaw = QStringLiteral("%1,%2").arg(metadata.rack).arg(metadata.camera);
+        emit currentBatchChanged();
         if (!session.completed && session.receivedSlots.size() >= 12) {
             session.completed = true;
             LOG_INFO("架号 {} 轮号 {} 实时收齐 12 张图片，即时结案", rackKey.toStdString(), session.roundNumber);
@@ -1225,15 +1189,26 @@ void AppController::recoverPendingUploads()
         if (!marker.endsWith(QStringLiteral(".cv-pending"))) continue;
         const QString path = marker.chopped(QStringLiteral(".cv-pending").size());
         QString error;
-        if (ImageIngest::validate(path, path, error) && ingestStoredImage(path)) {
-            if (!QFile::remove(marker)) LOG_WARN("无法移除已恢复记录: {}", marker.toStdString());
+        if (ImageIngest::validate(path, path, error)) {
+            if (ingestStoredImage(path)) {
+                if (!QFile::remove(marker)) LOG_WARN("无法移除已恢复记录: {}", marker.toStdString());
+            }
+        } else {
+            // 如果目标文件不存在，或者标记已超过 5 分钟且无法通过验证（例如损坏或名称不符），清理该标记避免死循环
+            const QFileInfo markerInfo(marker);
+            const bool targetExists = QFileInfo::exists(path);
+            if (!targetExists || markerInfo.lastModified().secsTo(QDateTime::currentDateTime()) > 300) {
+                LOG_WARN("恢复未决上传失败，清理孤立恢复标记: marker='{}', error='{}'",
+                         marker.toStdString(), error.toStdString());
+                QFile::remove(marker);
+            }
         }
     }
     if (!m_pendingScan->hasNext()) {
         m_pendingScan.reset();
         m_ingestRetryTimer.setInterval(60'000);
     } else {
-        m_ingestRetryTimer.setInterval(20);
+        m_ingestRetryTimer.setInterval(1000);
     }
 }
 
@@ -1241,7 +1216,6 @@ AppController::~AppController()
 {
     AppLogger::setLogCallback(nullptr);
     m_logPool.waitForDone();
-    m_tcpServer.stop();
     stopFtpServer();
     // CopyWorker removed
 }
@@ -1267,16 +1241,6 @@ QString AppController::archiveDirectory() const
     return m_archiveDirectory;
 }
 
-int AppController::listenPort() const
-{
-    return m_listenPort;
-}
-
-bool AppController::serverRunning() const
-{
-    return m_serverRunning;
-}
-
 QString AppController::statusMessage() const
 {
     return m_statusMessage;
@@ -1285,11 +1249,6 @@ QString AppController::statusMessage() const
 QString AppController::currentSerialsRaw() const
 {
     return m_currentSerialsRaw;
-}
-
-QString AppController::lastTcpMessage() const
-{
-    return m_lastTcpMessage;
 }
 
 QString AppController::currentReceivedAtText() const
@@ -2287,7 +2246,7 @@ void AppController::startFtpServer()
         setStatusMessage(msg);
         LOG_ERROR("无法启动内置 FTP 服务器，端口可能被占用: {}", m_ftpPort);
     }
-    emit serverRunningChanged();
+    emit ftpServerStateChanged();
 }
 
 bool AppController::saveCsv(const QString &filePath, const QString &content)
@@ -2316,7 +2275,7 @@ void AppController::stopFtpServer()
     m_ftpServer.stop();
     setStatusMessage(QStringLiteral("FTP 服务器已停止"));
     LOG_INFO("FTP 服务器已停止运行");
-    emit serverRunningChanged();
+    emit ftpServerStateChanged();
 }
 
 QString AppController::ftpUser() const
@@ -2750,14 +2709,6 @@ void AppController::loadSettings()
 
     m_sourceDirectory = AgcUtils::normalizedPath(envSource.isEmpty() ? defaultSource : envSource);
     m_archiveDirectory = AgcUtils::normalizedPath(envArchive.isEmpty() ? defaultArchive : envArchive);
-    {
-        QMutexLocker locker(&m_dbMutex);
-        QSqlDatabase db = QSqlDatabase::database();
-        m_listenPort = DBSchema::getConfigInt(db, "network/tcpPort", kListenPort);
-        if (m_listenPort < 1024 || m_listenPort > 65535) {
-            m_listenPort = kListenPort;
-        }
-    }
     // Load persisted FTP-related settings (includes slot mapping)
     loadFtpSettingsFromFile();
     // ensure ftp server has the current users before start
@@ -2812,63 +2763,6 @@ void AppController::copyToClipboard(const QString &text)
         cb->setText(text);
         LOG_DEBUG("已复制文本到剪贴板，长度: {} 字符", text.size());
     }
-}
-
-void AppController::startTcpServer()
-{
-    if (m_tcpServer.isRunning()) return;
-    if (m_tcpServer.start(static_cast<quint16>(m_listenPort))) {
-        m_serverRunning = true;
-        emit serverRunningChanged();
-        LOG_INFO("已启动 TCP 点检监听服务: 端口={}", m_listenPort);
-        setStatusMessage(QStringLiteral("TCP 监听服务已启动 (端口 %1)").arg(m_listenPort));
-    } else {
-        LOG_WARN("启动 TCP 点检服务失败: 端口={}", m_listenPort);
-        setStatusMessage(QStringLiteral("启动 TCP 监听服务失败 (端口 %1)").arg(m_listenPort));
-    }
-}
-
-void AppController::stopTcpServer()
-{
-    if (!m_tcpServer.isRunning()) return;
-    m_tcpServer.stop();
-    m_serverRunning = false;
-    emit serverRunningChanged();
-    LOG_INFO("已停止 TCP 点检监听服务");
-    setStatusMessage(QStringLiteral("TCP 监听服务已停止"));
-}
-
-void AppController::setListenPort(int port)
-{
-    if (port < 1024 || port > 65535) { setStatusMessage(QStringLiteral("TCP 端口范围必须为 1024..65535")); return; }
-    if (m_listenPort == port) return;
-    const int previous = m_listenPort;
-    const bool running = m_tcpServer.isRunning();
-    if (running && !m_tcpServer.start(quint16(port))) {
-        const bool restored = m_tcpServer.start(quint16(previous));
-        setStatusMessage(restored ? QStringLiteral("新端口不可用，已恢复原 TCP 服务") : QStringLiteral("新旧 TCP 端口均无法监听"));
-        return;
-    }
-    bool success = false;
-    {
-        QMutexLocker locker(&m_dbMutex);
-        QSqlDatabase db = QSqlDatabase::database();
-        success = DBSchema::setConfig(db, "network/tcpPort", QString::number(port));
-    }
-    if (!success) {
-        {
-            QMutexLocker locker(&m_dbMutex);
-            QSqlDatabase db = QSqlDatabase::database();
-            DBSchema::setConfig(db, "network/tcpPort", QString::number(previous));
-        }
-        if (running) m_tcpServer.start(quint16(previous));
-        setStatusMessage(QStringLiteral("TCP 配置保存失败，已恢复原端口"));
-        return;
-    }
-    m_listenPort = port;
-    emit listenPortChanged();
-    setStatusMessage(QStringLiteral("TCP 端口已更新并保存"));
-    LOG_INFO("已更新并持久化 TCP 监听端口: {}", port);
 }
 
 void AppController::resetSlotMapping()

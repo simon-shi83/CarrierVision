@@ -14,7 +14,7 @@ Page {
     // 0: 3D数字孪生视窗, 1: 实时点检批次
     property int currentLeftCardView: 0
 
-    property string batchSummaryText: (typeof appController !== 'undefined' && appController && appController.lastTcpMessage && appController.lastTcpMessage.length > 0) ? ("TCP 消息: " + appController.lastTcpMessage) : ((typeof appController !== 'undefined' && appController && appController.currentSerialsRaw && appController.currentSerialsRaw.length > 0) ? ("当前序列号: " + appController.currentSerialsRaw) : "等待新的 TCP 点检信号...")
+    property string batchSummaryText: ((typeof appController !== 'undefined' && appController && appController.currentSerialsRaw && appController.currentSerialsRaw.length > 0) ? ("当前序列号: " + appController.currentSerialsRaw) : "等待点检数据...")
 
     property var detectionOverview: ({})
     readonly property int currentRack: detectionOverview.rack || 0
@@ -119,7 +119,7 @@ Page {
             root.refreshDetection();
         }
 
-        function onLastTcpMessageChanged() {
+        function onCurrentBatchChanged() {
             root.refreshDetection();
         }
     }
@@ -405,10 +405,10 @@ Page {
                         }
                     }
 
-                    // 2. 批次模式：TCP / 序列号实时状态指示胶囊
+                    // 2. 批次模式：序列号实时状态指示胶囊
                     Rectangle {
                         Layout.preferredHeight: 28
-                        implicitWidth: batchTcpRow.implicitWidth + 20
+                        implicitWidth: batchSerialRow.implicitWidth + 20
                         radius: Theme.radiusPill
                         color: Theme.bgCardElevated
                         border.color: Theme.borderSubtle
@@ -416,7 +416,7 @@ Page {
                         visible: root.currentLeftCardView === 1
 
                         RowLayout {
-                            id: batchTcpRow
+                            id: batchSerialRow
                             anchors.centerIn: parent
                             spacing: 6
 
