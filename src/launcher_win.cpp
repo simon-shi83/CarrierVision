@@ -11,10 +11,7 @@
 #include <string>
 #include <vector>
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
-    (void)hInstance;
-    (void)hPrevInstance;
-
+static int runLauncher(int nCmdShow) {
     // 1. 获取当前启动器程序所在根目录
     wchar_t exePath[MAX_PATH];
     if (GetModuleFileNameW(NULL, exePath, MAX_PATH) == 0) {
@@ -63,10 +60,21 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     SetEnvironmentVariableW(L"QML2_IMPORT_PATH", qmlDir.c_str());
 
     // 5. 组装完整命令行并透明启动主程序
+    LPWSTR cmdLine = GetCommandLineW();
     std::wstring fullCommandLine = L"\"" + targetExe + L"\"";
-    if (lpCmdLine && wcslen(lpCmdLine) > 0) {
-        fullCommandLine += L" ";
-        fullCommandLine += lpCmdLine;
+    if (cmdLine && wcslen(cmdLine) > 0) {
+        int argc = 0;
+        LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
+        if (argv && argc > 1) {
+            for (int i = 1; i < argc; ++i) {
+                fullCommandLine += L" \"";
+                fullCommandLine += argv[i];
+                fullCommandLine += L"\"";
+            }
+        }
+        if (argv) {
+            LocalFree(argv);
+        }
     }
 
     STARTUPINFOW si;
@@ -102,4 +110,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     return 0;
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    (void)hInstance;
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    return runLauncher(nCmdShow);
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
+    (void)hInstance;
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    return runLauncher(nCmdShow);
 }
