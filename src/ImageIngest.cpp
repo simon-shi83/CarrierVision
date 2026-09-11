@@ -226,11 +226,36 @@ bool accept(const QString &staged, const QString &target,
             return false;
         }
     }
-    if (!exists && !QFile::rename(staged, target)) {
-        error = QStringLiteral("无法提交上传文件，原图未替换");
-        LOG_ERROR("[INGEST] 无法重命名临时文件至目标文件: staged='{}', target='{}'",
-                  staged.toStdString(), target.toStdString());
-        return false;
+    if (!exists) {
+        QFile stagedFile(staged);
+        if (!stagedFile.rename(target)) {
+            const QString renameError = stagedFile.errorString();
+
+            // Windows 上临时上传文件可能在 close 后仍被短暂占用，导致同卷
+            // rename 失败。复制到一个尚不存在的目标文件是安全回退：QFile::copy
+            // 不会覆盖目标，因此不会破坏并发上传或已有归档。
+            if (!QFile::copy(staged, target)) {
+                error = QStringLiteral("无法提交上传文件，原图未替换: %1").arg(renameError);
+                LOG_ERROR("[INGEST] 无法提交临时文件: staged='{}', target='{}', renameError='{}'",
+                          staged.toStdString(), target.toStdString(), renameError.toStdString());
+                return false;
+            }
+
+            if (!sameContent(staged, target)) {
+                QFile::remove(target);
+                error = QStringLiteral("上传文件复制校验失败，原图未替换");
+                LOG_ERROR("[INGEST] 临时文件复制后校验失败: staged='{}', target='{}', renameError='{}'",
+                          staged.toStdString(), target.toStdString(), renameError.toStdString());
+                return false;
+            }
+
+            if (!stagedFile.remove()) {
+                LOG_WARN("[INGEST] 临时文件已复制提交，但清理失败: staged='{}', error='{}'",
+                         staged.toStdString(), stagedFile.errorString().toStdString());
+            }
+            LOG_WARN("[INGEST] 临时文件改名失败，已通过复制回退提交: staged='{}', target='{}', renameError='{}'",
+                     staged.toStdString(), target.toStdString(), renameError.toStdString());
+        }
     }
     if (ingest && !ingest(target)) {
         error = QStringLiteral("文件已保存，后续处理失败；保留恢复记录等待重试");
