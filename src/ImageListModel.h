@@ -9,6 +9,10 @@ struct ImageItem
 {
     QString batchId;
     int roundNumber = 0;
+    int carrierId = 0;
+    int cameraId = 0;
+    int wheelId = 0;
+    // 兼容字段
     int slot = 0;
     int rack = 0;
     QString serial;
@@ -17,9 +21,11 @@ struct ImageItem
     QString fileUrl;
     QDateTime receivedAt;
     int result = 1;
-    int distance = 0;
-    int dist_max=0;
-    int dist_norm =0;
+    double distance = 0.0;
+    double dist_max = 0.0;
+    double dist_norm = 0.0;
+    double lower_tolerance = 0.0;
+    QString wheelsInfo;
 };
 
 class ImageItemObject;
@@ -30,13 +36,14 @@ class ImageListModel : public QAbstractListModel
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 
 public:
-    static constexpr int MaxItemCount = 14;
-
     enum ImageRoles {
         BatchIdRole = Qt::UserRole + 1,
         RoundNumberRole,
         SlotRole,
         RackRole,
+        CarrierIdRole,
+        CameraIdRole,
+        WheelIdRole,
         SerialRole,
         FileNameRole,
         FilePathRole,
@@ -46,6 +53,8 @@ public:
         DistanceRole,
         DistMaxRole,
         DistNormRole,
+        LowerToleranceRole,
+        WheelsInfoRole,
         ItemObjectRole,
         ReceivedAtTextRole
     };

@@ -45,6 +45,9 @@ Rectangle {
             return String(statusItemObj.text);
         }
         // 2. 真实服务健康度感知：杜绝服务异常时盲目显示“系统就绪”
+        if (!statusBar.tcpRunning) {
+            return "TCP 异常";
+        }
         if (!statusBar.ftpRunning) {
             return "FTP 异常";
         }
@@ -58,7 +61,7 @@ Rectangle {
         if (statusItemObj && statusItemObj.text !== undefined && String(statusItemObj.text).indexOf("加载") >= 0) {
             return Theme.warning;
         }
-        if (!statusBar.ftpRunning) {
+        if (!statusBar.tcpRunning || !statusBar.ftpRunning) {
             return Theme.warning;
         }
         if (statusItemObj && statusItemObj.textColor !== undefined) {
@@ -78,8 +81,8 @@ Rectangle {
         return null;
     }
 
-    // 致命服务是否异常：FTP 异常属于致命故障，因为软件核心图像接收功能已无法进行
-    readonly property bool hasFatalServiceFault: !statusBar.ftpRunning
+    // 致命服务是否异常：FTP 或 TCP 异常属于故障
+    readonly property bool hasFatalServiceFault: !statusBar.ftpRunning || !statusBar.tcpRunning
 
     // 动态提示流当前严重等级: "FATAL" | "CRITICAL" | "ERROR" | "WARN" | "INFO"
     readonly property string operationalMessageLevel: {
@@ -97,7 +100,10 @@ Rectangle {
 
     // 动态业务事件与提示文本（严格调度优先级：致命服务异常 > 日志错误 > 日志警告 > 业务/操作提示）
     readonly property string operationalMessageText: {
-        // 1. 最高优先级：服务异常（致命故障：FTP 停止）
+        // 1. 最高优先级：服务异常
+        if (!statusBar.tcpRunning) {
+            return "【服务故障】TCP数据接收服务未运行或端口冲突！无法接收测量数据";
+        }
         if (!statusBar.ftpRunning) {
             return "【致命故障】FTP图像接收服务未运行或端口冲突！无法接收检测机台上传的轮对图像";
         }
@@ -174,6 +180,27 @@ Rectangle {
     readonly property int ftpClientCount: {
         if (typeof appController !== "undefined" && appController) {
             return appController.ftpClientCount;
+        }
+        return 0;
+    }
+
+    readonly property bool tcpRunning: {
+        if (typeof appController !== "undefined" && appController) {
+            return appController.tcpRunning;
+        }
+        return true;
+    }
+
+    readonly property int tcpPort: {
+        if (typeof appController !== "undefined" && appController && appController.tcpPort > 0) {
+            return appController.tcpPort;
+        }
+        return 9000;
+    }
+
+    readonly property int tcpClientCount: {
+        if (typeof appController !== "undefined" && appController) {
+            return appController.tcpClientCount;
         }
         return 0;
     }
@@ -500,6 +527,88 @@ Rectangle {
         RowLayout {
             spacing: 6
             Layout.alignment: Qt.AlignVCenter
+
+            // 4.1 TCP 数据通道胶囊
+            Rectangle {
+                id: tcpTelemetryPill
+                Layout.preferredHeight: 22
+                implicitWidth: tcpRow.implicitWidth + 14
+                radius: Theme.radiusPill
+                color: {
+                    if (tcpPillMouse.containsMouse)
+                        return Theme.bgCardActive;
+                    return statusBar.tcpRunning ? (Theme.isDark ? "#1210b981" : "#ecfdf5") : (Theme.isDark ? "#18f59e0b" : "#fffbeb");
+                }
+                border.width: 1
+                border.color: {
+                    if (tcpPillMouse.containsMouse)
+                        return Theme.borderHover;
+                    return statusBar.tcpRunning ? Theme.okBorder : Theme.warningBorder;
+                }
+
+                Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
+
+                RowLayout {
+                    id: tcpRow
+                    anchors.centerIn: parent
+                    spacing: 5
+
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: statusBar.tcpRunning ? Theme.ok : Theme.warning
+                    }
+
+                    Text {
+                        text: "TCP :" + statusBar.tcpPort + (statusBar.tcpClientCount > 0 ? (" (" + statusBar.tcpClientCount + "连)") : "")
+                        font.family: Theme.fontMono
+                        font.pixelSize: 10
+                        font.weight: Theme.weightBold
+                        color: statusBar.tcpRunning ? Theme.okLight : Theme.warningLight
+                    }
+                }
+
+                MouseArea {
+                    id: tcpPillMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                ToolTip {
+                    visible: tcpPillMouse.containsMouse
+                    delay: 350
+                    background: Rectangle {
+                        color: Theme.bgPopup
+                        border.color: Theme.borderMedium
+                        radius: Theme.radiusSm
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: 2
+                        Text {
+                            text: "TCP 数据接收服务 (检测数据流)"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontCaption
+                            font.weight: Theme.weightBold
+                            color: Theme.textPrimary
+                        }
+                        Text {
+                            text: "服务状态: " + (statusBar.tcpRunning ? "🟢 正常监听中" : "🟠 服务未就绪")
+                            color: statusBar.tcpRunning ? Theme.okLight : Theme.warningLight
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                        }
+                        Text {
+                            text: "监听端口: " + statusBar.tcpPort + " · 活跃客户端: " + statusBar.tcpClientCount
+                            color: Theme.textSecondary
+                            font.family: Theme.fontMono
+                            font.pixelSize: 10
+                        }
+                    }
+                }
+            }
 
             // 4.2 FTP 图像接收通道胶囊
             Rectangle {

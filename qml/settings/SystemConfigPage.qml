@@ -340,6 +340,140 @@ Item {
                     }
                 }
 
+                // ==================== 2.5. TCP 数据通信服务管理 ====================
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: tcpCol.implicitHeight + 28
+                    color: Theme.bgCard
+                    radius: Theme.radiusLg
+                    border.width: 1
+                    border.color: Theme.borderMedium
+
+                    ColumnLayout {
+                        id: tcpCol
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
+
+                        // 标题与运行状态徽章
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Rectangle {
+                                width: 3.5
+                                height: 16
+                                radius: 2
+                                color: Theme.primary
+                            }
+                            Label {
+                                text: "TCP 数据接收服务管理"
+                                color: Theme.textPrimary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontH2
+                                font.weight: Theme.weightSemiBold
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            Rectangle {
+                                Layout.preferredHeight: 24
+                                implicitWidth: tcpStatusText.implicitWidth + 20
+                                radius: Theme.radiusPill
+                                color: (appController && appController.tcpRunning) ? Theme.okBg : Theme.ngBg
+                                border.color: (appController && appController.tcpRunning) ? Theme.okBorder : Theme.ngBorder
+                                border.width: 1
+
+                                RowLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 5
+                                    Rectangle {
+                                        width: 6
+                                        height: 6
+                                        radius: 3
+                                        color: (appController && appController.tcpRunning) ? Theme.ok : Theme.ng
+                                    }
+                                    Text {
+                                        id: tcpStatusText
+                                        text: (appController && appController.tcpRunning) ? ("监听中 · " + appController.tcpClientCount + " 客户端") : "服务已停止"
+                                        color: (appController && appController.tcpRunning) ? Theme.okLight : Theme.ngLight
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.weightMedium
+                                    }
+                                }
+                            }
+                        }
+
+                        Label {
+                            text: "负责高速接收上位机/机台通过 TCP 传输的 JSON 格式检测数据报文，并触发即时入库与监控刷新"
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontCaption
+                        }
+
+                        // 端口配置与服务开关
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: "监听端口:"
+                                color: Theme.textSecondary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.weightMedium
+                            }
+
+                            TextField {
+                                id: rootTcpPort
+                                text: appController ? String(appController.tcpPort) : "9000"
+                                Layout.preferredWidth: 80
+                                Layout.preferredHeight: 32
+                                color: Theme.textPrimary
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontBody
+                                background: Rectangle {
+                                    color: Theme.bgInput
+                                    radius: Theme.radiusSm
+                                    border.color: rootTcpPort.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                }
+                            }
+
+                            ActionButton {
+                                text: "保存端口"
+                                variant: "secondary"
+                                Layout.preferredWidth: 78
+                                Layout.preferredHeight: 32
+                                onClicked: {
+                                    if (appController) {
+                                        appController.setTcpPort(Number(rootTcpPort.text));
+                                    }
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            ActionButton {
+                                text: (appController && appController.tcpRunning) ? "停止服务" : "启动服务"
+                                variant: (appController && appController.tcpRunning) ? "danger" : "success"
+                                Layout.preferredWidth: 90
+                                Layout.preferredHeight: 32
+                                onClicked: {
+                                    if (appController) {
+                                        if (appController.tcpRunning)
+                                            appController.stopTcpServer();
+                                        else
+                                            appController.startTcpServer();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ==================== 3. FTP 传输服务管理 ====================
                 Rectangle {
                     Layout.fillWidth: true

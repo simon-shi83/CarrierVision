@@ -59,6 +59,8 @@ qt_add_executable(CarrierVision
     src/main.cpp
     src/AppController.cpp
     src/AppController.h
+    src/TcpDataReceiver.cpp
+    src/TcpDataReceiver.h
     src/FtpServer.cpp
     src/FtpServer.h
     src/ImageListModel.cpp
@@ -345,6 +347,7 @@ endif()
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionReleaseTests
         tests/ReleaseBoundaryTests.cpp
+        src/TcpDataReceiver.cpp src/TcpDataReceiver.h
         src/ImageIngest.cpp src/ImageIngest.h
         src/ArchiveMaintenance.cpp src/ArchiveMaintenance.h
         src/FtpServer.cpp src/FtpServer.h

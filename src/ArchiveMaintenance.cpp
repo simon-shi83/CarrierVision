@@ -54,7 +54,7 @@ bool ArchiveMaintenance::cleanup(QSqlDatabase db, const QString &archiveRoot,
         queue.prepare("INSERT OR IGNORE INTO cleanup_files(path,imagename) VALUES(:path,:name)");
         queue.bindValue(":path", path); queue.bindValue(":name", name);
         if (!queue.exec()) return fail(queue.lastError().text());
-        for (const auto &table : {"record", "alertrecord", "rackwheelnorm"}) {
+        for (const auto &table : {"record", "alertrecord"}) {
             QSqlQuery erase(db);
             erase.prepare(QString("DELETE FROM %1 WHERE imagename=:name AND datetime(createtime)<datetime(:cutoff)").arg(table));
             erase.bindValue(":name", name); erase.bindValue(":cutoff", AgcUtils::formatDateTime(cutoff));

@@ -213,9 +213,9 @@ static void migrateLegacyFiles(QSqlDatabase &db) {
                     if (db.transaction()) {
                         QSqlQuery qNorm(db);
                         qNorm.prepare(R"(
-                            INSERT INTO rack_wheel_norm(rackno, wheelno, standard_distance, tolerance, updated_at)
-                            VALUES(?, ?, ?, 0, datetime('now', 'localtime'))
-                            ON CONFLICT(rackno, wheelno) DO UPDATE SET
+                            INSERT INTO carrier_wheel_norm(carrier_id, wheel_id, standard_distance, lower_tolerance, updated_at)
+                            VALUES(?, ?, ?, 0.0, datetime('now', 'localtime'))
+                            ON CONFLICT(carrier_id, wheel_id) DO UPDATE SET
                                 standard_distance = excluded.standard_distance,
                                 updated_at = excluded.updated_at
                         )");
@@ -270,19 +270,20 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
     }
     QSqlQuery q(db);
     q.exec("PRAGMA busy_timeout = 5000;");
-    // record
+
+    // 1. record (检测历史明细)
     const QString createRecord = R"(
         CREATE TABLE IF NOT EXISTS record (
             createtime DATETIME NOT NULL,
-            rackno TEXT NOT NULL,
-            wheelno TEXT NOT NULL,
+            carrier_id INTEGER NOT NULL,
+            camera_id INTEGER NOT NULL DEFAULT 1,
+            wheel_id INTEGER NOT NULL,
             result INTEGER CHECK(result IN (0,1)),
+            distance REAL NOT NULL DEFAULT 0.0,
+            dist_norm REAL NOT NULL DEFAULT 0.0,
+            lower_tolerance REAL NOT NULL DEFAULT 0.0,
             imagename TEXT NOT NULL,
-            distance INTEGER NOT NULL DEFAULT 0,
-            dist_max INTEGER NOT NULL DEFAULT 0,
-            dist_norm INTEGER NOT NULL DEFAULT 0,
-            batch_id TEXT DEFAULT '',
-            round_no INTEGER DEFAULT 0
+            batch_id TEXT DEFAULT ''
         )
     )";
     if(!q.exec(createRecord)){
@@ -290,120 +291,68 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    // 检查并自动升级现有 record 表字段
-    bool hasBatchId = false;
-    bool hasRoundNo = false;
-    if (q.exec("PRAGMA table_info(record)")) {
-        while (q.next()) {
-            const QString col = q.value(1).toString();
-            if (col.compare("batch_id", Qt::CaseInsensitive) == 0) hasBatchId = true;
-            if (col.compare("round_no", Qt::CaseInsensitive) == 0) hasRoundNo = true;
-        }
-    }
-    if (!hasBatchId) {
-        if (!q.exec("ALTER TABLE record ADD COLUMN batch_id TEXT DEFAULT ''")) {
-            LOG_WARN("DBSchema: 为 record 表追加 batch_id 字段失败: {}", q.lastError().text().toStdString());
-        }
-    }
-    if (!hasRoundNo) {
-        if (!q.exec("ALTER TABLE record ADD COLUMN round_no INTEGER DEFAULT 0")) {
-            LOG_WARN("DBSchema: 为 record 表追加 round_no 字段失败: {}", q.lastError().text().toStdString());
-        }
-    }
+    q.exec("CREATE INDEX IF NOT EXISTS idx_record_carrier_time ON record(carrier_id, createtime DESC)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_record_carrier_wheel ON record(carrier_id, wheel_id, createtime DESC)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_record_image ON record(imagename)");
 
-    if(!q.exec("CREATE INDEX IF NOT EXISTS idx_record_rack_result_time ON record(rackno, result, createtime DESC)")){
-        LOG_ERROR("DBSchema: 创建索引 idx_record_rack_result_time 失败: {}", q.lastError().text().toStdString());
-    }
-    if(!q.exec("CREATE INDEX IF NOT EXISTS idx_record_rack_result_distance_createtime_wheel ON record(rackno, result, distance, dist_max, dist_norm, createtime, wheelno)")){
-        LOG_ERROR("DBSchema: 创建复合索引 idx_record_rack_result_distance_createtime_wheel 失败: {}", q.lastError().text().toStdString());
-    }
-
-    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)")) return false;
-    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_round ON record(round_no)")) return false;
-    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_image_wheel ON record(imagename,wheelno)")) return false;
-    if (!q.exec("CREATE INDEX IF NOT EXISTS idx_record_rack_wheel_time ON record(rackno,wheelno,createtime DESC)")) return false;
     if (!q.exec("CREATE TABLE IF NOT EXISTS cleanup_files(path TEXT PRIMARY KEY, imagename TEXT NOT NULL)")) return false;
 
-    // alertrecord：仅保存各架号、轮号当前最新的 NG 报警记录。
+    // 2. alertrecord (当前各载具、轮号最新的 NG 报警记录)
     const QString createAlertRecord = R"(
         CREATE TABLE IF NOT EXISTS alertrecord (
             createtime DATETIME NOT NULL,
-            rackno TEXT NOT NULL,
-            wheelno TEXT NOT NULL,
+            carrier_id INTEGER NOT NULL,
+            camera_id INTEGER NOT NULL DEFAULT 1,
+            wheel_id INTEGER NOT NULL,
             result INTEGER CHECK(result IN (0,1)),
+            distance REAL NOT NULL DEFAULT 0.0,
+            dist_norm REAL NOT NULL DEFAULT 0.0,
+            lower_tolerance REAL NOT NULL DEFAULT 0.0,
             imagename TEXT NOT NULL,
-            distance INTEGER NOT NULL DEFAULT 0,
-            dist_max INTEGER NOT NULL DEFAULT 0,
-            dist_norm INTEGER NOT NULL DEFAULT 0,
-            UNIQUE(rackno, wheelno)
+            UNIQUE(carrier_id, wheel_id)
         )
     )";
     if(!q.exec(createAlertRecord)){
         LOG_ERROR("DBSchema: 创建 alertrecord 表失败: {}", q.lastError().text().toStdString());
         return false;
     }
-    // Transactional replacement also upgrades existing installations.
-    // Keep timestamp comparisons consistent for legacy ISO 'T' and space formats.
-    if (!db.transaction()) return false;
-    auto migrate = [&](const QString &sql) {
-        if (q.exec(sql)) return true;
-        LOG_ERROR("报警结构升级失败: {}", q.lastError().text().toStdString());
-        db.rollback();
-        return false;
-    };
-    if (!migrate("DROP TRIGGER IF EXISTS trg_record_ng_alert")
-        || !migrate("DROP TRIGGER IF EXISTS trg_record_ok_alert")) return false;
-    if (!migrate(R"(
+
+    if (!q.exec("DROP TRIGGER IF EXISTS trg_record_ng_alert")) return false;
+    if (!q.exec("DROP TRIGGER IF EXISTS trg_record_ok_alert")) return false;
+
+    if (!q.exec(R"(
         CREATE TRIGGER trg_record_ng_alert
         AFTER INSERT ON record WHEN NEW.result=0 AND NOT EXISTS (
-            SELECT 1 FROM record WHERE rackno=NEW.rackno AND wheelno=NEW.wheelno
+            SELECT 1 FROM record WHERE carrier_id=NEW.carrier_id AND wheel_id=NEW.wheel_id
               AND (datetime(createtime)>datetime(NEW.createtime)
                    OR (datetime(createtime)=datetime(NEW.createtime) AND rowid>NEW.rowid))
         )
         BEGIN
-            INSERT INTO alertrecord(createtime,rackno,wheelno,result,imagename,distance,dist_max,dist_norm)
-            VALUES(NEW.createtime,NEW.rackno,NEW.wheelno,0,NEW.imagename,NEW.distance,NEW.dist_max,NEW.dist_norm)
-            ON CONFLICT(rackno,wheelno) DO UPDATE SET
-                createtime=excluded.createtime,result=0,imagename=excluded.imagename,
-                distance=excluded.distance,dist_max=excluded.dist_max,dist_norm=excluded.dist_norm
+            INSERT INTO alertrecord(createtime,carrier_id,camera_id,wheel_id,result,distance,dist_norm,lower_tolerance,imagename)
+            VALUES(NEW.createtime,NEW.carrier_id,NEW.camera_id,NEW.wheel_id,0,NEW.distance,NEW.dist_norm,NEW.lower_tolerance,NEW.imagename)
+            ON CONFLICT(carrier_id,wheel_id) DO UPDATE SET
+                createtime=excluded.createtime,result=0,camera_id=excluded.camera_id,imagename=excluded.imagename,
+                distance=excluded.distance,dist_norm=excluded.dist_norm,lower_tolerance=excluded.lower_tolerance
             WHERE datetime(excluded.createtime)>=datetime(alertrecord.createtime);
         END
     )")) return false;
-    if (!migrate(R"(
+
+    if (!q.exec(R"(
         CREATE TRIGGER trg_record_ok_alert AFTER INSERT ON record WHEN NEW.result=1
         BEGIN
-            DELETE FROM alertrecord WHERE rackno=NEW.rackno AND wheelno=NEW.wheelno
+            DELETE FROM alertrecord WHERE carrier_id=NEW.carrier_id AND wheel_id=NEW.wheel_id
                 AND datetime(createtime)<=datetime(NEW.createtime);
         END
     )")) return false;
-    if (!db.commit()) { db.rollback(); return false; }
 
-    // rackwheelnorm (measured values from calibration ingest)
-    const QString createRack = R"(
-        CREATE TABLE IF NOT EXISTS rackwheelnorm (
-            createtime DATETIME NOT NULL,
-            rackno INTEGER NOT NULL,
-            wheelno INTEGER NOT NULL,
-            distance INTEGER NOT NULL,
-            imagename TEXT NOT NULL,
-            UNIQUE(imagename, wheelno)
-        )
-    )";
-    if(!q.exec(createRack)){
-        LOG_ERROR("DBSchema: 创建 rackwheelnorm 表失败: {}", q.lastError().text().toStdString());
-        return false;
-    }
-    if(!q.exec("CREATE INDEX IF NOT EXISTS idx_rackwheelnorm_rack_wheel ON rackwheelnorm(rackno, wheelno)")){
-        LOG_ERROR("DBSchema: 创建索引 idx_rackwheelnorm_rack_wheel 失败: {}", q.lastError().text().toStdString());
-    }
-
-    // weekly_reports
+    // 3. weekly_reports
     if(!q.exec("CREATE TABLE IF NOT EXISTS weekly_reports (createtime DATETIME NOT NULL, drivers_filename TEXT, deformed_filename TEXT)")){
         LOG_ERROR("DBSchema: 创建 weekly_reports 表失败: {}", q.lastError().text().toStdString());
         return false;
     }
 
-    // system_config
+    // 4. system_config
     const QString createSystemConfig = R"(
         CREATE TABLE IF NOT EXISTS system_config (
             key TEXT PRIMARY KEY,
@@ -416,7 +365,7 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    // ftp_users
+    // 5. ftp_users
     const QString createFtpUsers = R"(
         CREATE TABLE IF NOT EXISTS ftp_users (
             username TEXT PRIMARY KEY,
@@ -430,7 +379,7 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    // camera_slots
+    // 6. camera_slots
     const QString createCameraSlots = R"(
         CREATE TABLE IF NOT EXISTS camera_slots (
             slot_id INTEGER PRIMARY KEY,
@@ -442,23 +391,24 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    // rack_wheel_norm (configured standard distances and tolerances)
-    const QString createRackWheelNorm = R"(
-        CREATE TABLE IF NOT EXISTS rack_wheel_norm (
-            rackno INTEGER NOT NULL,
-            wheelno INTEGER NOT NULL,
-            standard_distance INTEGER NOT NULL DEFAULT 0,
-            tolerance INTEGER NOT NULL DEFAULT 0,
+    // 7. carrier_wheel_norm (标准基准与公差配置: 50 carriers x 16 wheels)
+    const QString createCarrierWheelNorm = R"(
+        CREATE TABLE IF NOT EXISTS carrier_wheel_norm (
+            carrier_id INTEGER NOT NULL,
+            wheel_id INTEGER NOT NULL,
+            standard_distance REAL NOT NULL DEFAULT 0.0,
+            lower_tolerance REAL NOT NULL DEFAULT 0.0,
             updated_at DATETIME NOT NULL,
-            PRIMARY KEY(rackno, wheelno)
+            PRIMARY KEY(carrier_id, wheel_id)
         )
     )";
-    if(!q.exec(createRackWheelNorm)){
-        LOG_ERROR("DBSchema: 创建 rack_wheel_norm 表失败: {}", q.lastError().text().toStdString());
+    if(!q.exec(createCarrierWheelNorm)){
+        LOG_ERROR("DBSchema: 创建 carrier_wheel_norm 表失败: {}", q.lastError().text().toStdString());
         return false;
     }
 
     // system_config defaults
+    q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('tcp/port', '9000', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/port', '21', datetime('now', 'localtime'))");
     q.exec("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('ftp/rootDirectory', 'images', datetime('now', 'localtime'))");
     // 自动将历史默认配置 'archive' 升级为规范的 'images'
@@ -470,7 +420,7 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
     {
         QSqlQuery qDef(db);
         qDef.prepare("INSERT OR IGNORE INTO system_config(key, value, updated_at) VALUES('homepage/description', ?, datetime('now', 'localtime'))");
-        qDef.addBindValue(QStringLiteral("欢迎使用 AGC ImageViewer。系统用于接收、浏览和查询 AGC 检测图片，并提供批次监控、数据统计及参数设置等功能。"));
+        qDef.addBindValue(QStringLiteral("欢迎使用 CarrierVision。系统用于接收、浏览和查询载具检测数据与图片，并提供工位监控、数据统计及参数设置等功能。"));
         qDef.exec();
     }
     {
@@ -512,15 +462,15 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         }
     }
 
-    // rack_wheel_norm default (50 racks x 8 wheels)
+    // carrier_wheel_norm default (50 carriers x 16 wheels: 0..15)
     {
         QSqlQuery checkNorm(db);
-        if (checkNorm.exec("SELECT COUNT(*) FROM rack_wheel_norm") && checkNorm.next() && checkNorm.value(0).toInt() == 0) {
+        if (checkNorm.exec("SELECT COUNT(*) FROM carrier_wheel_norm") && checkNorm.next() && checkNorm.value(0).toInt() == 0) {
             if (db.transaction()) {
                 QSqlQuery insNorm(db);
-                insNorm.prepare("INSERT INTO rack_wheel_norm(rackno, wheelno, standard_distance, tolerance, updated_at) VALUES(?, ?, 0, 0, datetime('now', 'localtime'))");
+                insNorm.prepare("INSERT INTO carrier_wheel_norm(carrier_id, wheel_id, standard_distance, lower_tolerance, updated_at) VALUES(?, ?, 10.0, -2.0, datetime('now', 'localtime'))");
                 for (int r = 1; r <= 50; ++r) {
-                    for (int w = 1; w <= 8; ++w) {
+                    for (int w = 0; w < 16; ++w) {
                         insNorm.bindValue(0, r);
                         insNorm.bindValue(1, w);
                         insNorm.exec();

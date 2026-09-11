@@ -9,7 +9,7 @@ Item {
 
     property string selectionToken: "0"
     readonly property string displayText: selectionToken === "0" ? "全选 (驱动轮)"
-                                      : selectionToken === "10" ? "全选 (走行轮)"
+                                      : selectionToken === "WALK" ? "全选 (走行轮)"
                                       : "轮位 " + selectionToken
     signal selectionChanged(string selectionToken)
 
@@ -21,7 +21,7 @@ Item {
 
     function setSelectionToken(token) {
         var value = String(token).trim()
-        selectionToken = value === "10" || value === "0" || /^([1-8]|1[1-8])$/.test(value) ? value : "0"
+        selectionToken = (value === "WALK" || value === "0" || /^([1-9]|1[0-6])$/.test(value)) ? value : "0"
     }
 
     function reset() {
@@ -39,7 +39,7 @@ Item {
             spacing: 6
             Text {
                 text: root.displayText
-                color: root.selectionToken === "10" || Number(root.selectionToken) >= 11 ? Theme.walkWheel : Theme.driveWheel
+                color: root.selectionToken === "WALK" || Number(root.selectionToken) >= 9 ? Theme.walkWheel : Theme.driveWheel
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeBody
                 font.bold: true
@@ -143,11 +143,11 @@ Item {
 
             // 走行轮标题与全选
             Button {
-                text: "走行轮全选 (轮 11 ~ 18)"
+                text: "走行轮全选 (轮 9 ~ 16)"
                 Layout.fillWidth: true
                 checkable: true
-                checked: root.selectionToken === "10"
-                onClicked: root.select("10")
+                checked: root.selectionToken === "WALK"
+                onClicked: root.select("WALK")
                 contentItem: Text { 
                     text: parent.text
                     color: parent.checked ? "#ffffff" : Theme.walkWheel
@@ -170,7 +170,7 @@ Item {
                     model: 8
                     delegate: Button {
                         required property int index
-                        property string token: String(index + 11)
+                        property string token: String(index + 9)
                         text: token
                         checkable: true
                         checked: root.selectionToken === token

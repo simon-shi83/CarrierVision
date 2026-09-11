@@ -16,6 +16,8 @@ Rectangle {
     property string endDate: endDateField.dateString
     property int rackno: rackField.selectedValue
     property string turno: wheelSelector.selectionToken
+    property int carrierId: rackno
+    property string wheelId: turno
     property string result: includeResult ? resultCombo.currentText : "全部"
     property int imageCount: 0
 

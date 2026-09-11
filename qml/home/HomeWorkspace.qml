@@ -45,7 +45,7 @@ Page {
             return walkingWheels;
         }
         var arr2 = [];
-        for (var j = 11; j <= 18; j++) {
+        for (var j = 9; j <= 16; j++) {
             arr2.push({
                 wheel: j,
                 result: -1,
@@ -56,13 +56,15 @@ Page {
         return arr2;
     }
 
-    // 当前选中的轮号 (1~8 驱动轮, 11~18 走行轮, 0 未选中)
+    // 当前选中的轮号 (1~8 驱动轮, 9~16 走行轮, 0 未选中)
     property int selectedWheel: 0
 
     // 将轮号转换为 3D 标签名称
     function wheelToTagName(wheel) {
         if (wheel >= 1 && wheel <= 8) {
             return "驱动轮" + wheel;
+        } else if (wheel >= 9 && wheel <= 16) {
+            return "走行轮" + (wheel - 8);
         } else if (wheel >= 11 && wheel <= 18) {
             return "走行轮" + (wheel - 10);
         }
@@ -78,7 +80,7 @@ Page {
             return (dwNum >= 1 && dwNum <= 8) ? dwNum : 0;
         } else if (name.indexOf("走行轮") === 0) {
             var wwNum = parseInt(name.substring(3));
-            return (wwNum >= 1 && wwNum <= 8) ? (wwNum + 10) : 0;
+            return (wwNum >= 1 && wwNum <= 8) ? (wwNum + 8) : 0;
         }
         return 0;
     }
@@ -107,7 +109,8 @@ Page {
             return;
         var normalizedPath = String(image.filePath).replace(/\\/g, "/");
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath) ? "file:///" + normalizedPath : normalizedPath;
-        imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + (wheel <= 8 ? "驱动轮 " + wheel : "走行轮 " + (wheel - 10)), "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time);
+        var wheelName = wheel <= 8 ? ("驱动轮 " + wheel) : ("走行轮 " + (wheel >= 9 && wheel <= 16 ? wheel : (wheel - 2)));
+        imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time);
     }
 
     Component.onCompleted: refreshDetection()
@@ -212,7 +215,13 @@ Page {
                 }
 
                 Label {
-                    text: "轮位 " + (delegateRoot.modelData.wheel <= 8 ? delegateRoot.modelData.wheel : delegateRoot.modelData.wheel - 10)
+                    text: {
+                        var w = delegateRoot.modelData ? delegateRoot.modelData.wheel : 0;
+                        if (w <= 8) return "轮位 " + w;
+                        if (w >= 9 && w <= 16) return "轮位 " + w;
+                        if (w >= 11 && w <= 18) return "轮位 " + (w - 2);
+                        return "轮位 " + w;
+                    }
                     color: delegateRoot.hasResult ? Theme.textPrimary : Theme.textSecondary
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontCaption
@@ -904,7 +913,7 @@ Page {
                                 color: Theme.walkWheel
                             }
                             Label {
-                                text: "走行轮 (11 ~ 18)"
+                                text: "走行轮 (9 ~ 16)"
                                 color: Theme.walkWheel
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontBody

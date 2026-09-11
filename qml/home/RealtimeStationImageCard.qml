@@ -36,6 +36,8 @@ Rectangle {
     property string serial: (itemObject && itemObject.serial) ? itemObject.serial : ""
     property int roundNumber: (itemObject && itemObject.roundNumber) ? itemObject.roundNumber : 0
     property string receivedAtText: (itemObject && itemObject.receivedAtText) ? itemObject.receivedAtText : ""
+    property string wheelsInfo: (itemObject && itemObject.wheelsInfo) ? itemObject.wheelsInfo : ""
+    property int result: (itemObject && itemObject.result !== undefined) ? itemObject.result : 1
 
     function effectiveImageSource() {
         var u = String(cardRoot.fileUrl || "")
@@ -88,18 +90,18 @@ Rectangle {
                 Layout.preferredHeight: 20
                 implicitWidth: camText.implicitWidth + 12
                 radius: Theme.radiusPill
-                color: cardRoot.hasImage ? Theme.primaryGlow : Theme.bgCardElevated
-                border.color: cardRoot.hasImage ? Theme.primary : Theme.borderSubtle
+                color: !cardRoot.hasImage ? Theme.bgCardElevated : (cardRoot.result === 0 ? Theme.ngGlow : Theme.primaryGlow)
+                border.color: !cardRoot.hasImage ? Theme.borderSubtle : (cardRoot.result === 0 ? Theme.ng : Theme.primary)
                 border.width: 1
 
                 Text {
                     id: camText
                     anchors.centerIn: parent
-                    text: "CAM " + (cardRoot.slotIndex < 9 ? "0" : "") + (cardRoot.slotIndex + 1)
+                    text: "CAM " + (cardRoot.slotIndex < 9 ? "0" : "") + (cardRoot.slotIndex + 1) + (cardRoot.hasImage && cardRoot.result === 0 ? " [NG]" : "")
                     font.family: Theme.fontMono
                     font.pixelSize: 10
                     font.bold: true
-                    color: cardRoot.hasImage ? Theme.primaryLight : Theme.textMuted
+                    color: !cardRoot.hasImage ? Theme.textMuted : (cardRoot.result === 0 ? Theme.ngLight : Theme.primaryLight)
                 }
             }
 
@@ -314,6 +316,19 @@ Rectangle {
             font.pixelSize: Theme.fontSizeSmall
             font.bold: true
             elide: Label.ElideMiddle
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: 4
+            Layout.rightMargin: 4
+            visible: cardRoot.wheelsInfo.length > 0
+            text: cardRoot.wheelsInfo
+            color: cardRoot.result === 0 ? Theme.ngLight : Theme.okLight
+            font.family: Theme.fontMono
+            font.pixelSize: 10
+            font.bold: true
+            elide: Label.ElideRight
         }
     }
 

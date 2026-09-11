@@ -5,11 +5,15 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QElapsedTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include "DbSchema.h"
 #include "AgcUtils.h"
 #include "ImageIngest.h"
 #include "ArchiveMaintenance.h"
 #include "FtpServer.h"
+#include "TcpDataReceiver.h"
 #include "AppLogger.h"
 
 class ReleaseBoundaryTests : public QObject {
@@ -45,23 +49,39 @@ private slots:
         QVERIFY(!ImageIngest::parse("t_51_1_1OK_12_20_10_end.png",data,error));
     }
     void transactionRollsBackBothWheels() {
-        ImageIngest::Metadata data; QString error;
-        QVERIFY(ImageIngest::parse("t_1_1_1NG_2NG_1_2_3_end.png",data,error));
+        ImageIngest::BatchData batch;
+        batch.carrierId = 1;
+        batch.timestamp = QDateTime::fromString("2026-09-05 10:00:00", "yyyy-MM-dd HH:mm:ss");
+        batch.batchId = "BATCH_ROLLBACK_TEST";
+        ImageIngest::WheelItem w1;
+        w1.wheelId = 1;
+        w1.cameraId = 1;
+        w1.result = 0; // NG
+        w1.imageName = "rollback_w1.png";
+        ImageIngest::WheelItem w2;
+        w2.wheelId = 2;
+        w2.cameraId = 1;
+        w2.result = 0; // NG
+        w2.imageName = "rollback_w2.png";
+        batch.wheels = {w1, w2};
+
         QSqlQuery q(db);
-        QVERIFY(q.exec("CREATE TRIGGER fail_second BEFORE INSERT ON record WHEN NEW.wheelno='2' BEGIN SELECT RAISE(ABORT,'injected'); END"));
-        bool inserted = false;
-        QVERIFY(!ImageIngest::record(db,data,"test.png","2026-09-05 10:00:00",{10,10},inserted,error));
-        for (const auto &table : {"record","alertrecord","rackwheelnorm"}) {
+        QVERIFY(q.exec("CREATE TRIGGER fail_second BEFORE INSERT ON record WHEN NEW.wheel_id=2 BEGIN SELECT RAISE(ABORT,'injected'); END"));
+        QString error;
+        QVERIFY(!ImageIngest::recordBatch(db, batch, error));
+        for (const auto &table : {"record","alertrecord"}) {
             QVERIFY(q.exec(QString("SELECT COUNT(*) FROM %1").arg(table))); QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(),0);
         }
         QVERIFY(q.exec("DROP TRIGGER fail_second"));
-        QVERIFY(ImageIngest::record(db,data,"test.png","2026-09-05 10:00:00",{10,10},inserted,error)); QVERIFY(inserted);
-        QVERIFY(ImageIngest::record(db,data,"test.png","2026-09-05 10:00:00",{10,10},inserted,error)); QVERIFY(!inserted);
+        QVERIFY(ImageIngest::recordBatch(db, batch, error));
+        QVERIFY(q.exec("SELECT COUNT(*) FROM record WHERE batch_id='BATCH_ROLLBACK_TEST'"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 2);
     }
     void lateNgCannotResurrectOldAlert() {
         QSqlQuery q(db);
-        QVERIFY(q.exec("INSERT INTO record(createtime,rackno,wheelno,result,imagename) VALUES('2026-09-05 11:00:00','1','1',1,'new.png')"));
-        QVERIFY(q.exec("INSERT INTO record(createtime,rackno,wheelno,result,imagename) VALUES('2026-09-05T10:00:00','1','1',0,'old.png')"));
+        QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-09-05 11:00:00',1,1,1,1,'new.png')"));
+        QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-09-05T10:00:00',1,1,1,0,'old.png')"));
         QVERIFY(q.exec("SELECT COUNT(*) FROM alertrecord")); QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(),0);
         q.finish(); QVERIFY(DBSchema::ensureAllTables(db)); // existing installation migration is repeatable
     }
@@ -90,7 +110,7 @@ private slots:
         const QString old = "camera/deep/old.png", fresh = "camera/deep/new.png";
         QVERIFY(makeImage(dir.filePath(old))); QVERIFY(makeImage(dir.filePath(fresh)));
         QSqlQuery q(db);
-        q.prepare("INSERT INTO record(createtime,rackno,wheelno,result,imagename) VALUES(:t,'1','1',1,:n)");
+        q.prepare("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES(:t,1,1,1,1,:n)");
         q.bindValue(":t","2026-06-07 00:00:00"); q.bindValue(":n",old); QVERIFY(q.exec());
         q.bindValue(":t","2026-06-07 23:59:59"); q.bindValue(":n",fresh); QVERIFY(q.exec()); q.finish();
         int removed; bool more; QString error;
@@ -103,7 +123,7 @@ private slots:
         QTemporaryDir dir; const QString target = dir.filePath("keep.png"); QVERIFY(makeImage(target));
         QSqlQuery q(db);
         q.prepare("INSERT INTO cleanup_files(path,imagename) VALUES(:path,'keep.png')"); q.bindValue(":path",target); QVERIFY(q.exec());
-        QVERIFY(q.exec("INSERT INTO record(createtime,rackno,wheelno,result,imagename) VALUES('2026-09-05 11:00:00','1','1',1,'keep.png')"));
+        QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-09-05 11:00:00',1,1,1,1,'keep.png')"));
         int removed; bool more; QString error;
         QVERIFY(ArchiveMaintenance::cleanup(db,dir.path(),{dir.path()},QDateTime::fromString("2026-06-07T01:00:00",Qt::ISODate),removed,more,error));
         QVERIFY(QFile::exists(target)); QCOMPARE(removed,0);
@@ -216,46 +236,104 @@ private slots:
         QVERIFY(q.next());
         QCOMPARE(q.value(0).toInt(), 12);
 
-        // verify rack_wheel_norm
-        QVERIFY(q.exec("SELECT COUNT(*) FROM rack_wheel_norm"));
+        // verify carrier_wheel_norm (50 carriers * 16 wheels)
+        QVERIFY(q.exec("SELECT COUNT(*) FROM carrier_wheel_norm"));
         QVERIFY(q.next());
-        QCOMPARE(q.value(0).toInt(), 400); // 50 racks * 8 wheels
+        QCOMPARE(q.value(0).toInt(), 800);
     }
     void defaultDatabasePathIsUnderDataDirectory() {
         QString dbPath = DBSchema::defaultDatabasePath();
         QVERIFY(dbPath.endsWith("data/dataAgc.db") || dbPath.endsWith("data\\dataAgc.db"));
     }
-    void rackWheelNormDatabaseOperations() {
+    void carrierWheelNormDatabaseOperations() {
         QSqlQuery q(db);
-        q.prepare("UPDATE rack_wheel_norm SET standard_distance = 150 WHERE rackno = 5 AND wheelno = 3");
+        q.prepare("UPDATE carrier_wheel_norm SET standard_distance = 150.0, lower_tolerance = -2.0 WHERE carrier_id = 5 AND wheel_id = 3");
         QVERIFY(q.exec());
 
-        q.prepare("SELECT standard_distance FROM rack_wheel_norm WHERE rackno = 5 AND wheelno = 3");
+        q.prepare("SELECT standard_distance, lower_tolerance FROM carrier_wheel_norm WHERE carrier_id = 5 AND wheel_id = 3");
         QVERIFY(q.exec());
         QVERIFY(q.next());
-        QCOMPARE(q.value(0).toInt(), 150);
-
-        q.prepare("SELECT standard_distance FROM rack_wheel_norm WHERE rackno = 5 AND wheelno = 4");
-        QVERIFY(q.exec());
-        QVERIFY(q.next());
-        QCOMPARE(q.value(0).toInt(), 0);
+        QCOMPARE(q.value(0).toDouble(), 150.0);
+        QCOMPARE(q.value(1).toDouble(), -2.0);
     }
-    void recordBatchAndRoundPersistence() {
-        ImageIngest::Metadata data; QString error;
-        QVERIFY(ImageIngest::parse("t_1_1_1OK_12_20_10_end.png", data, error));
-        bool inserted = false;
-        QVERIFY(ImageIngest::record(db, data, "batch_test.png", "2026-09-05 12:00:00", {10, 10}, inserted, error, "BATCH_R1_R2", 2));
-        QVERIFY(inserted);
+    void recordBatchPersistence() {
+        ImageIngest::BatchData batch;
+        batch.carrierId = 1;
+        batch.timestamp = QDateTime::fromString("2026-09-05 12:00:00", "yyyy-MM-dd HH:mm:ss");
+        batch.batchId = "BATCH_1_2026-09-05 12:00:00";
+        ImageIngest::WheelItem w0;
+        w0.wheelId = 0;
+        w0.cameraId = 1;
+        w0.actualDistance = 12.5;
+        w0.baseDistance = 10.0;
+        w0.lowerTolerance = -2.0;
+        w0.result = 1; // OK
+        w0.imageName = "20260905_120000_1_w0.png";
+        batch.wheels.append(w0);
+
+        QString error;
+        QVERIFY(ImageIngest::recordBatch(db, batch, error));
 
         QSqlQuery q(db);
-        QVERIFY(q.exec("SELECT batch_id, round_no FROM record WHERE imagename = 'batch_test.png'"));
+        QVERIFY(q.exec("SELECT carrier_id, wheel_id, distance, dist_norm, lower_tolerance, result, batch_id FROM record WHERE imagename = '20260905_120000_1_w0.png'"));
         QVERIFY(q.next());
-        QCOMPARE(q.value(0).toString(), QString("BATCH_R1_R2"));
-        QCOMPARE(q.value(1).toInt(), 2);
+        QCOMPARE(q.value(0).toInt(), 1);
+        QCOMPARE(q.value(1).toInt(), 0);
+        QCOMPARE(q.value(2).toDouble(), 12.5);
+        QCOMPARE(q.value(3).toDouble(), 10.0);
+        QCOMPARE(q.value(4).toDouble(), -2.0);
+        QCOMPARE(q.value(5).toInt(), 1);
+        QCOMPARE(q.value(6).toString(), QString("BATCH_1_2026-09-05 12:00:00"));
 
         // verify index exists
         QVERIFY(q.exec("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_record_batch'"));
         QVERIFY(q.next());
+    }
+    void tcpDataReceiverPacketParsing() {
+        TcpDataReceiver receiver;
+        QVERIFY(receiver.listen(QHostAddress::LocalHost, 0));
+        const quint16 port = receiver.port();
+
+        bool received = false;
+        ImageIngest::BatchData receivedBatch;
+        connect(&receiver, &TcpDataReceiver::dataBatchReceived, [&](const QJsonObject &json) {
+            QString err;
+            if (ImageIngest::parseBatchJson(json, receivedBatch, err)) {
+                received = true;
+            }
+        });
+
+        QTcpSocket client;
+        client.connectToHost(QHostAddress::LocalHost, port);
+        QVERIFY(client.waitForConnected(3000));
+
+        QJsonObject root;
+        root["carrierId"] = 3;
+        root["timestamp"] = "20260911_120000";
+        QJsonArray wheels;
+        QJsonObject w;
+        w["wheelId"] = 2;
+        w["actualDistance"] = 11.2;
+        w["baseDistance"] = 10.0;
+        w["lowerTolerance"] = -1.5;
+        w["result"] = "OK";
+        w["imageName"] = "test_w2.png";
+        wheels.append(w);
+        root["wheels"] = wheels;
+
+        QByteArray data = QJsonDocument(root).toJson(QJsonDocument::Compact) + "\n";
+        client.write(data);
+        client.flush();
+        QTRY_VERIFY_WITH_TIMEOUT(client.bytesAvailable() > 0, 3000);
+        QByteArray ack = client.readLine();
+        QVERIFY(ack.contains("\"status\":\"OK\""));
+        QVERIFY(received);
+        QCOMPARE(receivedBatch.carrierId, 3);
+        QCOMPARE(receivedBatch.wheels.size(), 1);
+        QCOMPARE(receivedBatch.wheels[0].wheelId, 2);
+        QCOMPARE(receivedBatch.wheels[0].actualDistance, 11.2);
+
+        receiver.stop();
     }
     void timestampAndCollisionParsing() {
         const QDateTime dt = ImageIngest::parseTimestamp("20260905143000_1_1_1OK_10_20_10_end.png");
@@ -266,12 +344,12 @@ private slots:
 
         ImageIngest::Metadata data; QString error;
         QVERIFY(ImageIngest::parse("t_1_1_1NG_0_2_1_end_v2.png", data, error));
-        QCOMPARE(data.rack, 1);
+        QCOMPARE(data.carrierId, 1);
         QCOMPARE(data.camera, 1);
         QCOMPARE(data.wheels.size(), 1);
 
         QVERIFY(ImageIngest::parse("t_50_12_11OK_12NG_0_0_0_end_v3.png", data, error));
-        QCOMPARE(data.rack, 50);
+        QCOMPARE(data.carrierId, 50);
         QCOMPARE(data.camera, 12);
         QCOMPARE(data.wheels.size(), 2);
     }

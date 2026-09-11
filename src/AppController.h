@@ -3,6 +3,7 @@
 #include "BatchTypes.h"
 #include "ImageListModel.h"
 #include "FtpServer.h"
+#include "TcpDataReceiver.h"
 
 #include <QObject>
 #include <QHash>
@@ -36,6 +37,9 @@ class AppController : public QObject
     Q_PROPERTY(bool isDark READ isDarkMode WRITE setDarkMode NOTIFY darkModeChanged)
     Q_PROPERTY(ImageListModel *currentImagesModel READ currentImagesModel CONSTANT)
     Q_PROPERTY(ImageListModel *searchImagesModel READ searchImagesModel CONSTANT)
+    Q_PROPERTY(bool tcpRunning READ tcpRunning NOTIFY tcpServerStateChanged)
+    Q_PROPERTY(int tcpPort READ tcpPort WRITE setTcpPort NOTIFY tcpServerStateChanged)
+    Q_PROPERTY(int tcpClientCount READ tcpClientCount NOTIFY tcpServerStateChanged)
     Q_PROPERTY(QString ftpUser READ ftpUser NOTIFY ftpSettingsChanged)
     Q_PROPERTY(QString ftpRoot READ ftpRoot NOTIFY ftpSettingsChanged)
     Q_PROPERTY(int ftpPort READ ftpPort NOTIFY ftpSettingsChanged)
@@ -80,7 +84,14 @@ public:
     Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void startFtpServer();
     Q_INVOKABLE void stopFtpServer();
+    Q_INVOKABLE void startTcpServer();
+    Q_INVOKABLE void stopTcpServer();
+    Q_INVOKABLE void setTcpPort(int port);
+    Q_INVOKABLE bool tcpRunning() const;
+    Q_INVOKABLE int tcpPort() const;
+    Q_INVOKABLE int tcpClientCount() const;
     Q_SLOT void onFtpImageStored(const QString &filePath);
+    Q_SLOT void onTcpBatchReceived(const QJsonObject &batchData);
     Q_INVOKABLE QString ftpUser() const;
     Q_INVOKABLE QString ftpRoot() const;
     Q_INVOKABLE int ftpPort() const;
@@ -167,6 +178,7 @@ signals:
     void darkModeChanged(bool isDark);
     void ftpSettingsChanged();
     void ftpServerStateChanged();
+    void tcpServerStateChanged();
     void ftpLogChanged();
     void mappingChanged();
     void gearSumResultChanged();
@@ -177,7 +189,6 @@ signals:
 
 private:
     void startLogQuery();
-    bool ingestStoredImage(const QString &filePath);
     void recoverPendingUploads();
     void loadSettings();
     void ensureDirectories();
@@ -231,6 +242,8 @@ private:
     QVector<int> m_slotMapping;
 
     FtpServer m_ftpServer;
+    TcpDataReceiver m_tcpReceiver;
+    int m_tcpPort = 9000;
 
     QString m_ftpLogBuffer;
     QVariantList m_ftpLogLines;

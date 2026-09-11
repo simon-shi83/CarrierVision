@@ -53,17 +53,17 @@ Item {
                 "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time)
     }
 
-    readonly property var wheelColumns: [
+    readonly property var wheelRows: [
         { label: "驱动 1", wheel: 1, isDrive: true }, { label: "驱动 2", wheel: 2, isDrive: true },
         { label: "驱动 3", wheel: 3, isDrive: true }, { label: "驱动 4", wheel: 4, isDrive: true },
         { label: "驱动 5", wheel: 5, isDrive: true }, { label: "驱动 6", wheel: 6, isDrive: true },
         { label: "驱动 7", wheel: 7, isDrive: true }, { label: "驱动 8", wheel: 8, isDrive: true },
-        { label: "走行 1", wheel: 11, isDrive: false }, { label: "走行 2", wheel: 12, isDrive: false },
-        { label: "走行 3", wheel: 13, isDrive: false }, { label: "走行 4", wheel: 14, isDrive: false },
-        { label: "走行 5", wheel: 15, isDrive: false }, { label: "走行 6", wheel: 16, isDrive: false },
-        { label: "走行 7", wheel: 17, isDrive: false }, { label: "走行 8", wheel: 18, isDrive: false }
+        { label: "走行 9", wheel: 11, isDrive: false }, { label: "走行 10", wheel: 12, isDrive: false },
+        { label: "走行 11", wheel: 13, isDrive: false }, { label: "走行 12", wheel: 14, isDrive: false },
+        { label: "走行 13", wheel: 15, isDrive: false }, { label: "走行 14", wheel: 16, isDrive: false },
+        { label: "走行 15", wheel: 17, isDrive: false }, { label: "走行 16", wheel: 18, isDrive: false }
     ]
-    readonly property var wheelRows: wheelColumns
+    readonly property var wheelColumns: wheelRows
 
     Component.onCompleted: refreshStatus()
 
@@ -99,7 +99,7 @@ Item {
                 }
 
                 Label {
-                    text: "50 架 × 16 轮位 全景遥测热力矩阵"
+                    text: "16 轮位 × 50 架 全景遥测热力矩阵"
                     color: Theme.textPrimary
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeH2
@@ -158,7 +158,7 @@ Item {
                 }
             }
 
-            // 50架 × 16轮位 高精度热力矩阵视窗（行列对调：横向为16轮位+采集总计，纵向为50架号）
+            // 16 轮位 × 50 架 全景遥测热力矩阵视窗（转置：纵向为16轮位+采集总计，横向为50架号，自适应铺满无滚动条）
             Rectangle {
                 id: tableViewport
                 Layout.fillWidth: true
@@ -174,17 +174,19 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 1
 
-                    readonly property real rackHeaderWidth: Math.max(76, Math.min(96, width * 0.08))
-                    readonly property real summaryColumnWidth: Math.max(80, Math.min(100, width * 0.08))
-                    readonly property real wheelColumnWidth: (width - rackHeaderWidth - summaryColumnWidth) / 16
+                    readonly property real wheelHeaderWidth: Math.max(76, Math.min(92, Math.floor(width * 0.055)))
+                    readonly property real headerHeight: Math.max(26, Math.min(30, Math.floor(height * 0.045)))
+                    readonly property int totalBodyRows: root.wheelRows.length + 1 // 16 轮位 + 1 采集总计 = 17 行
+                    readonly property real rowHeight: (height - headerHeight) / totalBodyRows
+                    readonly property real colWidth: (width - wheelHeaderWidth) / 50
 
-                    // 固定表头：架号 / 轮位 + 16轮位列 + 采集总计
+                    // 顶端固定表头：轮位 / 架号 + 50 架号列 (1 ~ 50)
                     Rectangle {
                         id: pinnedHeader
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        height: 32
+                        height: tableContainer.headerHeight
                         color: Theme.bgCardActive
                         border.color: Theme.borderSubtle
                         border.width: 1
@@ -194,9 +196,9 @@ Item {
                             anchors.fill: parent
                             spacing: 0
 
-                            // 左上角：架号/轮位
+                            // 左上角：轮位 / 架号
                             Rectangle {
-                                width: tableContainer.rackHeaderWidth
+                                width: tableContainer.wheelHeaderWidth
                                 height: parent.height
                                 color: Theme.bgCardActive
                                 border.color: Theme.borderSubtle
@@ -204,7 +206,7 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "架号 / 轮位"
+                                    text: "轮位 / 架号"
                                     color: Theme.primaryLight
                                     font.family: Theme.fontFamily
                                     font.bold: true
@@ -216,246 +218,299 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onDoubleClicked: rackWheelDiagram.open()
+                                    ToolTip.visible: containsMouse
+                                    ToolTip.text: "双击打开 3D 架轮立体示意图"
                                 }
                             }
 
-                            // 16 轮位列头
+                            // 50 架列头 (1 ~ 50)
                             Repeater {
-                                model: root.wheelColumns
+                                model: 50
                                 delegate: Rectangle {
-                                    id: wheelHeaderCell
-                                    required property var modelData
+                                    id: rackHeaderCol
                                     required property int index
+                                    readonly property int rackNumber: index + 1
+                                    readonly property bool isColHovered: rackNumber === root.hoveredRack
 
-                                    readonly property bool isColHovered: modelData.wheel === root.hoveredWheel
-                                    width: tableContainer.wheelColumnWidth
-                                    height: pinnedHeader.height
-                                    color: isColHovered ? Theme.bgCardActive : (modelData.isDrive ? Theme.driveWheelBg : Theme.walkWheelBg)
+                                    width: tableContainer.colWidth
+                                    height: parent.height
+                                    color: isColHovered ? Theme.bgCardActive : (index % 2 === 0 ? Theme.bgCardElevated : Theme.bgCard)
                                     border.color: isColHovered ? Theme.primary : Theme.borderSubtle
                                     border.width: isColHovered ? 2 : 1
                                     z: isColHovered ? 2 : 0
 
-                                    // 顶部轮系类别色条
-                                    Rectangle {
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        height: 3
-                                        color: wheelHeaderCell.modelData.isDrive ? Theme.driveWheel : Theme.walkWheel
-                                    }
-
                                     Text {
                                         anchors.centerIn: parent
-                                        anchors.verticalCenterOffset: 1
-                                        text: wheelHeaderCell.modelData.label
-                                        color: wheelHeaderCell.isColHovered
-                                            ? Theme.primaryLight
-                                            : (wheelHeaderCell.modelData.isDrive ? Theme.driveWheel : Theme.walkWheel)
-                                        font.family: Theme.fontFamily
-                                        font.bold: true
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onEntered: root.hoveredWheel = wheelHeaderCell.modelData.wheel
-                                        onExited: {
-                                            if (root.hoveredWheel === wheelHeaderCell.modelData.wheel)
-                                                root.hoveredWheel = -1
-                                        }
-                                        onDoubleClicked: rackWheelDiagram.open()
-                                    }
-                                }
-                            }
-
-                            // 右侧：采集总计列头
-                            Rectangle {
-                                width: tableContainer.summaryColumnWidth
-                                height: parent.height
-                                color: Theme.bgCardActive
-                                border.color: Theme.borderSubtle
-                                border.width: 1
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "采集总计"
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                }
-                            }
-                        }
-                    }
-
-                    // 50架数据行视窗（纵向可滚动）
-                    ListView {
-                        id: rackListView
-                        anchors.top: pinnedHeader.bottom
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        model: 50
-
-                        ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded
-                        }
-
-                        delegate: Rectangle {
-                            id: rackRow
-                            required property int index
-                            readonly property int rackNumber: index + 1
-                            readonly property bool isRowHovered: rackNumber === root.hoveredRack
-
-                            width: rackListView.width
-                            height: 28
-                            color: isRowHovered ? Theme.bgCardActive : (index % 2 === 0 ? "transparent" : (Theme.isDark ? "#08ffffff" : "#04000000"))
-
-                            Row {
-                                anchors.fill: parent
-                                spacing: 0
-
-                                // 左侧：架号行头
-                                Rectangle {
-                                    width: tableContainer.rackHeaderWidth
-                                    height: parent.height
-                                    color: rackRow.isRowHovered ? Theme.bgCardActive : Theme.bgCardElevated
-                                    border.color: rackRow.isRowHovered ? Theme.primary : Theme.borderSubtle
-                                    border.width: rackRow.isRowHovered ? 2 : 1
-                                    z: rackRow.isRowHovered ? 2 : 0
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "架 #" + rackRow.rackNumber
-                                        color: rackRow.isRowHovered ? Theme.primaryLight : Theme.textSecondary
+                                        text: rackHeaderCol.rackNumber
+                                        color: rackHeaderCol.isColHovered ? Theme.primaryLight : Theme.textSecondary
                                         font.family: Theme.fontMono
-                                        font.bold: true
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.bold: rackHeaderCol.isColHovered
+                                        font.pixelSize: Math.max(9, Math.min(Theme.fontSizeSmall, Math.floor(tableContainer.colWidth * 0.38)))
                                     }
 
+                                    ToolTip.visible: colHeaderMouse.containsMouse
+                                    ToolTip.text: "架号 #" + rackHeaderCol.rackNumber
+                                                  + "\n拍照采集总数: " + (root.photoCountByRack[rackHeaderCol.rackNumber] || 0)
+
                                     MouseArea {
+                                        id: colHeaderMouse
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onEntered: root.hoveredRack = rackRow.rackNumber
+                                        onEntered: root.hoveredRack = rackHeaderCol.rackNumber
                                         onExited: {
-                                            if (root.hoveredRack === rackRow.rackNumber)
+                                            if (root.hoveredRack === rackHeaderCol.rackNumber)
                                                 root.hoveredRack = -1
                                         }
                                         onDoubleClicked: rackWheelDiagram.open()
                                     }
                                 }
+                            }
+                        }
+                    }
 
-                                // 中间：16 个轮位单元格
-                                Repeater {
-                                    model: root.wheelColumns
-                                    delegate: Rectangle {
-                                        id: cellRect
-                                        required property var modelData
-                                        required property int index
+                    // 16 轮位行 + 1 采集总计行视窗（完整铺满，无需滚动条）
+                    Item {
+                        id: bodyContainer
+                        anchors.top: pinnedHeader.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        clip: true
 
-                                        readonly property int wheelNumber: modelData.wheel
-                                        readonly property string wheelLabel: modelData.label
-                                        readonly property var cellState: root.statusByCell[
-                                            root.cellKey(rackRow.rackNumber, wheelNumber)]
-                                        readonly property bool isCellHovered: rackRow.rackNumber === root.hoveredRack && wheelNumber === root.hoveredWheel
-                                        readonly property bool isCrosshair: (rackRow.rackNumber === root.hoveredRack || wheelNumber === root.hoveredWheel) && !isCellHovered
+                        Column {
+                            anchors.fill: parent
+                            spacing: 0
 
-                                        width: tableContainer.wheelColumnWidth
-                                        height: parent.height
-                                        color: isCellHovered 
-                                            ? Theme.bgCardActive 
-                                            : (!cellState 
-                                                ? (isCrosshair ? Theme.bgCardElevated : "transparent") 
-                                                : (cellState.result === 1 ? Theme.okBg : Theme.ngBg))
+                            // 16 个轮位数据行
+                            Repeater {
+                                model: root.wheelRows
+                                delegate: Rectangle {
+                                    id: wheelRowItem
+                                    required property var modelData
+                                    required property int index
+                                    readonly property int wheelNumber: modelData.wheel
+                                    readonly property string wheelLabel: modelData.label
+                                    readonly property bool isDrive: modelData.isDrive
+                                    readonly property bool isRowHovered: wheelNumber === root.hoveredWheel
 
-                                        border.color: isCellHovered 
-                                            ? Theme.primary 
-                                            : (isCrosshair ? Theme.borderHover : Theme.borderSubtle)
-                                        border.width: isCellHovered ? 2 : 1
-                                        z: isCellHovered ? 3 : (isCrosshair ? 1 : 0)
+                                    width: bodyContainer.width
+                                    height: tableContainer.rowHeight
+                                    color: isRowHovered ? Theme.bgCardActive : (index % 2 === 0 ? "transparent" : (Theme.isDark ? "#06ffffff" : "#04000000"))
 
-                                        // 状态微晶指示点
+                                    Row {
+                                        anchors.fill: parent
+                                        spacing: 0
+
+                                        // 左侧：轮位行头
                                         Rectangle {
-                                            anchors.centerIn: parent
-                                            width: isCellHovered ? 10 : 8
-                                            height: isCellHovered ? 10 : 8
-                                            radius: width / 2
-                                            visible: cellRect.cellState !== undefined
-                                            color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.ok : Theme.ng
-                                            border.width: 1
-                                            border.color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.okBorder : Theme.ngBorder
+                                            id: wheelRowHeader
+                                            width: tableContainer.wheelHeaderWidth
+                                            height: parent.height
+                                            color: wheelRowItem.isRowHovered
+                                                ? Theme.bgCardActive
+                                                : (wheelRowItem.isDrive ? Theme.driveWheelBg : Theme.walkWheelBg)
+                                            border.color: wheelRowItem.isRowHovered ? Theme.primary : Theme.borderSubtle
+                                            border.width: wheelRowItem.isRowHovered ? 2 : 1
+                                            z: wheelRowItem.isRowHovered ? 2 : 0
 
-                                            Behavior on width { NumberAnimation { duration: Theme.animFast } }
-                                            Behavior on height { NumberAnimation { duration: Theme.animFast } }
+                                            // 左侧轮系类别色彩指示条
+                                            Rectangle {
+                                                anchors.left: parent.left
+                                                anchors.top: parent.top
+                                                anchors.bottom: parent.bottom
+                                                width: 3
+                                                color: wheelRowItem.isDrive ? Theme.driveWheel : Theme.walkWheel
+                                            }
 
-                                            SequentialAnimation on opacity {
-                                                loops: Animation.Infinite
-                                                running: cellRect.cellState ? (cellRect.cellState.result === 0) : false
-                                                NumberAnimation { from: 1.0; to: 0.3; duration: 600; easing.type: Easing.InOutQuad }
-                                                NumberAnimation { from: 0.3; to: 1.0; duration: 600; easing.type: Easing.InOutQuad }
+                                            Text {
+                                                anchors.centerIn: parent
+                                                anchors.horizontalCenterOffset: 2
+                                                text: wheelRowItem.wheelLabel
+                                                color: wheelRowItem.isRowHovered
+                                                    ? Theme.primaryLight
+                                                    : (wheelRowItem.isDrive ? Theme.driveWheel : Theme.walkWheel)
+                                                font.family: Theme.fontFamily
+                                                font.bold: true
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onEntered: root.hoveredWheel = wheelRowItem.wheelNumber
+                                                onExited: {
+                                                    if (root.hoveredWheel === wheelRowItem.wheelNumber)
+                                                        root.hoveredWheel = -1
+                                                }
+                                                onDoubleClicked: rackWheelDiagram.open()
                                             }
                                         }
 
-                                        ToolTip.visible: cellMouse.containsMouse && Boolean(cellRect.cellState)
-                                        ToolTip.text: cellRect.cellState
-                                                      ? ("架号: #" + rackRow.rackNumber
-                                                            + " ╎ " + cellRect.wheelLabel
-                                                            + "\n判定: " + (cellRect.cellState.result === 1 ? "OK 正常" : "NG 异常")
-                                                            + "\n检测时间: " + cellRect.cellState.time
-                                                            + "\n💡 单击直接查看检测原图")
-                                                      : "暂无检测记录"
+                                        // 50 个架号状态单元格
+                                        Repeater {
+                                            model: 50
+                                            delegate: Rectangle {
+                                                id: cellRect
+                                                required property int index
+                                                readonly property int rackNumber: index + 1
+                                                readonly property int wheelNumber: wheelRowItem.wheelNumber
+                                                readonly property string wheelLabel: wheelRowItem.wheelLabel
+                                                readonly property var cellState: root.statusByCell[root.cellKey(rackNumber, wheelNumber)]
+                                                    || (wheelNumber >= 11 ? root.statusByCell[root.cellKey(rackNumber, wheelNumber - 2)] : undefined)
+                                                    || (wheelNumber >= 9 && wheelNumber <= 16 ? root.statusByCell[root.cellKey(rackNumber, wheelNumber)] : undefined)
+                                                readonly property bool isCellHovered: rackNumber === root.hoveredRack && wheelNumber === root.hoveredWheel
+                                                readonly property bool isCrosshair: (rackNumber === root.hoveredRack || wheelNumber === root.hoveredWheel) && !isCellHovered
 
-                                        MouseArea {
-                                            id: cellMouse
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: cellRect.cellState ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                            onEntered: {
-                                                root.hoveredRack = rackRow.rackNumber
-                                                root.hoveredWheel = cellRect.wheelNumber
-                                            }
-                                            onExited: {
-                                                if (root.hoveredRack === rackRow.rackNumber) root.hoveredRack = -1
-                                                if (root.hoveredWheel === cellRect.wheelNumber) root.hoveredWheel = -1
-                                            }
-                                            onClicked: {
-                                                if (cellRect.cellState) {
-                                                    root.openLatestImage(rackRow.rackNumber,
-                                                        cellRect.wheelNumber,
-                                                        cellRect.wheelLabel)
+                                                width: tableContainer.colWidth
+                                                height: parent.height
+                                                color: isCellHovered
+                                                    ? Theme.bgCardActive
+                                                    : (!cellState
+                                                        ? (isCrosshair ? Theme.bgCardElevated : "transparent")
+                                                        : (cellState.result === 1 ? Theme.okBg : Theme.ngBg))
+
+                                                border.color: isCellHovered
+                                                    ? Theme.primary
+                                                    : (isCrosshair ? Theme.borderHover : Theme.borderSubtle)
+                                                border.width: isCellHovered ? 2 : 1
+                                                z: isCellHovered ? 3 : (isCrosshair ? 1 : 0)
+
+                                                // 状态微晶指示点
+                                                Rectangle {
+                                                    anchors.centerIn: parent
+                                                    width: isCellHovered ? 9 : 7
+                                                    height: isCellHovered ? 9 : 7
+                                                    radius: width / 2
+                                                    visible: cellRect.cellState !== undefined
+                                                    color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.ok : Theme.ng
+                                                    border.width: 1
+                                                    border.color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.okBorder : Theme.ngBorder
+
+                                                    Behavior on width { NumberAnimation { duration: Theme.animFast } }
+                                                    Behavior on height { NumberAnimation { duration: Theme.animFast } }
+
+                                                    SequentialAnimation on opacity {
+                                                        loops: Animation.Infinite
+                                                        running: cellRect.cellState ? (cellRect.cellState.result === 0) : false
+                                                        NumberAnimation { from: 1.0; to: 0.3; duration: 600; easing.type: Easing.InOutQuad }
+                                                        NumberAnimation { from: 0.3; to: 1.0; duration: 600; easing.type: Easing.InOutQuad }
+                                                    }
                                                 }
-                                            }
-                                            onDoubleClicked: {
-                                                if (cellRect.cellState) {
-                                                    root.openLatestImage(rackRow.rackNumber,
-                                                        cellRect.wheelNumber,
-                                                        cellRect.wheelLabel)
+
+                                                ToolTip.visible: cellMouse.containsMouse && Boolean(cellRect.cellState)
+                                                ToolTip.text: cellRect.cellState
+                                                              ? ("架号: #" + cellRect.rackNumber
+                                                                    + " ╎ " + cellRect.wheelLabel
+                                                                    + "\n判定: " + (cellRect.cellState.result === 1 ? "OK 正常" : "NG 异常")
+                                                                    + "\n检测时间: " + cellRect.cellState.time
+                                                                    + "\n💡 单击直接查看检测原图")
+                                                              : "暂无检测记录"
+
+                                                MouseArea {
+                                                    id: cellMouse
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: cellRect.cellState ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                    onEntered: {
+                                                        root.hoveredRack = cellRect.rackNumber
+                                                        root.hoveredWheel = cellRect.wheelNumber
+                                                    }
+                                                    onExited: {
+                                                        if (root.hoveredRack === cellRect.rackNumber) root.hoveredRack = -1
+                                                        if (root.hoveredWheel === cellRect.wheelNumber) root.hoveredWheel = -1
+                                                    }
+                                                    onClicked: {
+                                                        if (cellRect.cellState) {
+                                                            var actualWheel = cellRect.cellState.wheel !== undefined ? cellRect.cellState.wheel : cellRect.wheelNumber
+                                                            root.openLatestImage(cellRect.rackNumber, actualWheel, cellRect.wheelLabel)
+                                                        }
+                                                    }
+                                                    onDoubleClicked: {
+                                                        if (cellRect.cellState) {
+                                                            var actualWheel = cellRect.cellState.wheel !== undefined ? cellRect.cellState.wheel : cellRect.wheelNumber
+                                                            root.openLatestImage(cellRect.rackNumber, actualWheel, cellRect.wheelLabel)
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
+                            }
 
-                                // 右侧：该架拍照采集总数
-                                Rectangle {
-                                    width: tableContainer.summaryColumnWidth
-                                    height: parent.height
-                                    color: rackRow.isRowHovered ? Theme.bgCardActive : Theme.bgCard
-                                    border.color: Theme.borderSubtle
-                                    border.width: 1
+                            // 底部汇总行：各架拍照采集总数
+                            Rectangle {
+                                id: summaryRowItem
+                                width: bodyContainer.width
+                                height: tableContainer.rowHeight
+                                color: Theme.bgCardActive
+                                border.color: Theme.borderSubtle
+                                border.width: 1
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: root.photoCountByRack[rackRow.rackNumber] || 0
-                                        color: (root.photoCountByRack[rackRow.rackNumber] || 0) > 0 ? Theme.primaryLight : Theme.textMuted
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: 0
+
+                                    // 左侧表头：采集总计
+                                    Rectangle {
+                                        width: tableContainer.wheelHeaderWidth
+                                        height: parent.height
+                                        color: Theme.bgCardActive
+                                        border.color: Theme.borderSubtle
+                                        border.width: 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "采集总计"
+                                            color: Theme.textPrimary
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.bold: true
+                                        }
+                                    }
+
+                                    // 50 架各架的采集总数
+                                    Repeater {
+                                        model: 50
+                                        delegate: Rectangle {
+                                            id: summaryCell
+                                            required property int index
+                                            readonly property int rackNumber: index + 1
+                                            readonly property bool isColHovered: rackNumber === root.hoveredRack
+                                            readonly property int count: root.photoCountByRack[rackNumber] || 0
+
+                                            width: tableContainer.colWidth
+                                            height: parent.height
+                                            color: isColHovered ? Theme.bgCardElevated : Theme.bgCard
+                                            border.color: isColHovered ? Theme.primary : Theme.borderSubtle
+                                            border.width: isColHovered ? 2 : 1
+                                            z: isColHovered ? 2 : 0
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: summaryCell.count
+                                                color: summaryCell.count > 0 ? Theme.primaryLight : Theme.textMuted
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Math.max(9, Math.min(Theme.fontSizeSmall, Math.floor(tableContainer.colWidth * 0.38)))
+                                                font.bold: summaryCell.count > 0
+                                            }
+
+                                            ToolTip.visible: summaryCellMouse.containsMouse
+                                            ToolTip.text: "架号 #" + summaryCell.rackNumber + " ╎ 累计采集照片: " + summaryCell.count + " 张"
+
+                                            MouseArea {
+                                                id: summaryCellMouse
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                onEntered: root.hoveredRack = summaryCell.rackNumber
+                                                onExited: {
+                                                    if (root.hoveredRack === summaryCell.rackNumber)
+                                                        root.hoveredRack = -1
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

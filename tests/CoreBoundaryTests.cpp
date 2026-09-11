@@ -17,23 +17,23 @@ private slots:
         ImageItem item;
 
         QVERIFY(!model.updateSlotItem(-1, item));
-        QVERIFY(!model.updateSlotItem(ImageListModel::MaxItemCount, item));
+        QVERIFY(!model.updateSlotItem(1000, item));
         QCOMPARE(model.count(), 0);
 
-        QVERIFY(model.updateSlotItem(ImageListModel::MaxItemCount - 1, item));
-        QCOMPARE(model.count(), ImageListModel::MaxItemCount);
+        QVERIFY(model.updateSlotItem(11, item));
+        QCOMPARE(model.count(), 12);
     }
 
-    void modelRejectsOversizedReplacement()
+    void modelDynamicallyResizes()
     {
         ImageListModel model;
-        QVector<ImageItem> valid(ImageListModel::MaxItemCount);
+        QVector<ImageItem> valid(12);
         model.setItems(valid);
-        QCOMPARE(model.count(), ImageListModel::MaxItemCount);
+        QCOMPARE(model.count(), 12);
 
-        QVector<ImageItem> invalid(ImageListModel::MaxItemCount + 1);
-        model.setItems(invalid);
-        QCOMPARE(model.count(), ImageListModel::MaxItemCount);
+        QVector<ImageItem> valid16(16);
+        model.setItems(valid16);
+        QCOMPARE(model.count(), 16);
     }
 
     void dateParserRejectsInvalidCalendarDates()
@@ -54,8 +54,8 @@ private slots:
 
             QSqlQuery insert(db);
             insert.prepare(QStringLiteral(
-                "INSERT INTO record(createtime,rackno,wheelno,result,imagename) "
-                "VALUES(:time,'1','1',:result,:image)"));
+                "INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) "
+                "VALUES(:time,1,1,0,:result,:image)"));
             auto addRecord = [&insert](const QString &time, int result, const QString &image) {
                 insert.bindValue(QStringLiteral(":time"), time);
                 insert.bindValue(QStringLiteral(":result"), result);
@@ -67,7 +67,7 @@ private slots:
             QVERIFY(addRecord(QStringLiteral("2026-09-04T09:00:00"), 0, QStringLiteral("old-ng.jpg")));
 
             QSqlQuery alert(db);
-            QVERIFY(alert.exec(QStringLiteral("SELECT imagename FROM alertrecord WHERE rackno='1' AND wheelno='1'")));
+            QVERIFY(alert.exec(QStringLiteral("SELECT imagename FROM alertrecord WHERE carrier_id=1 AND wheel_id=0")));
             QVERIFY(alert.next());
             QCOMPARE(alert.value(0).toString(), QStringLiteral("new-ng.jpg"));
 

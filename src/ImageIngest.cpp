@@ -13,6 +13,107 @@
 #include <QSqlError>
 
 namespace ImageIngest {
+
+bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
+{
+    out = {};
+    if (!obj.contains(QStringLiteral("carrierId")) || !obj.contains(QStringLiteral("wheels"))) {
+        error = QStringLiteral("JSON 缺少 carrierId 或 wheels 字段");
+        return false;
+    }
+
+    out.carrierId = obj.value(QStringLiteral("carrierId")).toInt();
+    if (out.carrierId < 1 || out.carrierId > 50) {
+        error = QStringLiteral("载具号 %1 超出有效范围 [1, 50]").arg(out.carrierId);
+        return false;
+    }
+
+    const QString timeStr = obj.value(QStringLiteral("timestamp")).toString();
+    if (!timeStr.isEmpty()) {
+        out.timestamp = QDateTime::fromString(timeStr, QStringLiteral("yyyyMMdd_HHmmss"));
+        if (!out.timestamp.isValid()) {
+            out.timestamp = QDateTime::fromString(timeStr, QStringLiteral("yyyyMMddHHmmss"));
+        }
+        if (!out.timestamp.isValid()) {
+            out.timestamp = QDateTime::fromString(timeStr, Qt::ISODate);
+        }
+    }
+    if (!out.timestamp.isValid()) {
+        out.timestamp = QDateTime::currentDateTime();
+    }
+
+    out.batchId = QStringLiteral("CARRIER_%1_%2")
+                      .arg(out.carrierId)
+                      .arg(out.timestamp.toString(QStringLiteral("yyyyMMdd_HHmmss")));
+
+    const QJsonArray wheelsArr = obj.value(QStringLiteral("wheels")).toArray();
+    for (const QJsonValue &val : wheelsArr) {
+        if (!val.isObject()) continue;
+        const QJsonObject wObj = val.toObject();
+
+        WheelItem item;
+        item.wheelId = wObj.value(QStringLiteral("wheelId")).toInt();
+        item.cameraId = wObj.value(QStringLiteral("cameraId")).toInt(1);
+        item.actualDistance = wObj.value(QStringLiteral("actualDistance")).toDouble();
+        item.baseDistance = wObj.value(QStringLiteral("baseDistance")).toDouble();
+        item.lowerTolerance = wObj.value(QStringLiteral("lowerTolerance")).toDouble();
+
+        const QString resStr = wObj.value(QStringLiteral("result")).toString();
+        item.result = (resStr.compare(QStringLiteral("OK"), Qt::CaseInsensitive) == 0) ? 1 : 0;
+        item.imageName = wObj.value(QStringLiteral("imageName")).toString().trimmed();
+
+        out.wheels.append(item);
+    }
+
+    if (out.wheels.isEmpty()) {
+        error = QStringLiteral("wheels 列表为空");
+        return false;
+    }
+
+    return true;
+}
+
+bool recordBatch(QSqlDatabase db, const BatchData &batch, QString &error)
+{
+    if (!db.isOpen() || !db.transaction()) {
+        error = db.lastError().text();
+        return false;
+    }
+
+    const QString timeText = AgcUtils::formatDateTime(batch.timestamp);
+
+    for (const auto &wheel : batch.wheels) {
+        QSqlQuery q(db);
+        q.prepare(R"(
+            INSERT INTO record(createtime, carrier_id, camera_id, wheel_id, result, distance, dist_norm, lower_tolerance, imagename, batch_id)
+            VALUES(:time, :carrier, :camera, :wheel, :result, :dist, :norm, :tol, :image, :batch)
+        )");
+        q.bindValue(QStringLiteral(":time"), timeText);
+        q.bindValue(QStringLiteral(":carrier"), batch.carrierId);
+        q.bindValue(QStringLiteral(":camera"), wheel.cameraId);
+        q.bindValue(QStringLiteral(":wheel"), wheel.wheelId);
+        q.bindValue(QStringLiteral(":result"), wheel.result);
+        q.bindValue(QStringLiteral(":dist"), wheel.actualDistance);
+        q.bindValue(QStringLiteral(":norm"), wheel.baseDistance);
+        q.bindValue(QStringLiteral(":tol"), wheel.lowerTolerance);
+        q.bindValue(QStringLiteral(":image"), wheel.imageName);
+        q.bindValue(QStringLiteral(":batch"), batch.batchId);
+
+        if (!q.exec()) {
+            error = q.lastError().text();
+            db.rollback();
+            return false;
+        }
+    }
+
+    if (!db.commit()) {
+        error = db.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
 bool parse(const QString &path, Metadata &out, QString &error)
 {
     out = {};
@@ -28,7 +129,7 @@ bool parse(const QString &path, Metadata &out, QString &error)
         value = text.toInt(&ok);
         return ok && digits.match(text).hasMatch();
     };
-    if (!integer(parts[1], out.rack) || out.rack < 1 || out.rack > 50
+    if (!integer(parts[1], out.carrierId) || out.carrierId < 1 || out.carrierId > 50
         || !integer(parts[2], out.camera) || out.camera < 1 || out.camera > 12) return invalid();
     static const QRegularExpression wheelPattern(QStringLiteral("^([0-9]+)[- ]?(OK|NG|NOK|BAD)$"), QRegularExpression::CaseInsensitiveOption);
     const int count = parts.size() == 9 ? 2 : 1;
@@ -37,13 +138,17 @@ bool parse(const QString &path, Metadata &out, QString &error)
         if (!match.hasMatch()) return invalid();
         bool ok = false;
         const int wheel = match.captured(1).toInt(&ok);
-        if (!ok || !((wheel >= 1 && wheel <= 8) || (wheel >= 11 && wheel <= 18))) return invalid();
+        if (!ok || !((wheel >= 0 && wheel <= 15) || (wheel >= 1 && wheel <= 18))) return invalid();
         if (!out.wheels.isEmpty() && out.wheels.first().number == wheel) return invalid();
         out.wheels.append({wheel, match.captured(2).compare("OK", Qt::CaseInsensitive) == 0 ? 1 : 0});
     }
-    if (!integer(parts[3 + count], out.distance)
-        || !integer(parts[4 + count], out.maximum)
-        || !integer(parts[5 + count], out.norm)) return invalid();
+    int d = 0, m = 0, n = 0;
+    if (!integer(parts[3 + count], d)
+        || !integer(parts[4 + count], m)
+        || !integer(parts[5 + count], n)) return invalid();
+    out.distance = d;
+    out.maximum = m;
+    out.norm = n;
     return true;
 }
 
@@ -63,63 +168,13 @@ QDateTime parseTimestamp(const QString &path, const QDateTime &fallbackTime)
     return fallbackTime;
 }
 
-bool record(QSqlDatabase db, const Metadata &metadata, const QString &imageName,
-            const QString &time, const QVariantList &standards, bool &inserted, QString &error,
-            const QString &batchId, int roundNo)
-{
-    inserted = false;
-    if (!db.isOpen() || !db.transaction()) { error = db.lastError().text(); return false; }
-    auto fail = [&](const QString &reason) { error = reason; db.rollback(); inserted = false; return false; };
-    for (const auto &wheel : metadata.wheels) {
-        QSqlQuery q(db);
-        q.prepare("INSERT INTO record(createtime,rackno,wheelno,result,imagename,distance,dist_max,dist_norm,batch_id,round_no) "
-                  "SELECT :t,:r,:w,:result,:image,:d,:max,:norm,:b,:rnd "
-                  "WHERE NOT EXISTS (SELECT 1 FROM record WHERE imagename=:image AND wheelno=:w)");
-        q.bindValue(":t", time);
-        q.bindValue(":r", QString::number(metadata.rack));
-        q.bindValue(":w", QString::number(wheel.number));
-        q.bindValue(":result", wheel.result);
-        q.bindValue(":image", imageName);
-        const bool single = metadata.wheels.size() == 1;
-        q.bindValue(":d", single ? metadata.distance : 0);
-        q.bindValue(":max", single ? metadata.maximum : 0);
-        q.bindValue(":norm", single ? metadata.norm : 0);
-        q.bindValue(":b", batchId);
-        q.bindValue(":rnd", roundNo);
-        if (!q.exec()) return fail(q.lastError().text());
-        if (q.numRowsAffected() == 0) continue;
-        inserted = true;
-        const int standard = standards.value(wheel.number - 1).toInt();
-        if (wheel.number > 8 || standard <= 0 || metadata.distance >= standard) continue;
-        QSqlQuery norm(db);
-        norm.prepare("INSERT OR IGNORE INTO rackwheelnorm(createtime,rackno,wheelno,distance,imagename) "
-                     "VALUES(:t,:r,:w,:d,:image)");
-        norm.bindValue(":t", time);
-        norm.bindValue(":r", metadata.rack);
-        norm.bindValue(":w", wheel.number);
-        norm.bindValue(":d", metadata.distance);
-        norm.bindValue(":image", imageName);
-        if (!norm.exec()) return fail(norm.lastError().text());
-    }
-    if (!db.commit()) return fail(db.lastError().text());
-    return true;
-}
-
 bool validate(const QString &file, const QString &target, QString &error)
 {
     const QFileInfo info(file);
     const qint64 fileSize = info.exists() ? info.size() : -1;
-    const QString fileName = QFileInfo(target).fileName();
 
     LOG_DEBUG("[INGEST] 收到上传文件: target='{}', staged='{}', 大小={} 字节",
               target.toStdString(), file.toStdString(), fileSize);
-
-    Metadata metadata;
-    if (!parse(target, metadata, error)) {
-        LOG_WARN("[INGEST] 文件名解析未通过: target='{}', error='{}'",
-                 target.toStdString(), error.toStdString());
-        return false;
-    }
 
     if (!info.isFile() || info.isSymbolicLink() || fileSize <= 0
         || fileSize > 512LL * 1024 * 1024 || !AgcUtils::isImageFile(target)) {
@@ -177,9 +232,9 @@ bool accept(const QString &staged, const QString &target,
                   staged.toStdString(), target.toStdString());
         return false;
     }
-    if (!ingest || !ingest(target)) {
-        error = QStringLiteral("文件已保存，数据库处理失败；保留恢复记录等待重试");
-        LOG_ERROR("[INGEST] 文件入库处理失败，保留恢复记录: target='{}'", target.toStdString());
+    if (ingest && !ingest(target)) {
+        error = QStringLiteral("文件已保存，后续处理失败；保留恢复记录等待重试");
+        LOG_ERROR("[INGEST] 文件入库后续处理失败: target='{}'", target.toStdString());
         return false;
     }
     if (!QFile::remove(marker)) {
@@ -187,7 +242,8 @@ bool accept(const QString &staged, const QString &target,
         LOG_WARN("[INGEST] 无法清除恢复记录标记: {}", marker.toStdString());
         return false;
     }
-    LOG_INFO("[INGEST] 图像入库及文件归档成功: target='{}'", target.toStdString());
+    LOG_INFO("[INGEST] 图像归档成功: target='{}'", target.toStdString());
     return true;
 }
+
 }

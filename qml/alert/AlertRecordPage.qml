@@ -32,8 +32,8 @@ Page {
             currentPage = 1
         var start = queryCond.startDate || ""
         var end = queryCond.endDate || ""
-        var rack = queryCond.rackno || 0
-        var wheel = (queryCond.turno === undefined || queryCond.turno === "全部") ? "" : queryCond.turno
+        var rack = (queryCond.carrierId !== undefined && queryCond.carrierId > 0) ? queryCond.carrierId : (queryCond.rackno || 0)
+        var wheel = (queryCond.wheelId === undefined || queryCond.wheelId === "全部") ? (queryCond.turno || "") : queryCond.wheelId
         var resFlag = (queryCond.result === "OK") ? "1" : (queryCond.result === "NG" ? "0" : "")
 
         if (alertMode && appController && appController.alertSearchPaged) {
@@ -157,7 +157,7 @@ Page {
                                 Layout.fillWidth: true
                             }
                             Text {
-                                text: "架号"
+                                text: "载具"
                                 Layout.preferredWidth: 44
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Theme.textSecondary
@@ -175,8 +175,8 @@ Page {
                                 font.bold: true
                             }
                             Text {
-                                text: "距离(小)"
-                                Layout.preferredWidth: 54
+                                text: "实测间距"
+                                Layout.preferredWidth: 60
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
@@ -184,8 +184,8 @@ Page {
                                 font.bold: true
                             }
                             Text {
-                                text: "距离(大)"
-                                Layout.preferredWidth: 54
+                                text: "基准距离"
+                                Layout.preferredWidth: 60
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
@@ -193,8 +193,8 @@ Page {
                                 font.bold: true
                             }
                             Text {
-                                text: "基准"
-                                Layout.preferredWidth: 44
+                                text: "下偏差"
+                                Layout.preferredWidth: 54
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
@@ -273,7 +273,7 @@ Page {
                                 }
 
                                 Text {
-                                    text: String(rack)
+                                    text: String(itemRect.carrierId !== undefined && itemRect.carrierId > 0 ? carrierId : rack)
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.textPrimary
@@ -281,7 +281,7 @@ Page {
                                     font.pixelSize: Theme.fontSizeBody
                                 }
                                 Text {
-                                    text: String(slot)
+                                    text: String(itemRect.wheelId !== undefined ? wheelId : slot)
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.textPrimary
@@ -289,24 +289,24 @@ Page {
                                     font.pixelSize: Theme.fontSizeBody
                                 }
                                 Text {
-                                    text: String(distance)
-                                    Layout.preferredWidth: 54
+                                    text: (distance !== undefined ? Number(distance).toFixed(2) : "0.00")
+                                    Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.textSecondary
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeSmall
                                 }
                                 Text {
-                                    text: String(dist_max)
-                                    Layout.preferredWidth: 54
+                                    text: (dist_norm !== undefined ? Number(dist_norm).toFixed(2) : "0.00")
+                                    Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
+                                    color: Theme.textMuted
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeSmall
                                 }
                                 Text {
-                                    text: String(dist_norm)
-                                    Layout.preferredWidth: 44
+                                    text: (lower_tolerance !== undefined ? Number(lower_tolerance).toFixed(2) : "0.00")
+                                    Layout.preferredWidth: 54
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.textMuted
                                     font.family: Theme.fontMono
@@ -343,7 +343,9 @@ Page {
                                     list.currentIndex = index
                                     var item = appController.searchImagesModel.get(index)
                                     if (item && item.fileUrl) {
-                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "架 #" + item.rack + " ╎ 轮 #" + item.slot + " ╎ " + item.receivedAtText)
+                                        var cId = (item.carrierId !== undefined && item.carrierId > 0) ? item.carrierId : item.rack
+                                        var wId = (item.wheelId !== undefined) ? item.wheelId : item.slot
+                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ 轮 #" + wId + " ╎ " + item.receivedAtText)
                                     }
                                 }
                             }

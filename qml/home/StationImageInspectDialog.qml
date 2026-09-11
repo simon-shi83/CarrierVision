@@ -777,20 +777,20 @@ Dialog {
                             }
 
                             MetricRow {
-                                labelName: "载具架号 (Rack)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.rack) : "-"
+                                labelName: "载具编号 (Carrier)"
+                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.carrierId !== undefined && inspectDialog.currentItemObject.carrierId > 0 ? inspectDialog.currentItemObject.carrierId : inspectDialog.currentItemObject.rack) : "-"
                                 valColor: Theme.primaryLight
                             }
 
                             MetricRow {
-                                labelName: "工位槽位 (Slot)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.slot) : "-"
+                                labelName: "工位相机 (Camera)"
+                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.cameraId !== undefined && inspectDialog.currentItemObject.cameraId > 0 ? inspectDialog.currentItemObject.cameraId : (inspectDialog.slotIndex + 1)) : "-"
                                 valColor: Theme.primaryLight
                             }
 
                             MetricRow {
-                                labelName: "点检轮次 (Round)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.roundNumber) : "-"
+                                labelName: "检测轮号 (Wheel)"
+                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.wheelId !== undefined ? inspectDialog.currentItemObject.wheelId : inspectDialog.currentItemObject.slot) : "-"
                             }
 
                             Rectangle {
@@ -800,21 +800,31 @@ Dialog {
                             }
 
                             MetricRow {
-                                labelName: "测量间距 (Min)"
+                                labelName: "实测间距 (Actual)"
                                 metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.distance) : "-"
                                 unitName: "mm"
                             }
 
                             MetricRow {
-                                labelName: "测量极值 (Max)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.distMax) : "-"
+                                labelName: "基准距离 (Base)"
+                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.distNorm) : "-"
                                 unitName: "mm"
                             }
 
                             MetricRow {
-                                labelName: "标准基准 (Norm)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.distNorm) : "-"
+                                labelName: "下偏差 (Lower Tol)"
+                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.lowerTolerance !== undefined ? inspectDialog.currentItemObject.lowerTolerance : 0.0) : "-"
                                 unitName: "mm"
+                            }
+
+                            Label {
+                                visible: inspectDialog.currentItemObject && inspectDialog.currentItemObject.wheelsInfo && inspectDialog.currentItemObject.wheelsInfo.length > 0
+                                text: inspectDialog.currentItemObject ? inspectDialog.currentItemObject.wheelsInfo : ""
+                                color: Theme.primaryLight
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeTiny
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
                             }
 
                             Item {

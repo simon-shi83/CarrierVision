@@ -16,8 +16,8 @@ using namespace std;
 
 namespace WeeklyReport {
 
-static const array<int,8> DRIVERS = {1,2,3,4,5,6,7,8};
-static const array<int,8> DEFORMED = {11,12,13,14,15,16,17,18};
+static const array<int,8> DRIVERS = {0,1,2,3,4,5,6,7};
+static const array<int,8> DEFORMED = {8,9,10,11,12,13,14,15};
 static const array<int,50> RACKS = [](){ array<int,50> a{}; for(int i=0;i<50;i++) a[i]=i+1; return a;}();
 
 static QDate lastMondayForDate(const QDate &d){
@@ -36,7 +36,7 @@ static bool writeCsv(const QString &path, const QList<QList<QVariant>> &rows){
     QSaveFile f(path);
     if(!f.open(QIODevice::WriteOnly|QIODevice::Text)) return false;
     QTextStream out(&f);
-    out << "rack,wheelno,ok_count,ng_count,total,loss_rate\n";
+    out << "carrier_id,wheel_id,ok_count,ng_count,total,loss_rate\n";
     for(const auto &r : rows){
         int rack = r[0].toInt();
         int wheel = r[1].toInt();
@@ -59,24 +59,23 @@ bool generateForWeek(const QDate &monday){
     QDate start = monday;
     QDate end = monday.addDays(6);
 
-    QString dbPath = DBSchema::defaultDatabasePath();
     QString startTag = start.toString("yyyyMMdd");
     QString endTag = end.toString("yyyyMMdd");
+    QString driversName = QString("%1-%2_drivers.csv").arg(startTag).arg(endTag);
+    QString deformedName = QString("%1-%2_deformed.csv").arg(startTag).arg(endTag);
     QString outDir = ensureOutDir();
-    QString driversPath = outDir + QDir::separator() + QString("%1-%2_drivers.csv").arg(startTag, endTag);
-    QString deformedPath = outDir + QDir::separator() + QString("%1-%2_deformed.csv").arg(startTag, endTag);
+    QString driversPath = outDir + QDir::separator() + driversName;
+    QString deformedPath = outDir + QDir::separator() + deformedName;
 
-    bool ok1 = false;
-    bool ok2 = false;
+    bool ok1 = false, ok2 = false;
     bool dbOk = true;
     bool needRemoveConn = false;
 
     {
         QSqlDatabase db = QSqlDatabase::database();
-        bool useExternal = db.isValid() && db.isOpen();
-        if(!useExternal){
+        if(!db.isValid()){
             db = QSqlDatabase::addDatabase("QSQLITE", "weekly_report_conn");
-            db.setDatabaseName(dbPath);
+            db.setDatabaseName(DBSchema::defaultDatabasePath());
             if(!db.open()){
                 LOG_ERROR("WeeklyReport: 打开数据库失败: {}", db.lastError().text().toStdString());
                 needRemoveConn = true;
@@ -87,7 +86,7 @@ bool generateForWeek(const QDate &monday){
 
         if(db.isOpen()){
             QSqlQuery q(db);
-            QString qs = QString("SELECT rackno, wheelno, result FROM record WHERE createtime >= '%1' AND createtime < '%2'")
+            QString qs = QString("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= '%1' AND createtime < '%2'")
                     .arg(start.toString(Qt::ISODate)).arg(end.addDays(1).toString(Qt::ISODate));
             if(!q.exec(qs)){
                 LOG_ERROR("WeeklyReport: 执行查询失败: {}", q.lastError().text().toStdString());
@@ -99,7 +98,7 @@ bool generateForWeek(const QDate &monday){
                     int r = q.value(0).toInt(&okR);
                     int w = q.value(1).toInt(&okW);
                     if(!okR || !okW) continue;
-                    if (r < 1 || r > 50 || !((w >= 1 && w <= 8) || (w >= 11 && w <= 18))) continue;
+                    if (r < 1 || r > 50 || w < 0 || w > 15) continue;
                     int res = q.value(2).toInt();
                     auto key = qMakePair(r,w);
                     auto cur = aggr.value(key, qMakePair(0,0));
@@ -118,11 +117,9 @@ bool generateForWeek(const QDate &monday){
                             auto p = aggr.value(qMakePair(rack,wheel), qMakePair(0,0));
                             driversRows.append({rack, wheel, p.first, p.second});
                         }
-                        for(int i = 0; i < DEFORMED.size(); ++i){
-                            int sourceWheel = DEFORMED[i]; // 11..18
-                            int outputWheel = i + 1; // 1..8
-                            auto p = aggr.value(qMakePair(rack, sourceWheel), qMakePair(0,0));
-                            deformedRows.append({rack, outputWheel, p.first, p.second});
+                        for(int wheel : DEFORMED){
+                            auto p = aggr.value(qMakePair(rack, wheel), qMakePair(0,0));
+                            deformedRows.append({rack, wheel, p.first, p.second});
                         }
                     }
 

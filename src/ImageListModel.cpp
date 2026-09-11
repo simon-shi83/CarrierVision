@@ -13,17 +13,39 @@ bool imageItemEquals(const ImageItem &a, const ImageItem &b)
 {
     return a.batchId == b.batchId
            && a.roundNumber == b.roundNumber
-           && a.slot == b.slot
-           && a.rack == b.rack
+           && a.carrierId == b.carrierId
+           && a.cameraId == b.cameraId
+           && a.wheelId == b.wheelId
            && a.serial == b.serial
            && a.fileName == b.fileName
            && a.filePath == b.filePath
            && a.fileUrl == b.fileUrl
            && a.receivedAt == b.receivedAt
            && a.result == b.result
-           && a.distance == b.distance
-           && a.dist_max == b.dist_max
-           && a.dist_norm == b.dist_norm;
+           && qFuzzyCompare(a.distance, b.distance)
+           && qFuzzyCompare(a.dist_norm, b.dist_norm)
+           && qFuzzyCompare(a.lower_tolerance, b.lower_tolerance)
+           && a.wheelsInfo == b.wheelsInfo;
+}
+
+void syncObjectFromItem(ImageItemObject *o, const ImageItem &it)
+{
+    if (!o) return;
+    o->setBatchId(it.batchId);
+    o->setRoundNumber(it.roundNumber);
+    o->setCarrierId(it.carrierId > 0 ? it.carrierId : it.rack);
+    o->setCameraId(it.cameraId > 0 ? it.cameraId : it.slot);
+    o->setWheelId(it.wheelId);
+    o->setFileName(it.fileName);
+    o->setFilePath(it.filePath);
+    o->setFileUrl(it.fileUrl.isEmpty() ? QUrl::fromLocalFile(it.filePath).toString() : it.fileUrl);
+    o->setReceivedAtText(AgcUtils::formatDateTime(it.receivedAt));
+    o->setSerial(it.serial);
+    o->setResult(it.result);
+    o->setDistance(it.distance);
+    o->setDistNorm(it.dist_norm);
+    o->setLowerTolerance(it.lower_tolerance);
+    o->setWheelsInfo(it.wheelsInfo);
 }
 
 }
@@ -56,9 +78,13 @@ QVariant ImageListModel::data(const QModelIndex &index, int role) const
     case RoundNumberRole:
         return item.roundNumber;
     case SlotRole:
-        return item.slot;
+    case CameraIdRole:
+        return item.cameraId > 0 ? item.cameraId : item.slot;
     case RackRole:
-        return item.rack;
+    case CarrierIdRole:
+        return item.carrierId > 0 ? item.carrierId : item.rack;
+    case WheelIdRole:
+        return item.wheelId;
     case SerialRole:
         return item.serial;
     case FileNameRole:
@@ -80,6 +106,10 @@ QVariant ImageListModel::data(const QModelIndex &index, int role) const
         return item.dist_max;
     case DistNormRole:
         return item.dist_norm;
+    case LowerToleranceRole:
+        return item.lower_tolerance;
+    case WheelsInfoRole:
+        return item.wheelsInfo;
     case ReceivedAtRole:
         return item.receivedAt.toString(Qt::ISODateWithMs);
     case ReceivedAtTextRole:
@@ -96,12 +126,17 @@ QHash<int, QByteArray> ImageListModel::roleNames() const
         {RoundNumberRole, "roundNumber"},
         {SlotRole, "slot"},
         {RackRole, "rack"},
+        {CarrierIdRole, "carrierId"},
+        {CameraIdRole, "cameraId"},
+        {WheelIdRole, "wheelId"},
         {SerialRole, "serial"},
         {FileNameRole, "fileName"},
         {FilePathRole, "filePath"},
         {FileUrlRole, "fileUrl"},
         {DistMaxRole, "dist_max"},
         {DistNormRole, "dist_norm"},
+        {LowerToleranceRole, "lowerTolerance"},
+        {WheelsInfoRole, "wheelsInfo"},
         {ItemObjectRole, "itemObject"},
         {ReceivedAtRole, "receivedAt"},
         {ResultRole, "result"},
@@ -117,10 +152,6 @@ int ImageListModel::count() const
 
 void ImageListModel::setItems(const QVector<ImageItem> &items)
 {
-    if (items.size() > MaxItemCount) {
-        LOG_WARN("ImageListModel: 拒绝导入 {} 条图片，超出最大限制 {}", items.size(), MaxItemCount);
-        return;
-    }
     const int oldCount = m_items.size();
     const int newCount = items.size();
 
@@ -128,31 +159,15 @@ void ImageListModel::setItems(const QVector<ImageItem> &items)
         return;
     }
 
-    // 缩容或重排场景直接重置，保证模型状态正确。
     if (newCount < oldCount) {
         beginResetModel();
         m_items = items;
-        // 同步释放并裁剪多余的 QObject，防止内存泄漏与脏数据
         while (m_itemObjects.size() > newCount) {
             delete m_itemObjects.takeLast();
         }
         for (int i = 0; i < newCount; ++i) {
             if (i < m_itemObjects.size()) {
-                ImageItemObject *o = m_itemObjects.at(i);
-                const ImageItem &it = items.at(i);
-                o->setBatchId(it.batchId);
-                o->setFileName(it.fileName);
-                o->setFilePath(it.filePath);
-                o->setFileUrl(it.fileUrl.isEmpty() ? QUrl::fromLocalFile(it.filePath).toString() : it.fileUrl);
-                o->setReceivedAtText(AgcUtils::formatDateTime(it.receivedAt));
-                o->setSerial(it.serial);
-                o->setRoundNumber(it.roundNumber);
-                o->setRack(it.rack);
-                o->setSlot(it.slot);
-                o->setResult(it.result);
-                o->setDistance(it.distance);
-                o->setDistMax(it.dist_max);
-                o->setDistNorm(it.dist_norm);
+                syncObjectFromItem(m_itemObjects.at(i), items.at(i));
             }
         }
         endResetModel();
@@ -160,64 +175,31 @@ void ImageListModel::setItems(const QVector<ImageItem> &items)
         return;
     }
 
-    Q_UNUSED(oldCount);
-    Q_UNUSED(newCount);
-
-    // 先更新已有行，仅对变化行发 dataChanged，避免整页闪烁。
     for (int i = 0; i < oldCount; ++i) {
         const ImageItem &oldItem = m_items.at(i);
         const ImageItem &newItem = items.at(i);
         if (!imageItemEquals(oldItem, newItem)) {
             m_items[i] = newItem;
             const QModelIndex idx = index(i, 0);
-            // update backing QObject fields if exists
             if (i >= 0 && i < m_itemObjects.size()) {
-                ImageItemObject *o = m_itemObjects.at(i);
-                o->setBatchId(newItem.batchId);
-                o->setFileName(newItem.fileName);
-                o->setFilePath(newItem.filePath);
-                o->setFileUrl(newItem.fileUrl.isEmpty() ? QUrl::fromLocalFile(newItem.filePath).toString() : newItem.fileUrl);
-                o->setReceivedAtText(AgcUtils::formatDateTime(newItem.receivedAt));
-                o->setSerial(newItem.serial);
-                o->setRoundNumber(newItem.roundNumber);
-                o->setRack(newItem.rack);
-                o->setSlot(newItem.slot);
-                o->setResult(newItem.result);
-                o->setDistance(newItem.distance);
-                o->setDistMax(newItem.dist_max);
-                o->setDistNorm(newItem.dist_norm);
+                syncObjectFromItem(m_itemObjects.at(i), newItem);
             }
             emit dataChanged(idx, idx);
         }
     }
 
-    // 新增行采用插入通知，不触发历史行重建。
     if (newCount > oldCount) {
         beginInsertRows(QModelIndex(), oldCount, newCount - 1);
         for (int i = oldCount; i < newCount; ++i) {
             m_items.append(items.at(i));
             ImageItemObject *o = new ImageItemObject(this);
-            const ImageItem &it = items.at(i);
-            o->setBatchId(it.batchId);
-            o->setFileName(it.fileName);
-            o->setFilePath(it.filePath);
-            o->setFileUrl(it.fileUrl.isEmpty() ? QUrl::fromLocalFile(it.filePath).toString() : it.fileUrl);
-            o->setReceivedAtText(AgcUtils::formatDateTime(it.receivedAt));
-            o->setSerial(it.serial);
-            o->setRoundNumber(it.roundNumber);
-            o->setRack(it.rack);
-            o->setSlot(it.slot);
-            o->setResult(it.result);
-            o->setDistance(it.distance);
-            o->setDistMax(it.dist_max);
-            o->setDistNorm(it.dist_norm);
+            syncObjectFromItem(o, items.at(i));
             m_itemObjects.append(o);
         }
         endInsertRows();
         emit countChanged();
     }
 
-    // ensure object pool size matches
     while (m_itemObjects.size() > m_items.size()) {
         delete m_itemObjects.takeLast();
     }
@@ -225,8 +207,8 @@ void ImageListModel::setItems(const QVector<ImageItem> &items)
 
 bool ImageListModel::updateSlotItem(int index, const ImageItem &item)
 {
-    if (index < 0 || index >= MaxItemCount) {
-        LOG_WARN("ImageListModel: 槽位更新索引 {} 超出有效范围 [0, {})", index, MaxItemCount);
+    if (index < 0 || index >= 1000) {
+        LOG_WARN("ImageListModel: 槽位更新索引 {} 超出安全有效范围 [0, 1000)", index);
         return false;
     }
 
@@ -243,20 +225,7 @@ bool ImageListModel::updateSlotItem(int index, const ImageItem &item)
 
     m_items[index] = item;
     if (index < m_itemObjects.size()) {
-        ImageItemObject *o = m_itemObjects.at(index);
-        o->setBatchId(item.batchId);
-        o->setFileName(item.fileName);
-        o->setFilePath(item.filePath);
-        o->setFileUrl(item.fileUrl.isEmpty() ? QUrl::fromLocalFile(item.filePath).toString() : item.fileUrl);
-        o->setReceivedAtText(AgcUtils::formatDateTime(item.receivedAt));
-        o->setSerial(item.serial);
-        o->setRoundNumber(item.roundNumber);
-        o->setRack(item.rack);
-        o->setSlot(item.slot);
-        o->setResult(item.result);
-        o->setDistance(item.distance);
-        o->setDistMax(item.dist_max);
-        o->setDistNorm(item.dist_norm);
+        syncObjectFromItem(m_itemObjects.at(index), item);
     }
     const QModelIndex idx = this->index(index, 0);
     emit dataChanged(idx, idx);
@@ -285,19 +254,25 @@ QVariantMap ImageListModel::get(int index) const
     }
 
     const ImageItem &item = m_items.at(index);
+    const int carrierId = item.carrierId > 0 ? item.carrierId : item.rack;
+    const int cameraId = item.cameraId > 0 ? item.cameraId : item.slot;
     return {
         {QStringLiteral("batchId"), item.batchId},
         {QStringLiteral("roundNumber"), item.roundNumber},
+        {QStringLiteral("carrierId"), carrierId},
+        {QStringLiteral("rack"), carrierId},
+        {QStringLiteral("cameraId"), cameraId},
+        {QStringLiteral("slot"), cameraId},
+        {QStringLiteral("wheelId"), item.wheelId},
         {QStringLiteral("serial"), item.serial},
-        {QStringLiteral("slot"), item.slot},
         {QStringLiteral("fileName"), item.fileName},
         {QStringLiteral("filePath"), item.filePath},
         {QStringLiteral("fileUrl"), item.fileUrl.isEmpty() ? QUrl::fromLocalFile(item.filePath).toString() : item.fileUrl},
-        {QStringLiteral("rack"), item.rack},
         {QStringLiteral("result"), item.result},
         {QStringLiteral("distance"), item.distance},
-        {QStringLiteral("dist_max"), item.dist_max},
         {QStringLiteral("dist_norm"), item.dist_norm},
+        {QStringLiteral("lowerTolerance"), item.lower_tolerance},
+        {QStringLiteral("wheelsInfo"), item.wheelsInfo},
         {QStringLiteral("receivedAt"), item.receivedAt.toString(Qt::ISODateWithMs)},
         {QStringLiteral("receivedAtText"), AgcUtils::formatDateTime(item.receivedAt)}
     };
