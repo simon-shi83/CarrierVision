@@ -113,6 +113,11 @@ static QString resolveImagePath(const QString &rawName, const QString &archiveDi
     return QString();
 }
 
+static QString imageFileKey(const QString &name)
+{
+    return QFileInfo(name).fileName().toCaseFolded();
+}
+
 bool parseResultFilter(const QString &text, int &result)
 {
     const QString token = text.trimmed();
@@ -2360,6 +2365,7 @@ void AppController::onTcpBatchReceived(const QJsonObject &batchData)
         cards[i].serial = QStringLiteral("CAM %1%2").arg(camId < 10 ? "0" : "").arg(camId);
     }
 
+    QSet<QString> consumedPendingImages;
     for (const auto &w : batch.wheels) {
         int camIdx = w.cameraId - 1;
         if (camIdx < 0 || camIdx >= 12) continue;
@@ -2387,14 +2393,35 @@ void AppController::onTcpBatchReceived(const QJsonObject &batchData)
         }
 
         if (!w.imageName.isEmpty()) {
-            const QString resolvedPath = resolveImagePath(w.imageName, m_archiveDirectory, m_sourceDirectory);
-            if (!resolvedPath.isEmpty() && QFile::exists(resolvedPath)) {
-                card.filePath = resolvedPath;
-                card.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();
+            const QString imageName = QFileInfo(w.imageName).fileName();
+            if (card.fileName.isEmpty()) {
+                card.fileName = imageName;
+            }
+
+            // FTP may have completed before this TCP batch. Match the exact
+            // imageName advertised by the sender rather than scanning folders.
+            const QString imageKey = imageFileKey(imageName);
+            const auto pending = m_pendingImages.constFind(imageKey);
+            if (pending != m_pendingImages.cend() &&
+                QFile::exists(pending->filePath)) {
+                card.filePath = pending->filePath;
+                card.fileUrl = QUrl::fromLocalFile(card.filePath).toString();
+                consumedPendingImages.insert(imageKey);
+            } else {
+                const QString resolvedPath =
+                    resolveImagePath(w.imageName, m_archiveDirectory,
+                                     m_sourceDirectory);
+                if (!resolvedPath.isEmpty() && QFile::exists(resolvedPath)) {
+                    card.filePath = resolvedPath;
+                    card.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();
+                }
             }
         }
     }
 
+    for (const QString &key : consumedPendingImages) {
+        m_pendingImages.remove(key);
+    }
     m_currentImagesModel.setItems(cards);
     LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片", batch.carrierId);
     setStatusMessage(QStringLiteral("载具 #%1 测量数据已接收，共 %2 轮").arg(batch.carrierId).arg(batch.wheels.size()));
@@ -2407,10 +2434,11 @@ void AppController::onFtpImageStored(const QString &filePath)
     const QString fileName = file.fileName();
     const QString resolvedUrl = QUrl::fromLocalFile(file.absoluteFilePath()).toString();
 
+    const QString imageKey = imageFileKey(fileName);
     bool matched = false;
     for (int i = 0; i < m_currentImagesModel.count(); ++i) {
         ImageItem item = m_currentImagesModel.itemAt(i);
-        if (item.fileName == fileName || fileName.contains(QStringLiteral("cam%1").arg(item.cameraId, 2, 10, QChar('0')), Qt::CaseInsensitive)) {
+        if (imageFileKey(item.fileName) == imageKey && !imageKey.isEmpty()) {
             item.filePath = file.absoluteFilePath();
             item.fileUrl = resolvedUrl;
             item.fileName = fileName;
@@ -2419,7 +2447,38 @@ void AppController::onFtpImageStored(const QString &filePath)
         }
     }
 
-    LOG_INFO("[FTP] 图像文件入库归档: {}, 关联卡片={}", fileName.toStdString(), matched);
+    if (!matched) {
+        m_pendingImages.insert(imageKey,
+                               {file.absoluteFilePath(),
+                                QDateTime::currentDateTime()});
+        prunePendingImages();
+    }
+
+    LOG_INFO("[FTP] 图像文件入库归档: {}, 关联卡片={}, 待关联缓存={}",
+             fileName.toStdString(), matched, m_pendingImages.size());
+}
+
+void AppController::prunePendingImages()
+{
+    const QDateTime cutoff = QDateTime::currentDateTime().addSecs(-5 * 60);
+    for (auto it = m_pendingImages.begin(); it != m_pendingImages.end();) {
+        if (it->receivedAt < cutoff || !QFile::exists(it->filePath)) {
+            it = m_pendingImages.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    while (m_pendingImages.size() > 512) {
+        auto oldest = m_pendingImages.begin();
+        for (auto it = std::next(m_pendingImages.begin());
+             it != m_pendingImages.end(); ++it) {
+            if (it->receivedAt < oldest->receivedAt) {
+                oldest = it;
+            }
+        }
+        m_pendingImages.erase(oldest);
+    }
 }
 
 QString AppController::ftpUser() const
@@ -2947,5 +3006,4 @@ void AppController::openFtpRootDirectory()
         QDesktopServices::openUrl(QUrl::fromLocalFile(root));
     }
 }
-
 

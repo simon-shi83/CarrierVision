@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QDateTime>
 #include <QSet>
 #include <QVariantList>
 #include <QVector>
@@ -206,6 +207,7 @@ private:
     void scheduleCleanup();
     void closeoutPreviousSession(const QString &newRackNumber);
     void checkSessionTimeout();
+    void prunePendingImages();
 
     struct RackSession {
         QString rack;
@@ -214,6 +216,11 @@ private:
         QSet<int> receivedSlots;
         QDateTime startedAt;
         bool completed = false;
+    };
+
+    struct PendingImage {
+        QString filePath;
+        QDateTime receivedAt;
     };
 
     QString m_sourceDirectory;
@@ -252,6 +259,7 @@ private:
     QList<BatchRecord> m_records;
     ImageListModel m_currentImagesModel;
     ImageListModel m_searchImagesModel;
+    QHash<QString, PendingImage> m_pendingImages;
     // CopyWorker removed; file-moving/archiving handled by FtpServer and archive logic
     QVariantList m_gearSumResult;
     QHash<QString, int> m_lastTotalByRack;
