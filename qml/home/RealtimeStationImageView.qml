@@ -18,27 +18,48 @@ Rectangle {
                                      : "等待点检数据..."
     property string emptyText: "等待新的批次图像到达"
 
-    property int refreshEpoch: 0
+    function refreshSlot(slot) {
+        if (slot >= 0 && slot < cardRepeater.count) {
+            var item = cardRepeater.itemAt(slot)
+            if (item && item.syncFromModel) {
+                item.syncFromModel()
+            }
+        }
+    }
+
+    function refreshAllSlots() {
+        for (var i = 0; i < cardRepeater.count; ++i) {
+            var item = cardRepeater.itemAt(i)
+            if (item && item.syncFromModel) {
+                item.syncFromModel()
+            }
+        }
+    }
 
     Connections {
         target: typeof appController !== 'undefined' ? appController : null
         function onSlotUpdated(slot) {
-            root.refreshEpoch++
-        }
-        function onCurrentBatchChanged() {
-            root.refreshEpoch++
+            root.refreshSlot(slot)
         }
     }
 
     Connections {
         target: root.imageModel && root.imageModel.dataChanged ? root.imageModel : null
         ignoreUnknownSignals: true
-        function onDataChanged() {
-            root.refreshEpoch++
+        function onDataChanged(topLeft, bottomRight) {
+            var start = (topLeft && typeof topLeft.row !== 'undefined') ? topLeft.row : 0
+            var end = (bottomRight && typeof bottomRight.row !== 'undefined') ? bottomRight.row : (cardRepeater.count - 1)
+            for (var r = start; r <= end; ++r) {
+                root.refreshSlot(r)
+            }
         }
         function onModelReset() {
-            root.refreshEpoch++
+            root.refreshAllSlots()
         }
+    }
+
+    onImageModelChanged: {
+        root.refreshAllSlots()
     }
 
     property bool embeddedMode: false
@@ -49,10 +70,8 @@ Rectangle {
     border.width: embeddedMode ? 0 : 1
     border.color: embeddedMode ? "transparent" : Theme.borderMedium
 
-    ZoomOverlay {
-        id: viewer
-        anchors.fill: parent
-        visible: !root.embeddedMode && viewerSource !== ""
+    StationImageInspectDialog {
+        id: stationInspectDialog
     }
 
     ColumnLayout {
@@ -149,234 +168,18 @@ Rectangle {
                 rowSpacing: 8
 
                 Repeater {
+                    id: cardRepeater
                     model: (root.imageModel && root.imageModel.count > 0) ? root.imageModel.count : 12
-                    ImageCard {
-                        property var itemObject: (root.refreshEpoch >= 0 && root.imageModel && index < root.imageModel.count) ? root.imageModel.itemObjectAt(index) : null
+                    RealtimeStationImageCard {
                         slotIndex: index
-                        fileUrl: itemObject ? itemObject.fileUrl : ""
-                        filePath: itemObject ? itemObject.filePath : ""
-                        fileName: itemObject ? itemObject.fileName : ""
-                        serial: itemObject ? itemObject.serial : ""
-                        roundNumber: itemObject ? itemObject.roundNumber : 0
-                        receivedAtText: itemObject ? itemObject.receivedAtText : ""
+                        imageModel: root.imageModel
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        onActivate: function(sourceUrl, title, subtitle) {
-                            if (root.externalViewer) {
-                                root.externalViewer.openViewer(sourceUrl, title, subtitle)
-                            } else {
-                                viewer.openViewer(sourceUrl, title, subtitle)
-                            }
+                        onActivate: function(sourceUrl, title, subtitle, slot) {
+                            var sIdx = (typeof slot !== 'undefined') ? slot : index
+                            stationInspectDialog.openViewer(sourceUrl, title, subtitle, sIdx, root.imageModel)
                         }
                     }
-                }
-            }
-        }
-    }
-
-    // ==========================================
-    // 批次图像卡片私有内联组件
-    // ==========================================
-    component ImageCard: Rectangle {
-        id: cardRoot
-
-        property url fileUrl
-        property string filePath: ""
-        property string fileName: ""
-        property string serial: ""
-        property int roundNumber: 0
-        property string receivedAtText: ""
-        property int slotIndex: 0
-
-        function effectiveImageSource() {
-            var u = String(cardRoot.fileUrl || "")
-            if (u.length > 0) { return u }
-            var p = String(cardRoot.filePath || "")
-            if (p.length === 0) { return "" }
-            var normalized = p.replace(/\\/g, "/")
-            if (/^[a-zA-Z]:\//.test(normalized)) { return "file:///" + normalized }
-            return normalized
-        }
-
-        signal activate(url sourceUrl, string titleText, string subtitleText)
-
-        radius: Theme.radiusMd
-        color: mouseArea.containsMouse ? Theme.bgCardActive : Theme.bgCard
-        border.width: 1
-        border.color: mouseArea.containsMouse ? Theme.borderHover : Theme.borderMedium
-        clip: true
-
-        Behavior on color { ColorAnimation { duration: Theme.animFast } }
-        Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 6
-            spacing: 6
-
-            // 顶部信息与相机工位徽章
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: 4
-                Layout.rightMargin: 4
-
-                Rectangle {
-                    Layout.preferredHeight: 20
-                    implicitWidth: camText.implicitWidth + 12
-                    radius: Theme.radiusPill
-                    color: cardRoot.effectiveImageSource() !== "" ? Theme.primaryGlow : Theme.bgCardElevated
-                    border.color: cardRoot.effectiveImageSource() !== "" ? Theme.primary : Theme.borderSubtle
-                    border.width: 1
-
-                    Text {
-                        id: camText
-                        anchors.centerIn: parent
-                        text: "CAM " + (cardRoot.slotIndex < 9 ? "0" : "") + (cardRoot.slotIndex + 1)
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
-                        font.bold: true
-                        color: cardRoot.effectiveImageSource() !== "" ? Theme.primaryLight : Theme.textMuted
-                    }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Label {
-                    text: cardRoot.receivedAtText
-                    color: Theme.textMuted
-                    font.family: Theme.fontMono
-                    font.pixelSize: 10
-                    elide: Label.ElideRight
-                }
-            }
-
-            // 图像预览容器
-            Rectangle {
-                id: previewFrame
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                radius: Theme.radiusSm
-                color: Theme.bgInput
-                border.width: 1
-                border.color: Theme.borderSubtle
-                clip: true
-
-                Image {
-                    id: previewImage
-                    anchors.fill: parent
-                    anchors.margins: 2
-                    source: cardRoot.effectiveImageSource()
-                    sourceSize.width: Math.min(4096, Math.max(1, width * 2))
-                    sourceSize.height: Math.min(4096, Math.max(1, height * 2))
-                    asynchronous: true
-                    cache: false
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                }
-
-                // 无图像占位符
-                Rectangle {
-                    id: placeholderBox
-                    anchors.fill: parent
-                    color: "transparent"
-                    visible: cardRoot.effectiveImageSource() === ""
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: 6
-
-                        AppIcon {
-                            Layout.alignment: Qt.AlignHCenter
-                            name: "icon_camera"
-                            size: 28
-                            color: Theme.textMuted
-                            opacity: 0.35
-                        }
-
-                        Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "等待图像传输"
-                            color: Theme.textMuted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                        }
-                    }
-                }
-
-                // 悬停检验动作浮层 (高精 HMI 交互反馈)
-                Rectangle {
-                    id: hoverOverlay
-                    anchors.fill: parent
-                    color: Qt.rgba(0, 0, 0, 0.45)
-                    visible: mouseArea.containsMouse && cardRoot.effectiveImageSource() !== ""
-                    radius: Theme.radiusSm
-
-                    Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
-
-                    Rectangle {
-                        anchors.centerIn: parent
-                        height: 28
-                        implicitWidth: hoverRow.implicitWidth + 16
-                        radius: Theme.radiusPill
-                        color: Theme.bgCardElevated
-                        border.color: Theme.primary
-                        border.width: 1
-
-                        RowLayout {
-                            id: hoverRow
-                            anchors.centerIn: parent
-                            spacing: 6
-
-                            AppIcon {
-                                name: "icon_eye"
-                                size: 14
-                                color: Theme.primaryLight
-                            }
-
-                            Text {
-                                text: "全景检验"
-                                color: Theme.primaryLight
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 序列号 / 文件名标签
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: 4
-                Layout.rightMargin: 4
-                text: cardRoot.serial.length > 0 ? cardRoot.serial : (cardRoot.fileName.length > 0 ? cardRoot.fileName : "待采集")
-                color: cardRoot.serial.length > 0 ? Theme.primaryLight : Theme.textSecondary
-                font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSizeSmall
-                font.bold: true
-                elide: Label.ElideMiddle
-            }
-        }
-
-        MouseArea {
-            id: mouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton
-            cursorShape: cardRoot.effectiveImageSource() !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: {
-                if (cardRoot.effectiveImageSource() !== "") {
-                    const title = cardRoot.serial.length > 0 ? cardRoot.serial : cardRoot.fileName
-                    const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " ╎ " + cardRoot.receivedAtText
-                    cardRoot.activate(cardRoot.effectiveImageSource(), title, subtitle)
-                }
-            }
-            onDoubleClicked: {
-                if (cardRoot.effectiveImageSource() !== "") {
-                    const title = cardRoot.serial.length > 0 ? cardRoot.serial : cardRoot.fileName
-                    const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " ╎ " + cardRoot.receivedAtText
-                    cardRoot.activate(cardRoot.effectiveImageSource(), title, subtitle)
                 }
             }
         }

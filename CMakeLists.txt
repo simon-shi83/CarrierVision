@@ -132,12 +132,14 @@ qt_add_qml_module(CarrierVision
         qml/home/DesignShowCore.qml
         qml/home/DesignShowCache.qml
         qml/home/RealtimeStationImageView.qml
+        qml/home/RealtimeStationImageCard.qml
+        qml/home/StationImageInspectDialog.qml
 
         # 全景监控
         qml/monitor/MonitorWorkspace.qml
 
-        # 历史查询
-        qml/search/SearchWorkspace.qml
+        # 数据查询
+        qml/query/DataQueryWorkspace.qml
 
         # 统计分析
         qml/stats/StatsWorkspace.qml

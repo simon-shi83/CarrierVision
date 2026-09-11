@@ -144,7 +144,7 @@ Window {
         function onGenericSearchRequested(startDate, endDate, wheelNumber, resultType) {
             var searchIdx = -1;
             for (var i = 0; i < mainwindow.menuData.length; i++) {
-                if (mainwindow.menuData[i].title === "数据查询" || (mainwindow.menuData[i].pageSource && mainwindow.menuData[i].pageSource.indexOf("SearchWorkspace.qml") !== -1)) {
+                if (mainwindow.menuData[i].title === "数据查询" || (mainwindow.menuData[i].pageSource && mainwindow.menuData[i].pageSource.indexOf("DataQueryWorkspace.qml") !== -1)) {
                     searchIdx = i;
                     break;
                 }
@@ -177,7 +177,7 @@ Window {
             title: "数据查询",
             iconName: "nav_search",
             iconText: "☵",
-            pageSource: "search/SearchWorkspace.qml",
+            pageSource: "query/DataQueryWorkspace.qml",
             enabled: true
         },
         {
