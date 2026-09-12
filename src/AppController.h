@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <QDirIterator>
 #include <memory>
+#include <atomic>
 #include <QThreadPool>
 #include <QFutureWatcher>
 #include <nlohmann/json.hpp>
@@ -208,6 +209,7 @@ private:
     void closeoutPreviousSession(const QString &newRackNumber);
     void checkSessionTimeout();
     void prunePendingImages();
+    bool processTcpBatch(const QJsonObject &batchData, QString &error);
 
     struct RackSession {
         QString rack;
@@ -265,6 +267,7 @@ private:
     QHash<QString, int> m_lastTotalByRack;
     mutable QMutex m_dbMutex;
     QThreadPool m_logPool;
+    QThreadPool m_searchPool;
     QFutureWatcher<QVariantMap> m_logWatcher;
     QVariantList m_logRequest;
     int m_logGeneration = 0;
@@ -276,4 +279,7 @@ private:
     QHash<QString, RackSession> m_activeRackSessions;
     QString m_currentSessionRack;
     QTimer m_safetyTimeoutTimer;
+    QTimer m_ftpLogThrottleTimer;
+    std::atomic<int> m_searchGeneration{0};
+    std::atomic<int> m_alertSearchGeneration{0};
 };

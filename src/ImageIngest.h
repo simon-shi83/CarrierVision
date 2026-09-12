@@ -12,7 +12,7 @@
 namespace ImageIngest {
 
 struct WheelItem {
-    int wheelId = 0;
+    int wheelId = 1;
     int cameraId = 1;
     double actualDistance = 0.0;
     double baseDistance = 0.0;
@@ -25,25 +25,12 @@ struct BatchData {
     int carrierId = 0;
     QDateTime timestamp;
     QString batchId;
+    QString requestId;
     QVector<WheelItem> wheels;
-};
-
-// 兼容数据结构
-struct Wheel { int number = 0; int result = -1; };
-struct Metadata {
-    int carrierId = 0;
-    int camera = 0;
-    double distance = 0.0;
-    double maximum = 0.0;
-    double norm = 0.0;
-    QVector<Wheel> wheels;
 };
 
 bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error);
 bool recordBatch(QSqlDatabase db, const BatchData &batch, QString &error);
-
-bool parse(const QString &path, Metadata &out, QString &error);
-QDateTime parseTimestamp(const QString &path, const QDateTime &fallbackTime = QDateTime::currentDateTime());
 
 bool validate(const QString &file, const QString &target, QString &error);
 // 接收并归档上传图像

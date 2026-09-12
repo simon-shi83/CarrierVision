@@ -16,8 +16,8 @@ using namespace std;
 
 namespace WeeklyReport {
 
-static const array<int,8> DRIVERS = {0,1,2,3,4,5,6,7};
-static const array<int,8> DEFORMED = {8,9,10,11,12,13,14,15};
+static const array<int,8> DRIVERS = {1,2,3,4,5,6,7,8};
+static const array<int,8> DEFORMED = {9,10,11,12,13,14,15,16};
 static const array<int,50> RACKS = [](){ array<int,50> a{}; for(int i=0;i<50;i++) a[i]=i+1; return a;}();
 
 static QDate lastMondayForDate(const QDate &d){
@@ -86,9 +86,10 @@ bool generateForWeek(const QDate &monday){
 
         if(db.isOpen()){
             QSqlQuery q(db);
-            QString qs = QString("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= '%1' AND createtime < '%2'")
-                    .arg(start.toString(Qt::ISODate)).arg(end.addDays(1).toString(Qt::ISODate));
-            if(!q.exec(qs)){
+            q.prepare(QStringLiteral("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= :start AND createtime < :end AND wheel_id BETWEEN 1 AND 16"));
+            q.bindValue(QStringLiteral(":start"), start.toString(Qt::ISODate));
+            q.bindValue(QStringLiteral(":end"), end.addDays(1).toString(Qt::ISODate));
+            if(!q.exec()){
                 LOG_ERROR("WeeklyReport: 执行查询失败: {}", q.lastError().text().toStdString());
             } else {
                 // map key (rack,wheel) -> pair(ok,ng)
@@ -96,11 +97,14 @@ bool generateForWeek(const QDate &monday){
                 while(q.next()){
                     bool okR, okW;
                     int r = q.value(0).toInt(&okR);
-                    int w = q.value(1).toInt(&okW);
+                    int rawW = q.value(1).toInt(&okW);
                     if(!okR || !okW) continue;
-                    if (r < 1 || r > 50 || w < 0 || w > 15) continue;
+                    if (r < 1 || r > 50) continue;
+
+                    if (rawW < 1 || rawW > 16) continue;
+
                     int res = q.value(2).toInt();
-                    auto key = qMakePair(r,w);
+                    auto key = qMakePair(r, rawW);
                     auto cur = aggr.value(key, qMakePair(0,0));
                     if(res==1) cur.first++; else cur.second++;
                     aggr.insert(key, cur);

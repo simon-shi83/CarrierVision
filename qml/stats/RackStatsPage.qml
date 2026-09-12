@@ -10,13 +10,13 @@ Page {
 
     signal requestStats(string startDate, string endDate)
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (11~18)
+    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
     property bool isWalkWheel: false
 
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
     readonly property int wheelTypeIndex: isWalkWheel ? 1 : 0
-    readonly property var currentWheelTokens: isWalkWheel ? [11, 12, 13, 14, 15, 16, 17, 18] : [1, 2, 3, 4, 5, 6, 7, 8]
+    readonly property var currentWheelTokens: isWalkWheel ? [9, 10, 11, 12, 13, 14, 15, 16] : [1, 2, 3, 4, 5, 6, 7, 8]
 
     property var dataModel: []
     property int detailRack: 0
@@ -34,8 +34,8 @@ Page {
         updateData(stats || [])
     }
 
-    function generateRackCsv() {
-        var csv = "架号,OK数,NG数,损耗率(%)\n"
+    function generateCsv() {
+        var csv = "架号,合格数,不合格数,不良率(%)\n"
         for (var i = 0; i < 50; ++i) {
             var row = dataModel && dataModel[i] ? dataModel[i] : {}
             var rack = Number(row.rack) || (i + 1)
@@ -71,19 +71,21 @@ Page {
             var row = rows[i]
             var wheel = Number(row.wheel)
             if (root.isWalkWheel) {
-                if (wheel < 11 || wheel > 18) continue
-                var idx = wheel - 11
-                oks[idx] = Number(row.ok) || 0
-                ngs[idx] = Number(row.ng) || 0
-                losses[idx] = oks[idx] + ngs[idx] > 0
+                var idx = -1
+                if (wheel >= 9 && wheel <= 16) idx = wheel - 9
+                if (idx < 0 || idx >= 8) continue
+                oks[idx] += Number(row.ok) || 0
+                ngs[idx] += Number(row.ng) || 0
+                losses[idx] = (oks[idx] + ngs[idx] > 0)
                         ? ngs[idx] * 100 / (oks[idx] + ngs[idx]) : 0
                 maximum = Math.max(maximum, oks[idx], ngs[idx], losses[idx])
             } else {
-                if (wheel < 1 || wheel > 8) continue
-                var index = wheel - 1
-                oks[index] = Number(row.ok) || 0
-                ngs[index] = Number(row.ng) || 0
-                losses[index] = oks[index] + ngs[index] > 0
+                var index = -1
+                if (wheel >= 1 && wheel <= 8) index = wheel - 1
+                if (index < 0 || index >= 8) continue
+                oks[index] += Number(row.ok) || 0
+                ngs[index] += Number(row.ng) || 0
+                losses[index] = (oks[index] + ngs[index] > 0)
                         ? ngs[index] * 100 / (oks[index] + ngs[index]) : 0
                 maximum = Math.max(maximum, oks[index], ngs[index], losses[index])
             }

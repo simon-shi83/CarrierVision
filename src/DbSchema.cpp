@@ -291,12 +291,28 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         return false;
     }
 
-    q.exec("CREATE INDEX IF NOT EXISTS idx_record_carrier_time ON record(carrier_id, createtime DESC)");
-    q.exec("CREATE INDEX IF NOT EXISTS idx_record_carrier_wheel ON record(carrier_id, wheel_id, createtime DESC)");
-    q.exec("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)");
-    q.exec("CREATE INDEX IF NOT EXISTS idx_record_image ON record(imagename)");
+    const auto execRequired = [&q](const QString &sql, const char *operation) {
+        if (q.exec(sql)) return true;
+        LOG_ERROR("DBSchema: {}失败: {}", operation, q.lastError().text().toStdString());
+        return false;
+    };
+    if (!execRequired("CREATE INDEX IF NOT EXISTS idx_record_carrier_time ON record(carrier_id, createtime DESC)", "创建载具时间索引")
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_carrier_wheel ON record(carrier_id, wheel_id, createtime DESC)", "创建载具轮号索引")
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_createtime ON record(createtime DESC)", "创建时间索引")
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)", "创建批次索引")
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_image ON record(imagename)", "创建图片名索引")) {
+        return false;
+    }
 
     if (!q.exec("CREATE TABLE IF NOT EXISTS cleanup_files(path TEXT PRIMARY KEY, imagename TEXT NOT NULL)")) return false;
+    if (!q.exec(R"(
+        CREATE TABLE IF NOT EXISTS ingest_requests (
+            request_id TEXT PRIMARY KEY,
+            carrier_id INTEGER NOT NULL,
+            item_count INTEGER NOT NULL,
+            committed_at DATETIME NOT NULL
+        )
+    )")) return false;
 
     // 2. alertrecord (当前各载具、轮号最新的 NG 报警记录)
     const QString createAlertRecord = R"(
@@ -316,6 +332,56 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
     if(!q.exec(createAlertRecord)){
         LOG_ERROR("DBSchema: 创建 alertrecord 表失败: {}", q.lastError().text().toStdString());
         return false;
+    }
+    if (!execRequired("CREATE INDEX IF NOT EXISTS idx_alertrecord_createtime ON alertrecord(createtime DESC)", "创建报警时间索引")) return false;
+
+    // 2.1 carrier_wheel_status (各载具、轮号最新的综合遥测状态高速常驻表，最大 50x16=800 行)
+    const QString createCarrierWheelStatus = R"(
+        CREATE TABLE IF NOT EXISTS carrier_wheel_status (
+            carrier_id INTEGER NOT NULL,
+            wheel_id INTEGER NOT NULL,
+            result INTEGER NOT NULL DEFAULT 1,
+            createtime DATETIME NOT NULL,
+            imagename TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY(carrier_id, wheel_id)
+        )
+    )";
+    if (!q.exec(createCarrierWheelStatus)) {
+        LOG_ERROR("DBSchema: 创建 carrier_wheel_status 表失败: {}", q.lastError().text().toStdString());
+        return false;
+    }
+
+    if (!q.exec("DROP TRIGGER IF EXISTS trg_record_wheel_status")) return false;
+    if (!q.exec(R"(
+        CREATE TRIGGER trg_record_wheel_status
+        AFTER INSERT ON record
+        BEGIN
+            INSERT INTO carrier_wheel_status(carrier_id, wheel_id, result, createtime, imagename)
+            VALUES(NEW.carrier_id, NEW.wheel_id, NEW.result, NEW.createtime, NEW.imagename)
+            ON CONFLICT(carrier_id, wheel_id) DO UPDATE SET
+                result = excluded.result,
+                createtime = excluded.createtime,
+                imagename = excluded.imagename
+            WHERE datetime(excluded.createtime) >= datetime(carrier_wheel_status.createtime);
+        END
+    )")) return false;
+
+    // 若 carrier_wheel_status 为空且 record 表已有历史数据，进行一次性补全迁移
+    {
+        QSqlQuery checkStatus(db);
+        if (checkStatus.exec("SELECT COUNT(*) FROM carrier_wheel_status") && checkStatus.next() && checkStatus.value(0).toInt() == 0) {
+            if (!q.exec(R"(
+                INSERT OR IGNORE INTO carrier_wheel_status(carrier_id, wheel_id, result, createtime, imagename)
+                SELECT carrier_id, wheel_id, result, createtime, imagename FROM (
+                    SELECT carrier_id, wheel_id, result, createtime, imagename,
+                    ROW_NUMBER() OVER (PARTITION BY carrier_id, wheel_id ORDER BY datetime(createtime) DESC, rowid DESC) AS pos
+                    FROM record
+                ) WHERE pos = 1
+            )")) {
+                LOG_ERROR("DBSchema: 初始化轮位状态缓存失败: {}", q.lastError().text().toStdString());
+                return false;
+            }
+        }
     }
 
     if (!q.exec("DROP TRIGGER IF EXISTS trg_record_ng_alert")) return false;
@@ -462,22 +528,23 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         }
     }
 
-    // carrier_wheel_norm default (50 carriers x 16 wheels: 0..15)
+    // carrier_wheel_norm default (50 carriers x 16 wheels: 1..16)
     {
-        QSqlQuery checkNorm(db);
-        if (checkNorm.exec("SELECT COUNT(*) FROM carrier_wheel_norm") && checkNorm.next() && checkNorm.value(0).toInt() == 0) {
-            if (db.transaction()) {
-                QSqlQuery insNorm(db);
-                insNorm.prepare("INSERT INTO carrier_wheel_norm(carrier_id, wheel_id, standard_distance, lower_tolerance, updated_at) VALUES(?, ?, 10.0, -2.0, datetime('now', 'localtime'))");
-                for (int r = 1; r <= 50; ++r) {
-                    for (int w = 0; w < 16; ++w) {
-                        insNorm.bindValue(0, r);
-                        insNorm.bindValue(1, w);
-                        insNorm.exec();
+        if (db.transaction()) {
+            QSqlQuery insNorm(db);
+            insNorm.prepare("INSERT OR IGNORE INTO carrier_wheel_norm(carrier_id, wheel_id, standard_distance, lower_tolerance, updated_at) VALUES(?, ?, 10.0, -2.0, datetime('now', 'localtime'))");
+            for (int r = 1; r <= 50; ++r) {
+                for (int w = 1; w <= 16; ++w) {
+                    insNorm.bindValue(0, r);
+                    insNorm.bindValue(1, w);
+                    if (!insNorm.exec()) {
+                        db.rollback();
+                        LOG_ERROR("DBSchema: 初始化轮号标准值失败: {}", insNorm.lastError().text().toStdString());
+                        return false;
                     }
                 }
-                db.commit();
             }
+            if (!db.commit()) return false;
         }
     }
 
@@ -487,4 +554,3 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
     LOG_INFO("DBSchema: 数据库表结构及触发器校验完成");
     return true;
 }
-

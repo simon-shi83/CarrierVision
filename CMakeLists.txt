@@ -220,6 +220,15 @@ set_target_properties(CarrierVision PROPERTIES
     INSTALL_RPATH "$ORIGIN/lib"
 )
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_output)
+if(ipo_supported)
+    message(STATUS "IPO / LTO supported, enabling for CarrierVision in Release builds")
+    set_property(TARGET CarrierVision PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+    message(STATUS "IPO / LTO not supported: ${ipo_output}")
+endif()
+
 include(GNUInstallDirs)
 if(WIN32)
     install(TARGETS CarrierVision

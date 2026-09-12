@@ -107,6 +107,7 @@ QVariant ImageListModel::data(const QModelIndex &index, int role) const
     case DistNormRole:
         return item.dist_norm;
     case LowerToleranceRole:
+    case LowerToleranceSnakeRole:
         return item.lower_tolerance;
     case WheelsInfoRole:
         return item.wheelsInfo;
@@ -136,6 +137,7 @@ QHash<int, QByteArray> ImageListModel::roleNames() const
         {DistMaxRole, "dist_max"},
         {DistNormRole, "dist_norm"},
         {LowerToleranceRole, "lowerTolerance"},
+        {LowerToleranceSnakeRole, "lower_tolerance"},
         {WheelsInfoRole, "wheelsInfo"},
         {ItemObjectRole, "itemObject"},
         {ReceivedAtRole, "receivedAt"},
@@ -272,6 +274,7 @@ QVariantMap ImageListModel::get(int index) const
         {QStringLiteral("distance"), item.distance},
         {QStringLiteral("dist_norm"), item.dist_norm},
         {QStringLiteral("lowerTolerance"), item.lower_tolerance},
+        {QStringLiteral("lower_tolerance"), item.lower_tolerance},
         {QStringLiteral("wheelsInfo"), item.wheelsInfo},
         {QStringLiteral("receivedAt"), item.receivedAt.toString(Qt::ISODateWithMs)},
         {QStringLiteral("receivedAtText"), AgcUtils::formatDateTime(item.receivedAt)}

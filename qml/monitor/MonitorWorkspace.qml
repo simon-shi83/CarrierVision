@@ -58,10 +58,10 @@ Item {
         { label: "驱动 3", wheel: 3, isDrive: true }, { label: "驱动 4", wheel: 4, isDrive: true },
         { label: "驱动 5", wheel: 5, isDrive: true }, { label: "驱动 6", wheel: 6, isDrive: true },
         { label: "驱动 7", wheel: 7, isDrive: true }, { label: "驱动 8", wheel: 8, isDrive: true },
-        { label: "走行 9", wheel: 11, isDrive: false }, { label: "走行 10", wheel: 12, isDrive: false },
-        { label: "走行 11", wheel: 13, isDrive: false }, { label: "走行 12", wheel: 14, isDrive: false },
-        { label: "走行 13", wheel: 15, isDrive: false }, { label: "走行 14", wheel: 16, isDrive: false },
-        { label: "走行 15", wheel: 17, isDrive: false }, { label: "走行 16", wheel: 18, isDrive: false }
+        { label: "走行 9", wheel: 9, isDrive: false }, { label: "走行 10", wheel: 10, isDrive: false },
+        { label: "走行 11", wheel: 11, isDrive: false }, { label: "走行 12", wheel: 12, isDrive: false },
+        { label: "走行 13", wheel: 13, isDrive: false }, { label: "走行 14", wheel: 14, isDrive: false },
+        { label: "走行 15", wheel: 15, isDrive: false }, { label: "走行 16", wheel: 16, isDrive: false }
     ]
     readonly property var wheelColumns: wheelRows
 
@@ -358,8 +358,6 @@ Item {
                                                 readonly property int wheelNumber: wheelRowItem.wheelNumber
                                                 readonly property string wheelLabel: wheelRowItem.wheelLabel
                                                 readonly property var cellState: root.statusByCell[root.cellKey(rackNumber, wheelNumber)]
-                                                    || (wheelNumber >= 11 ? root.statusByCell[root.cellKey(rackNumber, wheelNumber - 2)] : undefined)
-                                                    || (wheelNumber >= 9 && wheelNumber <= 16 ? root.statusByCell[root.cellKey(rackNumber, wheelNumber)] : undefined)
                                                 readonly property bool isCellHovered: rackNumber === root.hoveredRack && wheelNumber === root.hoveredWheel
                                                 readonly property bool isCrosshair: (rackNumber === root.hoveredRack || wheelNumber === root.hoveredWheel) && !isCellHovered
 

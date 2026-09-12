@@ -754,7 +754,7 @@ Rectangle {
                                     icon: "nav_search",
                                     isQuery: true
                                 });
-                            } else if (num >= 11 && num <= 18) {
+                            } else if (num >= 9 && num <= 16) {
                                 results.push({
                                     cmdId: "query_wheel",
                                     wheelNum: num,

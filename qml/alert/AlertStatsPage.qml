@@ -8,7 +8,7 @@ Page {
     anchors.fill: parent
     background: Rectangle { color: "transparent" }
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (11~18)
+    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
     property bool isWalkWheel: false
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
@@ -183,7 +183,7 @@ Page {
                             spacing: 5
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
                             Text {
-                                text: "走行轮 (11~18)"
+                                text: "走行轮 (9~16)"
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.bold: root.isWalkWheel

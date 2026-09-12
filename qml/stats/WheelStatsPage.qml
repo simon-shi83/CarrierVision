@@ -8,12 +8,11 @@ Page {
     anchors.fill: parent
     background: Rectangle { color: "transparent" }
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (11~18)
+    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
     property bool isWalkWheel: false
 
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
-    readonly property int wheelBaseOffset: isWalkWheel ? 10 : 0
 
     property int detailWheel: 0
     property string detailResult: ""
@@ -53,7 +52,7 @@ Page {
         if (!appController) return
         var turns = []
         for (var k = 1; k <= 8; ++k) {
-            turns.push(root.isWalkWheel ? (k + 10) : k)
+            turns.push(root.isWalkWheel ? (k + 8) : k)
         }
         appController.gearSumQuery(gearBar.startDate, gearBar.endDate, gearBar.rackno > 0 ? gearBar.rackno.toString() : "", turns)
     }
@@ -287,9 +286,9 @@ Page {
                                 var ng = Number(row.ng) || Number(row.ngCount) || 0
 
                                 if (root.isWalkWheel) {
-                                    if (w >= 11 && w <= 18) {
-                                        oks[w - 11] = ok
-                                        ngs[w - 11] = ng
+                                    if (w >= 9 && w <= 16) {
+                                        oks[w - 9] = ok
+                                        ngs[w - 9] = ng
                                     }
                                 } else {
                                     if (w >= 1 && w <= 8) {
@@ -342,7 +341,7 @@ Page {
                                     readonly property real plotHeight: Math.max(0, height - 46)
                                     readonly property real okBarH: (chartArea.okCounts[index] / chartArea.maxCount) * plotHeight
                                     readonly property real ngBarH: (chartArea.ngCounts[index] / chartArea.maxCount) * plotHeight
-                                    readonly property int actualWheelNumber: root.isWalkWheel ? (index + 11) : (index + 1)
+                                    readonly property int actualWheelNumber: root.isWalkWheel ? (index + 9) : (index + 1)
 
                                     // OK 柱
                                     Rectangle {

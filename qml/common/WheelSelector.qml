@@ -7,8 +7,8 @@ Item {
     implicitWidth: 130
     implicitHeight: 36
 
-    property string selectionToken: "0"
-    readonly property string displayText: selectionToken === "0" ? "全选 (驱动轮)"
+    property string selectionToken: "DRIVE"
+    readonly property string displayText: selectionToken === "DRIVE" ? "全选 (驱动轮)"
                                       : selectionToken === "WALK" ? "全选 (走行轮)"
                                       : "轮位 " + selectionToken
     signal selectionChanged(string selectionToken)
@@ -21,11 +21,11 @@ Item {
 
     function setSelectionToken(token) {
         var value = String(token).trim()
-        selectionToken = (value === "WALK" || value === "0" || /^([1-9]|1[0-6])$/.test(value)) ? value : "0"
+        selectionToken = (value === "DRIVE" || value === "WALK" || /^([1-9]|1[0-6])$/.test(value)) ? value : "DRIVE"
     }
 
     function reset() {
-        selectionToken = "0"
+        selectionToken = "DRIVE"
         selectionChanged(selectionToken)
     }
 
@@ -86,8 +86,8 @@ Item {
                 text: "驱动轮全选 (轮 1 ~ 8)"
                 Layout.fillWidth: true
                 checkable: true
-                checked: root.selectionToken === "0"
-                onClicked: root.select("0")
+                checked: root.selectionToken === "DRIVE"
+                onClicked: root.select("DRIVE")
                 contentItem: Text { 
                     text: parent.text
                     color: parent.checked ? "#ffffff" : Theme.driveWheel

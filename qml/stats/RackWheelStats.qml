@@ -15,7 +15,7 @@ Page {
     property var wheelRows: []
     property int selectedWheel: 0
 
-    readonly property int firstWheel: wheelType === 1 ? 11 : 1
+    readonly property int firstWheel: wheelType === 1 ? 9 : 1
     readonly property string wheelTypeName: wheelType === 1 ? "走行轮" : "驱动轮"
 
     function normalizedResult() {
@@ -23,7 +23,11 @@ Page {
     }
 
     function displayWheel(wheel) {
-        return wheelType === 1 ? wheel - 10 : wheel
+        if (wheelType === 1) {
+            if (wheel >= 9 && wheel <= 16) return wheel - 8;
+            return Math.max(1, wheel);
+        }
+        return wheel;
     }
 
     function loadStatistics() {

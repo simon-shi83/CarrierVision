@@ -101,18 +101,18 @@ Page {
         { name: "驱动轮8", node: dw8, station: "右侧工位", desc: "驱动轮 #8 (后内侧)", color: "#38bdf8", quadrant: "后内", rail: "内轨" }
     ]
 
-    // 走行轮数据列表 (3D 视图中灰色轮组，对应点检走行轮 1 ~ 8 / 序号 11 ~ 18)
+    // 走行轮数据列表 (3D 视图中灰色轮组，对应 wheelId 9 ~ 16)
     readonly property var walkWheelList: [
         // 左侧工位
-        { name: "走行轮1", node: ww1, station: "左侧工位", desc: "走行轮 #1 (前外侧/序号11)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
-        { name: "走行轮2", node: ww2, station: "左侧工位", desc: "走行轮 #2 (后外侧/序号12)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
-        { name: "走行轮5", node: ww5, station: "左侧工位", desc: "走行轮 #5 (前内侧/序号15)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
-        { name: "走行轮6", node: ww6, station: "左侧工位", desc: "走行轮 #6 (后内侧/序号16)", color: "#fb923c", quadrant: "后内", rail: "内轨" },
+        { name: "走行轮1", node: ww1, station: "左侧工位", desc: "走行轮 #1 (wheelId 9/前外侧)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
+        { name: "走行轮2", node: ww2, station: "左侧工位", desc: "走行轮 #2 (wheelId 10/后外侧)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
+        { name: "走行轮5", node: ww5, station: "左侧工位", desc: "走行轮 #5 (wheelId 13/前内侧)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
+        { name: "走行轮6", node: ww6, station: "左侧工位", desc: "走行轮 #6 (wheelId 14/后内侧)", color: "#fb923c", quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "走行轮3", node: ww3, station: "右侧工位", desc: "走行轮 #3 (前外侧/序号13)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
-        { name: "走行轮4", node: ww4, station: "右侧工位", desc: "走行轮 #4 (后外侧/序号14)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
-        { name: "走行轮7", node: ww7, station: "右侧工位", desc: "走行轮 #7 (前内侧/序号17)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
-        { name: "走行轮8", node: ww8, station: "右侧工位", desc: "走行轮 #8 (后内侧/序号18)", color: "#fb923c", quadrant: "后内", rail: "内轨" }
+        { name: "走行轮3", node: ww3, station: "右侧工位", desc: "走行轮 #3 (wheelId 11/前外侧)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
+        { name: "走行轮4", node: ww4, station: "右侧工位", desc: "走行轮 #4 (wheelId 12/后外侧)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
+        { name: "走行轮7", node: ww7, station: "右侧工位", desc: "走行轮 #7 (wheelId 15/前内侧)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
+        { name: "走行轮8", node: ww8, station: "右侧工位", desc: "走行轮 #8 (wheelId 16/后内侧)", color: "#fb923c", quadrant: "后内", rail: "内轨" }
     ]
 
     // 风格色彩方案 (黑/白 双主题体系)

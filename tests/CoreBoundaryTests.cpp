@@ -55,7 +55,7 @@ private slots:
             QSqlQuery insert(db);
             insert.prepare(QStringLiteral(
                 "INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) "
-                "VALUES(:time,1,1,0,:result,:image)"));
+                "VALUES(:time,1,1,1,:result,:image)"));
             auto addRecord = [&insert](const QString &time, int result, const QString &image) {
                 insert.bindValue(QStringLiteral(":time"), time);
                 insert.bindValue(QStringLiteral(":result"), result);
@@ -67,7 +67,7 @@ private slots:
             QVERIFY(addRecord(QStringLiteral("2026-09-04T09:00:00"), 0, QStringLiteral("old-ng.jpg")));
 
             QSqlQuery alert(db);
-            QVERIFY(alert.exec(QStringLiteral("SELECT imagename FROM alertrecord WHERE carrier_id=1 AND wheel_id=0")));
+            QVERIFY(alert.exec(QStringLiteral("SELECT imagename FROM alertrecord WHERE carrier_id=1 AND wheel_id=1")));
             QVERIFY(alert.next());
             QCOMPARE(alert.value(0).toString(), QStringLiteral("new-ng.jpg"));
 

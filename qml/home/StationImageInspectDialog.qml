@@ -465,7 +465,8 @@ Dialog {
                         Image {
                             id: previewA
                             anchors.centerIn: parent
-                            sourceSize: Qt.size(8192, 8192)
+                            sourceSize: Qt.size(Math.min(4096, Math.max(1920, flick.width * 2)),
+                                                Math.min(4096, Math.max(1080, flick.height * 2)))
                             asynchronous: true
                             cache: true
                             fillMode: Image.PreserveAspectFit
@@ -498,7 +499,8 @@ Dialog {
                         Image {
                             id: previewB
                             anchors.centerIn: parent
-                            sourceSize: Qt.size(8192, 8192)
+                            sourceSize: Qt.size(Math.min(4096, Math.max(1920, flick.width * 2)),
+                                                Math.min(4096, Math.max(1080, flick.height * 2)))
                             asynchronous: true
                             cache: true
                             fillMode: Image.PreserveAspectFit

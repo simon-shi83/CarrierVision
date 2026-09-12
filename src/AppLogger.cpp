@@ -55,12 +55,20 @@ public:
     {
         ensureLogDirExists();
         openCurrentLogFile(std::chrono::system_clock::now());
+        initTodayStatsFromDisk();
         cleanOldLogsIfNeeded();
     }
 
     ~DailyRollingSizeRetentionSink() override
     {
         closeFile();
+    }
+
+    void getTodayStats(int &total, int &warn, int &error) const
+    {
+        total = todayTotal_.load(std::memory_order_relaxed);
+        warn = todayWarn_.load(std::memory_order_relaxed);
+        error = todayError_.load(std::memory_order_relaxed);
     }
 
 protected:
@@ -75,6 +83,9 @@ protected:
             currentDate_ = msgDate;
             currentIndex_ = 0;
             openCurrentLogFile(now);
+            todayTotal_.store(0, std::memory_order_relaxed);
+            todayWarn_.store(0, std::memory_order_relaxed);
+            todayError_.store(0, std::memory_order_relaxed);
             cleanOldLogsIfNeeded();
         }
 
@@ -94,9 +105,21 @@ protected:
         // 4. 写入日志
         if (fileStream_ && fileStream_->is_open()) {
             fileStream_->write(formatted.data(), formatted.size());
-            fileStream_->flush();
             currentFileSize_ += writeBytes;
             totalBytesWrittenSinceClean_ += writeBytes;
+            bytesWrittenSinceFlush_ += writeBytes;
+            if (msg.level >= spdlog::level::err || bytesWrittenSinceFlush_ >= 256 * 1024ULL) {
+                fileStream_->flush();
+                bytesWrittenSinceFlush_ = 0;
+            }
+        }
+
+        // 更新统计计数
+        todayTotal_.fetch_add(1, std::memory_order_relaxed);
+        if (msg.level == spdlog::level::warn) {
+            todayWarn_.fetch_add(1, std::memory_order_relaxed);
+        } else if (msg.level == spdlog::level::err || msg.level == spdlog::level::critical) {
+            todayError_.fetch_add(1, std::memory_order_relaxed);
         }
 
         // 5. 提取日志级别与通知（针对直接调用 LOG_WARN, LOG_ERROR, LOG_CRITICAL）
@@ -119,7 +142,42 @@ protected:
     {
         if (fileStream_ && fileStream_->is_open()) {
             fileStream_->flush();
+            bytesWrittenSinceFlush_ = 0;
         }
+    }
+
+private:
+    void initTodayStatsFromDisk()
+    {
+        std::error_code ec;
+        if (!std::filesystem::exists(logDir_, ec)) return;
+
+        int total = 0;
+        int warn = 0;
+        int error = 0;
+
+        std::string pattern = filePrefix_ + "_" + currentDate_;
+        for (const auto &item : std::filesystem::directory_iterator(logDir_, ec)) {
+            if (item.is_regular_file(ec)) {
+                std::string fname = item.path().filename().string();
+                if (fname.rfind(pattern, 0) == 0 && item.path().extension() == ".log") {
+                    std::ifstream infile(item.path());
+                    std::string line;
+                    while (std::getline(infile, line)) {
+                        if (line.empty()) continue;
+                        total++;
+                        if (line.find("[warning]") != std::string::npos || line.find("[warn]") != std::string::npos) {
+                            warn++;
+                        } else if (line.find("[error]") != std::string::npos || line.find("[critical]") != std::string::npos) {
+                            error++;
+                        }
+                    }
+                }
+            }
+        }
+        todayTotal_.store(total, std::memory_order_relaxed);
+        todayWarn_.store(warn, std::memory_order_relaxed);
+        todayError_.store(error, std::memory_order_relaxed);
     }
 
 private:
@@ -253,7 +311,11 @@ private:
     std::string currentFilePath_;
     uint64_t currentFileSize_{0};
     uint64_t totalBytesWrittenSinceClean_{0};
+    uint64_t bytesWrittenSinceFlush_{0};
     std::unique_ptr<std::ofstream> fileStream_;
+    std::atomic<int> todayTotal_{0};
+    std::atomic<int> todayWarn_{0};
+    std::atomic<int> todayError_{0};
 };
 
 static std::shared_ptr<DailyRollingSizeRetentionSink> s_retentionSink;
@@ -325,7 +387,7 @@ void AppLogger::init(const QString &logDir)
 
         s_logger = std::make_shared<spdlog::logger>("carrier", sinks.begin(), sinks.end());
         s_logger->set_level(spdlog::level::trace);
-        s_logger->flush_on(spdlog::level::info);
+        s_logger->flush_on(spdlog::level::err);
 
         spdlog::set_default_logger(s_logger);
 
@@ -504,24 +566,28 @@ QVariantMap AppLogger::getLogStats()
     }
 
     // 统计今天的日志级别分布
-    QString todayStr = QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd"));
     int todayTotal = 0;
     int todayWarn = 0;
     int todayError = 0;
 
-    for (const QFileInfo &fi : list) {
-        if (fi.fileName().contains(todayStr)) {
-            QFile file(fi.absoluteFilePath());
-            if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                QTextStream in(&file);
-                while (!in.atEnd()) {
-                    QString line = in.readLine();
-                    if (line.trimmed().isEmpty()) continue;
-                    todayTotal++;
-                    if (line.contains(QStringLiteral("[warning]")) || line.contains(QStringLiteral("[warn]"))) {
-                        todayWarn++;
-                    } else if (line.contains(QStringLiteral("[error]")) || line.contains(QStringLiteral("[critical]"))) {
-                        todayError++;
+    if (s_retentionSink) {
+        s_retentionSink->getTodayStats(todayTotal, todayWarn, todayError);
+    } else {
+        QString todayStr = QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd"));
+        for (const QFileInfo &fi : list) {
+            if (fi.fileName().contains(todayStr)) {
+                QFile file(fi.absoluteFilePath());
+                if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    QTextStream in(&file);
+                    while (!in.atEnd()) {
+                        QString line = in.readLine();
+                        if (line.trimmed().isEmpty()) continue;
+                        todayTotal++;
+                        if (line.contains(QStringLiteral("[warning]")) || line.contains(QStringLiteral("[warn]"))) {
+                            todayWarn++;
+                        } else if (line.contains(QStringLiteral("[error]")) || line.contains(QStringLiteral("[critical]"))) {
+                            todayError++;
+                        }
                     }
                 }
             }

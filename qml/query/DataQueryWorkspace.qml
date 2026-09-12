@@ -396,7 +396,7 @@ Item {
                                         font.pixelSize: Theme.fontSizeSmall
                                     }
                                     Text {
-                                        text: (lower_tolerance !== undefined ? Number(lower_tolerance).toFixed(2) : "0.00")
+                                        text: (model && model.lowerTolerance !== undefined ? Number(model.lowerTolerance).toFixed(2) : "0.00")
                                         Layout.preferredWidth: 54
                                         horizontalAlignment: Text.AlignHCenter
                                         color: Theme.textMuted

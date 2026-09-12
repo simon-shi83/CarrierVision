@@ -166,7 +166,7 @@ Rectangle {
                 id: imageA
                 anchors.fill: parent
                 anchors.margins: 2
-                sourceSize: Qt.size(1280, 1280)
+                sourceSize: Qt.size(640, 480)
                 asynchronous: true
                 cache: true
                 fillMode: Image.PreserveAspectFit
@@ -192,7 +192,7 @@ Rectangle {
                 id: imageB
                 anchors.fill: parent
                 anchors.margins: 2
-                sourceSize: Qt.size(1280, 1280)
+                sourceSize: Qt.size(640, 480)
                 asynchronous: true
                 cache: true
                 fillMode: Image.PreserveAspectFit

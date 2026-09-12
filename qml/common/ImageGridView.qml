@@ -129,7 +129,7 @@ Rectangle {
                             sourceSize.height: Math.min(4096, Math.max(1, height * 2))
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
-                            cache: false
+                            cache: true
                             smooth: true
 
                             Rectangle {

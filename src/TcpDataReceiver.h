@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QByteArray>
+#include <functional>
 
 class TcpDataReceiver : public QObject
 {
@@ -22,6 +23,10 @@ public:
     quint16 port() const;
     int clientCount() const;
 
+    // Synchronous commit hook. Returning true means the message has been
+    // durably accepted and may be acknowledged to the sender.
+    std::function<bool(const QJsonObject &, QString &)> batchHandler;
+
 signals:
     void runningChanged(bool running);
     void clientCountChanged(int count);
@@ -34,6 +39,7 @@ private slots:
     void onClientDisconnected();
 
 private:
+    static constexpr int MaxClients = 32;
     QTcpServer m_server;
     QMap<QTcpSocket*, QByteArray> m_clientBuffers;
 };

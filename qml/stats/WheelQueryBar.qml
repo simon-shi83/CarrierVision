@@ -14,14 +14,14 @@ Rectangle {
 
     // 对外属性
     property bool isWalkWheel: false
-    readonly property int wheelOffset: isWalkWheel ? 11 : 1
+    readonly property int wheelOffset: isWalkWheel ? 9 : 1
     readonly property color wheelColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelLabel: isWalkWheel ? "走行轮" : "驱动轮"
 
     property string startDate: startDateField.dateString
     property string endDate: endDateField.dateString
     property string rackno: rackField.selectedValue
-    property var selectedTurns: isWalkWheel ? [11, 12, 13, 14, 15, 16, 17, 18] : [1, 2, 3, 4, 5, 6, 7, 8]
+    property var selectedTurns: isWalkWheel ? [9, 10, 11, 12, 13, 14, 15, 16] : [1, 2, 3, 4, 5, 6, 7, 8]
 
     // 信号
     signal searchClicked(string startDate, string endDate, string rackno, var selectedTurns)
@@ -167,7 +167,7 @@ Rectangle {
                 startDateField.dateString = today
                 endDateField.dateString = today
                 rackField.selectedValue = 0
-                root.selectedTurns = root.isWalkWheel ? [11, 12, 13, 14, 15, 16, 17, 18] : [1, 2, 3, 4, 5, 6, 7, 8]
+                root.selectedTurns = root.isWalkWheel ? [9, 10, 11, 12, 13, 14, 15, 16] : [1, 2, 3, 4, 5, 6, 7, 8]
                 root.resetClicked()
             }
         }

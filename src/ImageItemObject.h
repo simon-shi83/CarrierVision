@@ -100,7 +100,7 @@ private:
     int m_roundNumber = 0;
     int m_carrierId = 0;
     int m_cameraId = 0;
-    int m_wheelId = 0;
+    int m_wheelId = -1;
     QString m_serial;
     QString m_fileName;
     QString m_filePath;

@@ -37,12 +37,33 @@
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 #include <QtConcurrent/QtConcurrentRun>
+#include <QThread>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
 
 namespace {
+
+static QSqlDatabase getThreadDatabase()
+{
+    const QString connName = QStringLiteral("worker_db_%1").arg(reinterpret_cast<quintptr>(QThread::currentThread()), 0, 16);
+    if (QSqlDatabase::contains(connName)) {
+        QSqlDatabase db = QSqlDatabase::database(connName);
+        if (db.isOpen()) return db;
+    }
+    QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connName);
+    db.setDatabaseName(DBSchema::defaultDatabasePath());
+    if (!db.open()) {
+        LOG_ERROR("后台线程数据库打开失败: {}", db.lastError().text().toStdString());
+    } else {
+        QSqlQuery pragma(db);
+        pragma.exec("PRAGMA journal_mode = WAL;");
+        pragma.exec("PRAGMA busy_timeout = 5000;");
+        pragma.exec("PRAGMA synchronous = NORMAL;");
+    }
+    return db;
+}
 
 constexpr int kMaxPageSize = 200;
 
@@ -68,13 +89,64 @@ bool isSafeArchiveRoot(const QString &path)
 
 static QString resolveImagePath(const QString &rawName, const QString &archiveDir, const QString &sourceDir)
 {
-    if (rawName.trimmed().isEmpty()) return QString();
-    if (QFile::exists(rawName)) return QFileInfo(rawName).absoluteFilePath();
+    const QString trimmed = rawName.trimmed();
+    if (trimmed.isEmpty()) return QString();
+    if (QFile::exists(trimmed)) return QFileInfo(trimmed).absoluteFilePath();
 
-    const QString appDir = QCoreApplication::applicationDirPath();
-    const QStringList candidateRoots = {
-        archiveDir,
-        sourceDir,
+    // 缓存上次命中的有效根路径（线程局部），在连续解析同一批次图像时几乎 100% 首测命中
+    static thread_local QString s_lastHitRoot;
+
+    auto testCandidate = [](const QString &root, const QString &rel) -> QString {
+        if (root.isEmpty() || rel.isEmpty()) return QString();
+        const QString candidate = QDir(root).filePath(rel);
+        if (QFile::exists(candidate)) {
+            s_lastHitRoot = root;
+            return QFileInfo(candidate).absoluteFilePath();
+        }
+        return QString();
+    };
+
+    // 剥离历史前缀提取相对子路径
+    QString subPath = trimmed;
+    int idx = subPath.indexOf(QStringLiteral("images/"));
+    if (idx >= 0) {
+        subPath = subPath.mid(idx + 7);
+    } else {
+        idx = subPath.indexOf(QStringLiteral("archive/"));
+        if (idx >= 0) subPath = subPath.mid(idx + 8);
+    }
+
+    // 1. 优先尝试上次命中的有效根目录（单次 I/O 检查直接命中）
+    if (!s_lastHitRoot.isEmpty()) {
+        QString hit = testCandidate(s_lastHitRoot, trimmed);
+        if (!hit.isEmpty()) return hit;
+        if (subPath != trimmed) {
+            hit = testCandidate(s_lastHitRoot, subPath);
+            if (!hit.isEmpty()) return hit;
+        }
+    }
+
+    // 2. 尝试当前配置的归档目录与源目录
+    if (archiveDir != s_lastHitRoot) {
+        QString hit = testCandidate(archiveDir, trimmed);
+        if (!hit.isEmpty()) return hit;
+        if (subPath != trimmed) {
+            hit = testCandidate(archiveDir, subPath);
+            if (!hit.isEmpty()) return hit;
+        }
+    }
+    if (sourceDir != s_lastHitRoot && sourceDir != archiveDir) {
+        QString hit = testCandidate(sourceDir, trimmed);
+        if (!hit.isEmpty()) return hit;
+        if (subPath != trimmed) {
+            hit = testCandidate(sourceDir, subPath);
+            if (!hit.isEmpty()) return hit;
+        }
+    }
+
+    // 3. 静态备用相对路径（避免每次重复分配构造 QStringList）
+    static const QString appDir = QCoreApplication::applicationDirPath();
+    static const QStringList fallbackRoots = {
         QDir(appDir).filePath(QStringLiteral("images")),
         QDir(appDir).filePath(QStringLiteral("archive")),
         QDir(appDir).filePath(QStringLiteral("../images")),
@@ -85,28 +157,13 @@ static QString resolveImagePath(const QString &rawName, const QString &archiveDi
         QDir(appDir).filePath(QStringLiteral("../../../../archive"))
     };
 
-    // 1. 尝试直接从各候选根路径拼接
-    for (const QString &root : candidateRoots) {
-        if (root.isEmpty()) continue;
-        const QString candidate = QDir(root).filePath(rawName);
-        if (QFile::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
-    }
-
-    // 2. 剥离历史前缀（例如 ../../../../archive/、archive/ 或 images/）提取相对子路径
-    QString subPath = rawName;
-    int idx = subPath.indexOf(QStringLiteral("images/"));
-    if (idx >= 0) {
-        subPath = subPath.mid(idx + 7);
-    } else {
-        idx = subPath.indexOf(QStringLiteral("archive/"));
-        if (idx >= 0) subPath = subPath.mid(idx + 8);
-    }
-
-    if (!subPath.isEmpty() && subPath != rawName) {
-        for (const QString &root : candidateRoots) {
-            if (root.isEmpty()) continue;
-            const QString candidate = QDir(root).filePath(subPath);
-            if (QFile::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
+    for (const QString &root : fallbackRoots) {
+        if (root == s_lastHitRoot || root == archiveDir || root == sourceDir) continue;
+        QString hit = testCandidate(root, trimmed);
+        if (!hit.isEmpty()) return hit;
+        if (subPath != trimmed) {
+            hit = testCandidate(root, subPath);
+            if (!hit.isEmpty()) return hit;
         }
     }
 
@@ -463,11 +520,16 @@ AppController::AppController(QObject *parent)
     : QObject(parent)
 {
     m_logPool.setMaxThreadCount(1);
+    m_searchPool.setMaxThreadCount(2);
     connect(&m_logWatcher, &QFutureWatcher<QVariantMap>::finished, this, [this]() {
         m_logBusy = false;
         if (m_activeLogRequest == m_logGeneration) emit logQueryFinished(m_activeLogRequest, m_logWatcher.result());
         else startLogQuery();
     });
+    m_ftpLogThrottleTimer.setSingleShot(true);
+    m_ftpLogThrottleTimer.setInterval(150);
+    connect(&m_ftpLogThrottleTimer, &QTimer::timeout, this, &AppController::ftpLogChanged);
+
     const QDateTime now = QDateTime::currentDateTime();
     m_defaultSearchStart = AgcUtils::formatDateTime(now.addDays(-1));
     m_defaultSearchEnd = AgcUtils::formatDateTime(now);
@@ -541,7 +603,13 @@ AppController::AppController(QObject *parent)
 
         const QString entry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + " " + boundedMessage;
         m_ftpLogLines.append(entry);
-        while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
+        if (m_ftpLogLines.size() > 2000) {
+            m_ftpLogLines.removeFirst();
+            int idx = m_ftpLogBuffer.indexOf(QLatin1Char('\n'));
+            if (idx >= 0) m_ftpLogBuffer.remove(0, idx + 1);
+        }
+        if (!m_ftpLogBuffer.isEmpty()) m_ftpLogBuffer.append(QLatin1Char('\n'));
+        m_ftpLogBuffer.append(entry);
 
         QFile f(m_ftpLogPath);
         if (f.exists() && f.size() >= 5 * 1024 * 1024) {
@@ -555,11 +623,9 @@ AppController::AppController(QObject *parent)
             f.close();
         }
 
-        QStringList visibleLines;
-        visibleLines.reserve(m_ftpLogLines.size());
-        for (const QVariant &line : std::as_const(m_ftpLogLines)) visibleLines.append(line.toString());
-        m_ftpLogBuffer = visibleLines.join('\n');
-        emit ftpLogChanged();
+        if (!m_ftpLogThrottleTimer.isActive()) {
+            m_ftpLogThrottleTimer.start();
+        }
     });
     m_ftpServer.uploadHandler = [this](const QString &staged, const QString &target) {
         QString error;
@@ -590,7 +656,9 @@ AppController::AppController(QObject *parent)
     connect(&m_tcpReceiver, &TcpDataReceiver::logMessage, this, [this](const QString &msg) {
         LOG_INFO("{}", msg.toStdString());
     });
-    connect(&m_tcpReceiver, &TcpDataReceiver::dataBatchReceived, this, &AppController::onTcpBatchReceived);
+    m_tcpReceiver.batchHandler = [this](const QJsonObject &data, QString &error) {
+        return processTcpBatch(data, error);
+    };
 
     startTcpServer();
 
@@ -633,7 +701,15 @@ QVariantList AppController::driveWheelRackStats(const QString &startDate, const 
     const QDateTime endTime = AgcUtils::parseFlexibleDateTime(endDate, true);
     QSqlQuery q(db);
     // select records in time range
-    q.prepare("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= :start AND createtime <= :end");
+    q.prepare(R"(
+        SELECT carrier_id,
+               SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END),
+               SUM(CASE WHEN result = 0 THEN 1 ELSE 0 END)
+        FROM record
+        WHERE createtime >= :start AND createtime <= :end
+          AND wheel_id BETWEEN 1 AND 8
+        GROUP BY carrier_id
+    )");
     q.bindValue(":start", startTime.isValid() ? AgcUtils::formatDateTime(startTime) : startDate);
     q.bindValue(":end", endTime.isValid() ? AgcUtils::formatDateTime(endTime) : endDate);
     if (!q.exec()) {
@@ -642,30 +718,26 @@ QVariantList AppController::driveWheelRackStats(const QString &startDate, const 
     }
 
     // initialize counters for 1..50 carriers
-    struct Stat { int ok=0; int ng=0; };
+    struct Stat { qint64 ok=0; qint64 ng=0; };
     QVector<Stat> stats(50);
 
     while (q.next()) {
         int rnum = q.value(0).toInt();
-        int wnum = q.value(1).toInt();
-        int res = q.value(2).toInt();
         if (rnum < 1 || rnum > 50) continue;
-        // drive wheels 0..7 or 1..8
-        if (!((wnum >= 0 && wnum <= 7) || (wnum >= 1 && wnum <= 8))) continue;
-        if (res == 1) stats[rnum-1].ok++;
-        else stats[rnum-1].ng++;
+        stats[rnum-1].ok = q.value(1).toLongLong();
+        stats[rnum-1].ng = q.value(2).toLongLong();
     }
 
     for (int i=0;i<50;i++) {
         QVariantMap m;
         m[QStringLiteral("carrierId")] = i+1;
         m[QStringLiteral("rack")] = i+1;
-        int okc = stats[i].ok;
-        int ngc = stats[i].ng;
+        const qint64 okc = stats[i].ok;
+        const qint64 ngc = stats[i].ng;
         m[QStringLiteral("ok")] = okc;
         m[QStringLiteral("ng")] = ngc;
         double loss = 0.0;
-        int total = okc + ngc;
+        const qint64 total = okc + ngc;
         if (total > 0) loss = (double)ngc * 100.0 / (double)total; // percent
         m[QStringLiteral("loss")] = loss;
         out.append(m);
@@ -684,21 +756,26 @@ QVariantList AppController::walkingWheelRackStats(const QString &startDate, cons
     const QDateTime startTime = AgcUtils::parseFlexibleDateTime(startDate, false);
     const QDateTime endTime = AgcUtils::parseFlexibleDateTime(endDate, true);
     QSqlQuery q(db);
-    q.prepare("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= :start AND createtime <= :end");
+    q.prepare(R"(
+        SELECT carrier_id,
+               SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END),
+               SUM(CASE WHEN result = 0 THEN 1 ELSE 0 END)
+        FROM record
+        WHERE createtime >= :start AND createtime <= :end
+          AND wheel_id BETWEEN 9 AND 16
+        GROUP BY carrier_id
+    )");
     q.bindValue(":start", startTime.isValid() ? AgcUtils::formatDateTime(startTime) : startDate);
     q.bindValue(":end", endTime.isValid() ? AgcUtils::formatDateTime(endTime) : endDate);
     if (!q.exec()) return out;
 
-    struct Stat { int ok = 0; int ng = 0; };
+    struct Stat { qint64 ok = 0; qint64 ng = 0; };
     QVector<Stat> stats(50);
     while (q.next()) {
         const int rack = q.value(0).toInt();
-        const int wheel = q.value(1).toInt();
         if (rack < 1 || rack > 50) continue;
-        // walking wheels 8..15 or 11..18
-        if (!((wheel >= 8 && wheel <= 15) || (wheel >= 11 && wheel <= 18))) continue;
-        if (q.value(2).toInt() == 1) stats[rack - 1].ok++;
-        else stats[rack - 1].ng++;
+        stats[rack - 1].ok = q.value(1).toLongLong();
+        stats[rack - 1].ng = q.value(2).toLongLong();
     }
 
     for (int i = 0; i < 50; ++i) {
@@ -725,15 +802,21 @@ QVariantList AppController::rackWheelMonitorStatus() const
 
     QSqlQuery query(db);
     query.prepare(QStringLiteral(
-        "SELECT carrier_id, wheel_id, result, createtime FROM ("
-        " SELECT carrier_id, wheel_id, result, createtime,"
-        " ROW_NUMBER() OVER (PARTITION BY carrier_id, wheel_id"
-        " ORDER BY datetime(createtime) DESC, rowid DESC) AS position FROM record"
-        ") WHERE position=1"));
+        "SELECT carrier_id, wheel_id, result, createtime FROM carrier_wheel_status "
+        "WHERE carrier_id BETWEEN 1 AND 50 AND wheel_id BETWEEN 1 AND 16"));
 
     if (!query.exec()) {
-        LOG_ERROR("rackWheelMonitorStatus 数据库查询失败: {}", query.lastError().text().toStdString());
-        return out;
+        // 回退兼容无状态缓存表时的旧窗口函数查询
+        query.prepare(QStringLiteral(
+            "SELECT carrier_id, wheel_id, result, createtime FROM ("
+            " SELECT carrier_id, wheel_id, result, createtime,"
+            " ROW_NUMBER() OVER (PARTITION BY carrier_id, wheel_id"
+            " ORDER BY createtime DESC, rowid DESC) AS position FROM record"
+            ") WHERE position=1 AND wheel_id BETWEEN 1 AND 16"));
+        if (!query.exec()) {
+            LOG_ERROR("rackWheelMonitorStatus 数据库查询失败: {}", query.lastError().text().toStdString());
+            return out;
+        }
     }
 
     while (query.next()) {
@@ -767,7 +850,7 @@ QVariantList AppController::rackPhotoCounts() const
     query.prepare(QStringLiteral(
         "SELECT carrier_id, COUNT(*) FROM record "
         "WHERE carrier_id BETWEEN 1 AND 50 "
-        "AND (wheel_id = 0 OR wheel_id = 1) "
+        "AND wheel_id = 1 "
         "GROUP BY carrier_id"));
     if (query.exec()) {
         while (query.next()) {
@@ -818,7 +901,7 @@ QVariantMap AppController::homepageCurrentDetection() const
         QSqlQuery latestRackQuery(db);
         if (latestRackQuery.exec(QStringLiteral(
                 "SELECT carrier_id FROM record "
-                "WHERE carrier_id BETWEEN 1 AND 50 "
+                "WHERE carrier_id BETWEEN 1 AND 50 AND wheel_id BETWEEN 1 AND 16 "
                 "ORDER BY createtime DESC, rowid DESC LIMIT 1"))
             && latestRackQuery.next()) {
             rackNumber = latestRackQuery.value(0).toInt();
@@ -851,29 +934,43 @@ QVariantMap AppController::homepageCurrentDetection() const
 
     QSqlQuery latestQuery(db);
     latestQuery.prepare(QStringLiteral(
-        "SELECT r.wheel_id, r.result, r.createtime FROM record r "
-        "INNER JOIN ("
-        "  SELECT wheel_id AS wheel, MAX(createtime) AS latestTime "
-        "  FROM record WHERE carrier_id = :rack "
-        "  GROUP BY wheel_id"
-        ") latest ON r.wheel_id = latest.wheel "
-        "AND r.createtime = latest.latestTime "
-        "WHERE r.carrier_id = :rack"));
+        "SELECT wheel_id, result, createtime FROM carrier_wheel_status "
+        "WHERE carrier_id = :rack AND wheel_id BETWEEN 1 AND 16"));
     latestQuery.bindValue(QStringLiteral(":rack"), rackNumber);
+    if (!latestQuery.exec()) {
+        latestQuery.prepare(QStringLiteral(
+            "SELECT r.wheel_id, r.result, r.createtime FROM record r "
+            "INNER JOIN ("
+            "  SELECT wheel_id AS wheel, MAX(createtime) AS latestTime "
+            "  FROM record WHERE carrier_id = :rack AND wheel_id BETWEEN 1 AND 16 "
+            "  GROUP BY wheel_id"
+            ") latest ON r.wheel_id = latest.wheel "
+            "AND r.createtime = latest.latestTime "
+            "WHERE r.carrier_id = :rack AND r.wheel_id BETWEEN 1 AND 16"));
+        latestQuery.bindValue(QStringLiteral(":rack"), rackNumber);
+    }
     if (latestQuery.exec()) {
         while (latestQuery.next()) {
             const int wheel = latestQuery.value(0).toInt();
+            int driveIndex = -1;
+            int walkIndex = -1;
+
+            if (wheel >= 1 && wheel <= 8) {
+                driveIndex = wheel - 1;
+            } else if (wheel >= 9 && wheel <= 16) {
+                walkIndex = wheel - 9;
+            }
+
             QVariantMap item;
             item.insert(QStringLiteral("wheelId"), wheel);
-            item.insert(QStringLiteral("wheel"), (wheel >= 11 && wheel <= 18) ? (wheel - 2) : wheel);
+            item.insert(QStringLiteral("wheel"), wheel);
             item.insert(QStringLiteral("result"), latestQuery.value(1).toInt());
             item.insert(QStringLiteral("time"), latestQuery.value(2).toString());
-            if (wheel >= 1 && wheel <= 8) {
-                driveWheels[wheel - 1] = item;
-            } else if (wheel >= 9 && wheel <= 16) {
-                walkingWheels[wheel - 9] = item;
-            } else if (wheel >= 11 && wheel <= 18) {
-                walkingWheels[wheel - 11] = item;
+
+            if (driveIndex >= 0 && driveIndex < driveWheels.size()) {
+                driveWheels[driveIndex] = item;
+            } else if (walkIndex >= 0 && walkIndex < walkingWheels.size()) {
+                walkingWheels[walkIndex] = item;
             }
         }
     }
@@ -882,7 +979,8 @@ QVariantMap AppController::homepageCurrentDetection() const
     rateQuery.prepare(QStringLiteral(
         "SELECT wheel_id, result FROM record "
         "WHERE carrier_id = :rack "
-        "AND createtime >= :todayStart"));
+        "AND createtime >= :todayStart "
+        "AND wheel_id BETWEEN 1 AND 16"));
     rateQuery.bindValue(QStringLiteral(":rack"), rackNumber);
     rateQuery.bindValue(QStringLiteral(":todayStart"),
                         AgcUtils::formatDateTime(QDateTime(QDate::currentDate(), QTime(0, 0))));
@@ -904,7 +1002,7 @@ QVariantMap AppController::homepageCurrentDetection() const
 	QSqlQuery totalQuery(db);
 	totalQuery.prepare(QStringLiteral(
 		"SELECT COUNT(*), SUM(CASE WHEN result = 0 THEN 1 ELSE 0 END) FROM record "
-		"WHERE carrier_id = :rack"));
+		"WHERE carrier_id = :rack AND wheel_id BETWEEN 1 AND 16"));
 	totalQuery.bindValue(QStringLiteral(":rack"), rackNumber);
 	if (totalQuery.exec() && totalQuery.next()) {
 		totalCount = totalQuery.value(0).toInt();
@@ -935,7 +1033,7 @@ QVariantMap AppController::homepageCurrentDetection() const
 QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheelNumber) const
 {
     QVariantMap image;
-    if (rackNumber < 1 || rackNumber > 50) {
+    if (rackNumber < 1 || rackNumber > 50 || wheelNumber < 1 || wheelNumber > 16) {
         return image;
     }
 
@@ -946,11 +1044,12 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
     }
 
     QSqlQuery query(db);
-    query.prepare(QStringLiteral(
-        "SELECT imagename, createtime, result "
-        "FROM record "
+    const QString sql = QStringLiteral(
+        "SELECT imagename, createtime, result FROM record "
         "WHERE carrier_id = :rack AND wheel_id = :wheel "
-        "ORDER BY createtime DESC, rowid DESC LIMIT 1"));
+        "ORDER BY createtime DESC, rowid DESC LIMIT 1");
+
+    query.prepare(sql);
     query.bindValue(QStringLiteral(":rack"), rackNumber);
     query.bindValue(QStringLiteral(":wheel"), wheelNumber);
     if (!query.exec() || !query.next()) {
@@ -972,6 +1071,7 @@ QVariantList AppController::wheelRackResultStats(const QString &startDate, const
                                                   int wheelNumber, const QString &resultType)
 {
     QVariantList out;
+    if (wheelNumber < 1 || wheelNumber > 16) return out;
     QVector<int> counts(50, 0);
     QMutexLocker locker(&m_dbMutex);
     QSqlDatabase db = QSqlDatabase::database();
@@ -1025,42 +1125,56 @@ QVariantList AppController::rackWheelResultStats(const QString &startDate, const
 
     const QDateTime startTime = AgcUtils::parseFlexibleDateTime(startDate, false);
     const QDateTime endTime = AgcUtils::parseFlexibleDateTime(endDate, true);
-    const int firstWheel = (wheelType == 0) ? 0 : 8;
-    const int lastWheel = (wheelType == 0) ? 7 : 15;
     const bool isOk = resultType.compare(QStringLiteral("OK"), Qt::CaseInsensitive) == 0;
 
     QMutexLocker locker(&m_dbMutex);
     QSqlDatabase db = QSqlDatabase::database();
     if (!db.isValid() || !db.isOpen()) return out;
 
-    QHash<int, int> counts;
+    QVector<int> slotCounts(8, 0);
     QSqlQuery query(db);
-    query.prepare(QStringLiteral(
+    QString sql = QStringLiteral(
         "SELECT wheel_id, COUNT(*) FROM record "
         "WHERE carrier_id = :rack "
-        "AND wheel_id BETWEEN :firstWheel AND :lastWheel "
         "AND result = :result "
-        "AND createtime >= :start AND createtime <= :end "
-        "GROUP BY wheel_id"));
+        "AND createtime >= :start AND createtime <= :end ");
+    if (wheelType == 0) {
+        sql += QStringLiteral("AND wheel_id BETWEEN 1 AND 8 ");
+    } else {
+        sql += QStringLiteral("AND wheel_id BETWEEN 9 AND 16 ");
+    }
+    sql += QStringLiteral("GROUP BY wheel_id");
+
+    query.prepare(sql);
     query.bindValue(QStringLiteral(":rack"), rackNumber);
-    query.bindValue(QStringLiteral(":firstWheel"), firstWheel);
-    query.bindValue(QStringLiteral(":lastWheel"), lastWheel);
     query.bindValue(QStringLiteral(":result"), isOk ? 1 : 0);
     query.bindValue(QStringLiteral(":start"), startTime.isValid() ? AgcUtils::formatDateTime(startTime) : startDate);
     query.bindValue(QStringLiteral(":end"), endTime.isValid() ? AgcUtils::formatDateTime(endTime) : endDate);
+
     if (query.exec()) {
         while (query.next()) {
-            counts.insert(query.value(0).toInt(), query.value(1).toInt());
+            const int w = query.value(0).toInt();
+            const int c = query.value(1).toInt();
+            int slot = -1;
+            if (wheelType == 0) {
+                if (w >= 1 && w <= 8) slot = w - 1;
+            } else {
+                if (w >= 9 && w <= 16) slot = w - 9;
+            }
+            if (slot >= 0 && slot < 8) {
+                slotCounts[slot] += c;
+            }
         }
     } else {
         LOG_ERROR("rackWheelResultStats 数据库查询失败: {}", query.lastError().text().toStdString());
     }
 
-    for (int wheel = firstWheel; wheel <= lastWheel; ++wheel) {
+    for (int s = 0; s < 8; ++s) {
         QVariantMap row;
         row.insert(QStringLiteral("rack"), rackNumber);
-        row.insert(QStringLiteral("wheel"), wheel);
-        row.insert(QStringLiteral("count"), counts.value(wheel));
+        row.insert(QStringLiteral("wheel"), (wheelType == 1) ? (s + 9) : (s + 1));
+        row.insert(QStringLiteral("slot"), s + 1);
+        row.insert(QStringLiteral("count"), slotCounts[s]);
         row.insert(QStringLiteral("result"), isOk ? QStringLiteral("OK") : QStringLiteral("NG"));
         out.append(row);
     }
@@ -1167,10 +1281,14 @@ void AppController::recoverPendingUploads()
 
 AppController::~AppController()
 {
-    AppLogger::setLogCallback(nullptr);
-    m_logPool.waitForDone();
     stopFtpServer();
     stopTcpServer();
+    ++m_searchGeneration;
+    ++m_alertSearchGeneration;
+    m_searchPool.clear();
+    m_searchPool.waitForDone();
+    m_logPool.waitForDone();
+    AppLogger::setLogCallback(nullptr);
     // CopyWorker removed
 }
 
@@ -1265,6 +1383,7 @@ int AppController::latestRackWheelImageRack() const
         FROM record
         WHERE result = 1
           AND distance > 0
+          AND wheel_id BETWEEN 1 AND 16
         ORDER BY createtime DESC, rowid DESC
         LIMIT 1
     )")) || !query.next()) {
@@ -1286,6 +1405,7 @@ int AppController::latestRackWheelTotalPages(int rackNumber) const
             SELECT wheel_id AS w, COUNT(*) AS cnt
             FROM record
             WHERE carrier_id = :rack AND result = 1 AND distance > 0
+              AND wheel_id BETWEEN 1 AND 16
             GROUP BY wheel_id
         )
     )");
@@ -1323,45 +1443,47 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
         const QString sql = QStringLiteral(R"(
             SELECT rowid, createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance
             FROM record
-            WHERE carrier_id = :rack AND result = 1 AND distance > 0 AND wheel_id = :wheel
+            WHERE carrier_id = :rack AND result = 1 AND distance > 0
+              AND wheel_id = :wheel
             ORDER BY createtime DESC, rowid DESC
             LIMIT 1 OFFSET %1
         )").arg((page - 1));
 
-        for (int wheel = 0; wheel < 16; ++wheel) {
-            if (!q.prepare(sql)) {
-                queryError = q.lastError().text();
-                LOG_ERROR("loadLatestRackWheelImagesPage 预处理 SQL 失败: {}", queryError.toStdString());
-                break;
-            }
-            q.bindValue(QStringLiteral(":rack"), rackNumber);
-            q.bindValue(QStringLiteral(":wheel"), wheel);
-            if (!q.exec()) {
-                queryError = q.lastError().text();
-                LOG_ERROR("loadLatestRackWheelImagesPage 查询执行失败: {}", queryError.toStdString());
-                break;
-            }
-            if (q.next()) {
-                ImageItem item;
-                item.receivedAt = QDateTime::fromString(q.value(1).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-                if (!item.receivedAt.isValid()) item.receivedAt = QDateTime::fromString(q.value(1).toString(), Qt::ISODate);
-                item.carrierId = q.value(2).toInt();
-                item.rack = item.carrierId;
-                item.wheelId = q.value(3).toInt();
-                item.slot = item.wheelId;
-                item.cameraId = q.value(4).toInt();
-                item.result = q.value(5).toInt();
-                item.fileName = QFileInfo(q.value(6).toString().trimmed()).fileName();
-                item.distance = q.value(7).toDouble();
-                item.dist_norm = q.value(8).toDouble();
-                item.lower_tolerance = q.value(9).toDouble();
+        if (!q.prepare(sql)) {
+            queryError = q.lastError().text();
+            LOG_ERROR("loadLatestRackWheelImagesPage 预处理 SQL 失败: {}", queryError.toStdString());
+        } else {
+            for (int slot = 1; slot <= 16; ++slot) {
+                const int wheel = slot;
+                q.bindValue(QStringLiteral(":rack"), rackNumber);
+                q.bindValue(QStringLiteral(":wheel"), wheel);
+                if (!q.exec()) {
+                    queryError = q.lastError().text();
+                    LOG_ERROR("loadLatestRackWheelImagesPage 查询执行失败: {}", queryError.toStdString());
+                    break;
+                }
+                if (q.next()) {
+                    ImageItem item;
+                    item.receivedAt = QDateTime::fromString(q.value(1).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                    if (!item.receivedAt.isValid()) item.receivedAt = QDateTime::fromString(q.value(1).toString(), Qt::ISODate);
+                    item.carrierId = q.value(2).toInt();
+                    item.rack = item.carrierId;
+                    item.wheelId = slot;
+                    item.slot = slot;
+                    item.cameraId = q.value(4).toInt();
+                    item.result = q.value(5).toInt();
+                    item.fileName = QFileInfo(q.value(6).toString().trimmed()).fileName();
+                    item.distance = q.value(7).toDouble();
+                    item.dist_norm = q.value(8).toDouble();
+                    item.lower_tolerance = q.value(9).toDouble();
 
-                const QString rawName = q.value(6).toString().trimmed();
-                item.filePath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
-                if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
-                items.append(item);
+                    const QString rawName = q.value(6).toString().trimmed();
+                    item.filePath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
+                    if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
+                    items.append(item);
+                }
+                q.finish();
             }
-            q.finish();
         }
     } else {
         queryError = QStringLiteral("无法打开数据库");
@@ -1426,7 +1548,7 @@ void AppController::search(const QString &startText, const QString &endText, con
     QSqlDatabase db = QSqlDatabase::database();
     if (db.isValid() && db.isOpen()) {
         QSqlQuery q(db);
-        QStringList where;
+        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
         QString sql = "SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM record";
 
         if (startTime.isValid()) {
@@ -1442,16 +1564,16 @@ void AppController::search(const QString &startText, const QString &endText, con
         if (rackNum > 0) {
             where << "carrier_id = :rack";
         }
-        if (wheelToken == QStringLiteral("0") || wheelToken == QStringLiteral("DRIVE")) {
-            where << "(wheel_id BETWEEN 0 AND 7 OR wheel_id BETWEEN 1 AND 8)";
+        if (wheelToken == QStringLiteral("DRIVE")) {
+            where << "wheel_id BETWEEN 1 AND 8";
         } else if (wheelToken == QStringLiteral("WALK")) {
-            where << "(wheel_id BETWEEN 8 AND 15 OR wheel_id BETWEEN 9 AND 16 OR wheel_id BETWEEN 11 AND 18)";
+            where << "wheel_id BETWEEN 9 AND 16";
         } else if (wheelToken.contains(',')) {
             QStringList wheelNumbers;
             for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
                 bool ok = false;
                 const int wheel = part.trimmed().toInt(&ok);
-                if (ok && wheel >= 0 && wheel <= 18)
+                if (ok && wheel >= 1 && wheel <= 16)
                     wheelNumbers << QString::number(wheel);
             }
             if (!wheelNumbers.isEmpty())
@@ -1459,13 +1581,8 @@ void AppController::search(const QString &startText, const QString &endText, con
         } else if (!wheelToken.isEmpty()) {
             bool ok = false;
             const int w = wheelToken.toInt(&ok);
-            if (ok && w >= 9 && w <= 16) {
-                where << "(wheel_id = :wheel OR wheel_id = :wheel_zero OR wheel_id = :wheel_legacy)";
-            } else if (ok && w >= 1 && w <= 8) {
-                where << "(wheel_id = :wheel OR wheel_id = :wheel_zero)";
-            } else {
-                where << "wheel_id = :wheel";
-            }
+            where << (ok && w >= 1 && w <= 16 ? QStringLiteral("wheel_id = :wheel")
+                                               : QStringLiteral("1 = 0"));
         }
         if (hasResultFilter) where << "result = :res";
 
@@ -1479,18 +1596,12 @@ void AppController::search(const QString &startText, const QString &endText, con
             if (endTime.isValid()) q.bindValue(":end", AgcUtils::formatDateTime(endTime));
             if (!serialToken.isEmpty()) q.bindValue(":filename", QString("%1").arg(serialToken.contains('%') ? serialToken : QString("%") + serialToken + QString("%")));
             if (rackNum > 0) q.bindValue(":rack", rackNum);
-            if (!wheelToken.isEmpty() && wheelToken != QStringLiteral("0")
+            bool wheelOk = false;
+            const int wheelValue = wheelToken.toInt(&wheelOk);
+            if (wheelOk && wheelValue >= 1 && wheelValue <= 16
                 && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
                 && !wheelToken.contains(',')) {
-                bool ok = false;
-                const int w = wheelToken.toInt(&ok);
                 q.bindValue(":wheel", wheelToken);
-                if (ok && w >= 9 && w <= 16) {
-                    q.bindValue(":wheel_zero", w - 1);
-                    q.bindValue(":wheel_legacy", w + 2);
-                } else if (ok && w >= 1 && w <= 8) {
-                    q.bindValue(":wheel_zero", w - 1);
-                }
             }
             if (hasResultFilter) q.bindValue(":res", parsedResult);
 
@@ -1547,181 +1658,156 @@ void AppController::searchPaged(const QString &startText, const QString &endText
     if (page < 1) page = 1;
     pageSize = qBound(1, pageSize <= 0 ? 10 : pageSize, kMaxPageSize);
 
-    const QDateTime startTime = AgcUtils::parseFlexibleDateTime(startText, false);
-    const QDateTime endTime = AgcUtils::parseFlexibleDateTime(endText, true);
+    const int gen = ++m_searchGeneration;
+    const QString archiveDir = m_archiveDirectory;
+    const QString sourceDir = m_sourceDirectory;
 
-    const QString serialToken = serialKeyword.trimmed();
-    const int rackNum = rackNumber;
-    const QString wheelToken = wheelNo.trimmed();
-    const QString resToken = resultFilter.trimmed();
-    int parsedResult = 0;
-    const bool hasResultFilter = parseResultFilter(resToken, parsedResult);
+    (void)QtConcurrent::run(&m_searchPool, [this, gen, startText, endText, serialKeyword, rackNumber, wheelNo, resultFilter, page, pageSize, archiveDir, sourceDir]() {
+        const QDateTime startTime = AgcUtils::parseFlexibleDateTime(startText, false);
+        const QDateTime endTime = AgcUtils::parseFlexibleDateTime(endText, true);
 
-    QSqlDatabase db = QSqlDatabase::database();
-    if (!db.isValid() || !db.isOpen()) {
-        LOG_ERROR("分页搜索失败，数据库未处于打开状态");
-        return;
-    }
+        const QString serialToken = serialKeyword.trimmed();
+        const int rackNum = rackNumber;
+        const QString wheelToken = wheelNo.trimmed();
+        const QString resToken = resultFilter.trimmed();
+        int parsedResult = 0;
+        const bool hasResultFilter = parseResultFilter(resToken, parsedResult);
 
-    QSqlQuery q(db);
-    QStringList where;
-    if (startTime.isValid()) where << "createtime >= :start";
-    if (endTime.isValid()) where << "createtime <= :end";
-    if (!serialToken.isEmpty()) where << "imagename LIKE :filename";
-    if (rackNum > 0) where << "carrier_id = :rack";
-    if (wheelToken == QStringLiteral("0") || wheelToken == QStringLiteral("DRIVE")) {
-        where << "(wheel_id BETWEEN 0 AND 7 OR wheel_id BETWEEN 1 AND 8)";
-    } else if (wheelToken == QStringLiteral("WALK")) {
-        where << "(wheel_id BETWEEN 8 AND 15 OR wheel_id BETWEEN 9 AND 16 OR wheel_id BETWEEN 11 AND 18)";
-    } else if (wheelToken.contains(',')) {
-        QStringList wheelNumbers;
-        for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
-            bool ok = false;
-            const int wheel = part.trimmed().toInt(&ok);
-            if (ok && wheel >= 0 && wheel <= 18)
-                wheelNumbers << QString::number(wheel);
+        QSqlDatabase db = getThreadDatabase();
+        if (!db.isValid() || !db.isOpen()) {
+            LOG_ERROR("分页搜索失败，后台数据库无法打开");
+            return;
         }
-        if (!wheelNumbers.isEmpty())
-            where << QStringLiteral("wheel_id IN (%1)").arg(wheelNumbers.join(','));
-    } else if (!wheelToken.isEmpty()) {
-        bool ok = false;
-        const int w = wheelToken.toInt(&ok);
-        if (ok && w >= 9 && w <= 16) {
-            where << "(wheel_id = :wheel OR wheel_id = :wheel_zero OR wheel_id = :wheel_legacy)";
-        } else if (ok && w >= 1 && w <= 8) {
-            where << "(wheel_id = :wheel OR wheel_id = :wheel_zero)";
-        } else {
-            where << "wheel_id = :wheel";
-        }
-    }
-    if (hasResultFilter) where << "result = :res";
 
-    QString countSql = "SELECT COUNT(*) FROM record";
-    if (!where.isEmpty()) countSql += " WHERE " + where.join(" AND ");
-
-    if (!q.prepare(countSql)) {
-        LOG_ERROR("分页搜索统计 COUNT SQL 预处理失败: {}", q.lastError().text().toStdString());
-        return;
-    }
-
-    // bind parameters for count (must bind before exec)
-    if (startTime.isValid()) q.bindValue(":start", AgcUtils::formatDateTime(startTime));
-    if (endTime.isValid()) q.bindValue(":end", AgcUtils::formatDateTime(endTime));
-    if (!serialToken.isEmpty()) q.bindValue(":filename", QString("%1").arg(serialToken.contains('%') ? serialToken : QString("%") + serialToken + QString("%")));
-    if (rackNum > 0) q.bindValue(":rack", rackNum);
-    if (!wheelToken.isEmpty() && wheelToken != QStringLiteral("0")
-        && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
-        && !wheelToken.contains(',')) {
-        bool ok = false;
-        const int w = wheelToken.toInt(&ok);
-        q.bindValue(":wheel", wheelToken);
-        if (ok && w >= 9 && w <= 16) {
-            q.bindValue(":wheel_zero", w - 1);
-            q.bindValue(":wheel_legacy", w + 2);
-        } else if (ok && w >= 1 && w <= 8) {
-            q.bindValue(":wheel_zero", w - 1);
-        }
-    }
-    if (hasResultFilter) q.bindValue(":res", parsedResult);
-
-    if (!q.exec()) {
-        LOG_ERROR("分页搜索统计记录失败: {}", q.lastError().text().toStdString());
-        return;
-    }
-
-    int totalCount = 0;
-    if (q.next()) totalCount = static_cast<int>(qMin<qint64>(
-        q.value(0).toLongLong(), std::numeric_limits<int>::max()));
-
-    LOG_DEBUG("searchPaged: start={} end={} serial={} rack={} wheel={} res={} page={} pageSize={} count={}",
-              startText.toStdString(), endText.toStdString(), serialToken.toStdString(),
-              rackNum, wheelToken.toStdString(), resToken.toStdString(), page, pageSize, totalCount);
-
-    const qint64 offset = static_cast<qint64>(page - 1) * pageSize;
-    QString dataSql = QStringLiteral("SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM record");
-    if (!where.isEmpty()) dataSql += " WHERE " + where.join(" AND ");
-    dataSql += QStringLiteral(" ORDER BY createtime DESC LIMIT %1 OFFSET %2").arg(pageSize).arg(offset);
-
-    if (!q.prepare(dataSql)) {
-        LOG_ERROR("分页搜索数据 SQL 预处理失败: {}", q.lastError().text().toStdString());
-        return;
-    }
-
-    // bind parameters for data query
-    if (startTime.isValid()) q.bindValue(":start", AgcUtils::formatDateTime(startTime));
-    if (endTime.isValid()) q.bindValue(":end", AgcUtils::formatDateTime(endTime));
-    if (!serialToken.isEmpty()) q.bindValue(":filename", QString("%1").arg(serialToken.contains('%') ? serialToken : QString("%") + serialToken + QString("%")));
-    if (rackNum > 0) q.bindValue(":rack", rackNum);
-    if (!wheelToken.isEmpty() && wheelToken != QStringLiteral("0")
-        && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
-        && !wheelToken.contains(',')) {
-        bool ok = false;
-        const int w = wheelToken.toInt(&ok);
-        q.bindValue(":wheel", wheelToken);
-        if (ok && w >= 9 && w <= 16) {
-            q.bindValue(":wheel_zero", w - 1);
-            q.bindValue(":wheel_legacy", w + 2);
-        } else if (ok && w >= 1 && w <= 8) {
-            q.bindValue(":wheel_zero", w - 1);
-        }
-    }
-    if (hasResultFilter) q.bindValue(":res", parsedResult);
-
-    QVector<ImageItem> items;
-    if (q.exec()) {
-        while (q.next()) {
-            ImageItem it;
-            it.receivedAt = QDateTime::fromString(q.value(0).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-            if (!it.receivedAt.isValid()) it.receivedAt = QDateTime::fromString(q.value(0).toString(), Qt::ISODate);
-            it.carrierId = q.value(1).toInt();
-            it.rack = it.carrierId;
-            it.wheelId = q.value(2).toInt();
-            it.slot = it.wheelId;
-            it.cameraId = q.value(3).toInt();
-            it.result = q.value(4).toInt();
-            QString rawName = q.value(5).toString().trimmed();
-            it.distance = q.value(6).toDouble();
-            it.dist_norm = q.value(7).toDouble();
-            it.lower_tolerance = q.value(8).toDouble();
-            it.fileName = QFileInfo(rawName).fileName();
-
-            const QString resolvedPath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
-
-            if (resolvedPath.isEmpty() || !QFile::exists(resolvedPath)) {
-                LOG_WARN("分页搜索结果中图片文件缺失: raw={} resolved={}", rawName.toStdString(), resolvedPath.toStdString());
-                it.filePath = QString();
-                it.fileUrl.clear();
-            } else {
-                it.filePath = resolvedPath;
-                it.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();
+        QSqlQuery q(db);
+        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
+        if (startTime.isValid()) where << "createtime >= :start";
+        if (endTime.isValid()) where << "createtime <= :end";
+        if (!serialToken.isEmpty()) where << "imagename LIKE :filename";
+        if (rackNum > 0) where << "carrier_id = :rack";
+        if (wheelToken == QStringLiteral("DRIVE")) {
+            where << "wheel_id BETWEEN 1 AND 8";
+        } else if (wheelToken == QStringLiteral("WALK")) {
+            where << "wheel_id BETWEEN 9 AND 16";
+        } else if (wheelToken.contains(',')) {
+            QStringList wheelNumbers;
+            for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
+                bool ok = false;
+                const int wheel = part.trimmed().toInt(&ok);
+                if (ok && wheel >= 1 && wheel <= 16)
+                    wheelNumbers << QString::number(wheel);
             }
-            items.append(it);
+            if (!wheelNumbers.isEmpty())
+                where << QStringLiteral("wheel_id IN (%1)").arg(wheelNumbers.join(','));
+        } else if (!wheelToken.isEmpty()) {
+            bool ok = false;
+            const int w = wheelToken.toInt(&ok);
+            where << (ok && w >= 1 && w <= 16 ? QStringLiteral("wheel_id = :wheel")
+                                               : QStringLiteral("1 = 0"));
         }
-    } else {
-        LOG_ERROR("分页搜索数据执行失败: {}", q.lastError().text().toStdString());
-    }
+        if (hasResultFilter) where << "result = :res";
 
-    // If COUNT returned 0 but data query returned rows, adjust totalCount to reflect actual rows
-    if (totalCount == 0 && !items.isEmpty()) {
-        LOG_DEBUG("分页搜索 COUNT 为 0 但获取到 {} 条记录，使用实际获取数", items.size());
-        totalCount = items.size();
-    }
+        QString countSql = "SELECT COUNT(*) FROM record";
+        if (!where.isEmpty()) countSql += " WHERE " + where.join(" AND ");
 
-    // Update model and paging info atomically on the object's thread
-    QMetaObject::invokeMethod(this, [this, items, totalCount]() mutable {
-        m_searchImagesModel.clear();
-        m_searchImagesModel.setItems(items);
-        // Log a short summary of returned items for debugging
-        QString sample;
-        for (int i=0;i<qMin(6, items.size());++i) {
-            const ImageItem &it = items.at(i);
-            sample += QStringLiteral("[%1]{rack=%2 wheel=%3 name=%4} ").arg(i).arg(it.rack).arg(it.slot).arg(it.fileName);
+        if (!q.prepare(countSql)) {
+            LOG_ERROR("分页搜索统计 COUNT SQL 预处理失败: {}", q.lastError().text().toStdString());
+            return;
         }
-        LOG_DEBUG("searchPaged 采样: {}", sample.toStdString());
-        m_searchSummary = QStringLiteral("取得 %1 条记录").arg(totalCount);
-        emit searchSummaryChanged();
-        emit searchPagedResult(totalCount);
-    }, Qt::QueuedConnection);
+
+        auto bindParams = [&](QSqlQuery &query) {
+            if (startTime.isValid()) query.bindValue(":start", AgcUtils::formatDateTime(startTime));
+            if (endTime.isValid()) query.bindValue(":end", AgcUtils::formatDateTime(endTime));
+            if (!serialToken.isEmpty()) query.bindValue(":filename", QString("%1").arg(serialToken.contains('%') ? serialToken : QString("%") + serialToken + QString("%")));
+            if (rackNum > 0) query.bindValue(":rack", rackNum);
+            bool wheelOk = false;
+            const int wheelValue = wheelToken.toInt(&wheelOk);
+            if (wheelOk && wheelValue >= 1 && wheelValue <= 16
+                && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
+                && !wheelToken.contains(',')) {
+                query.bindValue(":wheel", wheelToken);
+            }
+            if (hasResultFilter) query.bindValue(":res", parsedResult);
+        };
+
+        bindParams(q);
+
+        if (!q.exec()) {
+            LOG_ERROR("分页搜索统计记录失败: {}", q.lastError().text().toStdString());
+            return;
+        }
+
+        int totalCount = 0;
+        if (q.next()) totalCount = static_cast<int>(qMin<qint64>(
+            q.value(0).toLongLong(), std::numeric_limits<int>::max()));
+
+        LOG_DEBUG("searchPaged: start={} end={} serial={} rack={} wheel={} res={} page={} pageSize={} count={}",
+                  startText.toStdString(), endText.toStdString(), serialToken.toStdString(),
+                  rackNum, wheelToken.toStdString(), resToken.toStdString(), page, pageSize, totalCount);
+
+        const qint64 offset = static_cast<qint64>(page - 1) * pageSize;
+        QString dataSql = QStringLiteral("SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM record");
+        if (!where.isEmpty()) dataSql += " WHERE " + where.join(" AND ");
+        dataSql += QStringLiteral(" ORDER BY createtime DESC LIMIT %1 OFFSET %2").arg(pageSize).arg(offset);
+
+        if (!q.prepare(dataSql)) {
+            LOG_ERROR("分页搜索数据 SQL 预处理失败: {}", q.lastError().text().toStdString());
+            return;
+        }
+
+        bindParams(q);
+
+        QVector<ImageItem> items;
+        if (q.exec()) {
+            while (q.next()) {
+                ImageItem it;
+                it.receivedAt = QDateTime::fromString(q.value(0).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                if (!it.receivedAt.isValid()) it.receivedAt = QDateTime::fromString(q.value(0).toString(), Qt::ISODate);
+                it.carrierId = q.value(1).toInt();
+                it.rack = it.carrierId;
+                it.wheelId = q.value(2).toInt();
+                it.slot = it.wheelId;
+                it.cameraId = q.value(3).toInt();
+                it.result = q.value(4).toInt();
+                QString rawName = q.value(5).toString().trimmed();
+                it.distance = q.value(6).toDouble();
+                it.dist_norm = q.value(7).toDouble();
+                it.lower_tolerance = q.value(8).toDouble();
+                it.fileName = QFileInfo(rawName).fileName();
+
+                const QString resolvedPath = resolveImagePath(rawName, archiveDir, sourceDir);
+
+                if (resolvedPath.isEmpty() || !QFile::exists(resolvedPath)) {
+                    LOG_WARN("分页搜索结果中图片文件缺失: raw={} resolved={}", rawName.toStdString(), resolvedPath.toStdString());
+                    it.filePath = QString();
+                    it.fileUrl.clear();
+                } else {
+                    it.filePath = resolvedPath;
+                    it.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();
+                }
+                items.append(it);
+            }
+        } else {
+            LOG_ERROR("分页搜索数据执行失败: {}", q.lastError().text().toStdString());
+        }
+
+        if (totalCount == 0 && !items.isEmpty()) {
+            totalCount = items.size();
+        }
+
+        if (m_searchGeneration.load() != gen) {
+            return;
+        }
+
+        QMetaObject::invokeMethod(this, [this, gen, items, totalCount]() {
+            if (m_searchGeneration.load() != gen) return;
+            m_searchImagesModel.clear();
+            m_searchImagesModel.setItems(items);
+            m_searchSummary = QStringLiteral("取得 %1 条记录").arg(totalCount);
+            emit searchSummaryChanged();
+            emit searchPagedResult(totalCount);
+        }, Qt::QueuedConnection);
+    });
 }
 
 void AppController::alertSearchPaged(const QString &startText, const QString &endText,
@@ -1731,110 +1817,110 @@ void AppController::alertSearchPaged(const QString &startText, const QString &en
     if (page < 1) page = 1;
     pageSize = qBound(1, pageSize <= 0 ? 10 : pageSize, kMaxPageSize);
 
-    const QDateTime startDT = AgcUtils::parseFlexibleDateTime(startText.trimmed(), false);
-    const QDateTime endDT = AgcUtils::parseFlexibleDateTime(endText.trimmed(), true);
-    const QString wheelToken = wheelNo.trimmed();
-    QMutexLocker locker(&m_dbMutex);
-    QSqlDatabase db = QSqlDatabase::database();
-    if (!db.isValid() || !db.isOpen()) return;
+    const int gen = ++m_alertSearchGeneration;
+    const QString archiveDir = m_archiveDirectory;
+    const QString sourceDir = m_sourceDirectory;
 
-    QStringList where;
-    if (startDT.isValid()) where << QStringLiteral("createtime >= :start");
-    if (endDT.isValid()) where << QStringLiteral("createtime <= :end");
-    if (rackNumber > 0) where << QStringLiteral("carrier_id = :rack");
-    if (wheelToken == QStringLiteral("0") || wheelToken == QStringLiteral("DRIVE")) {
-        where << QStringLiteral("(wheel_id BETWEEN 0 AND 7 OR wheel_id BETWEEN 1 AND 8)");
-    } else if (wheelToken == QStringLiteral("WALK")) {
-        where << QStringLiteral("(wheel_id BETWEEN 8 AND 15 OR wheel_id BETWEEN 9 AND 16 OR wheel_id BETWEEN 11 AND 18)");
-    } else if (wheelToken.contains(',')) {
-        QStringList wheelNumbers;
-        for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
-            bool ok = false;
-            const int wheel = part.trimmed().toInt(&ok);
-            if (ok && wheel >= 0 && wheel <= 18)
-                wheelNumbers << QString::number(wheel);
-        }
-        if (!wheelNumbers.isEmpty())
-            where << QStringLiteral("wheel_id IN (%1)").arg(wheelNumbers.join(','));
-    } else if (!wheelToken.isEmpty()) {
-        bool ok = false;
-        const int w = wheelToken.toInt(&ok);
-        if (ok && w >= 9 && w <= 16) {
-            where << QStringLiteral("(wheel_id = :wheel OR wheel_id = :wheel_zero OR wheel_id = :wheel_legacy)");
-        } else if (ok && w >= 1 && w <= 8) {
-            where << QStringLiteral("(wheel_id = :wheel OR wheel_id = :wheel_zero)");
-        } else {
-            where << QStringLiteral("wheel_id = :wheel");
-        }
-    }
+    (void)QtConcurrent::run(&m_searchPool, [this, gen, startText, endText, rackNumber, wheelNo, page, pageSize, archiveDir, sourceDir]() {
+        const QDateTime startDT = AgcUtils::parseFlexibleDateTime(startText.trimmed(), false);
+        const QDateTime endDT = AgcUtils::parseFlexibleDateTime(endText.trimmed(), true);
+        const QString wheelToken = wheelNo.trimmed();
 
-    const QString filter = where.isEmpty() ? QString() : QStringLiteral(" WHERE ") + where.join(QStringLiteral(" AND "));
-    auto bindFilters = [&](QSqlQuery &query) {
-        if (startDT.isValid()) query.bindValue(QStringLiteral(":start"), AgcUtils::formatDateTime(startDT));
-        if (endDT.isValid()) query.bindValue(QStringLiteral(":end"), AgcUtils::formatDateTime(endDT));
-        if (rackNumber > 0) query.bindValue(QStringLiteral(":rack"), rackNumber);
-        if (!wheelToken.isEmpty() && wheelToken != QStringLiteral("0")
-            && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
-            && !wheelToken.contains(',')) {
+        QSqlDatabase db = getThreadDatabase();
+        if (!db.isValid() || !db.isOpen()) return;
+
+        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
+        if (startDT.isValid()) where << QStringLiteral("createtime >= :start");
+        if (endDT.isValid()) where << QStringLiteral("createtime <= :end");
+        if (rackNumber > 0) where << QStringLiteral("carrier_id = :rack");
+        if (wheelToken == QStringLiteral("DRIVE")) {
+            where << QStringLiteral("wheel_id BETWEEN 1 AND 8");
+        } else if (wheelToken == QStringLiteral("WALK")) {
+            where << QStringLiteral("wheel_id BETWEEN 9 AND 16");
+        } else if (wheelToken.contains(',')) {
+            QStringList wheelNumbers;
+            for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
+                bool ok = false;
+                const int wheel = part.trimmed().toInt(&ok);
+                if (ok && wheel >= 1 && wheel <= 16)
+                    wheelNumbers << QString::number(wheel);
+            }
+            if (!wheelNumbers.isEmpty())
+                where << QStringLiteral("wheel_id IN (%1)").arg(wheelNumbers.join(','));
+        } else if (!wheelToken.isEmpty()) {
             bool ok = false;
             const int w = wheelToken.toInt(&ok);
-            query.bindValue(QStringLiteral(":wheel"), wheelToken);
-            if (ok && w >= 9 && w <= 16) {
-                query.bindValue(QStringLiteral(":wheel_zero"), w - 1);
-                query.bindValue(QStringLiteral(":wheel_legacy"), w + 2);
-            } else if (ok && w >= 1 && w <= 8) {
-                query.bindValue(QStringLiteral(":wheel_zero"), w - 1);
+            where << (ok && w >= 1 && w <= 16 ? QStringLiteral("wheel_id = :wheel")
+                                               : QStringLiteral("1 = 0"));
+        }
+
+        const QString filter = where.isEmpty() ? QString() : QStringLiteral(" WHERE ") + where.join(QStringLiteral(" AND "));
+        auto bindFilters = [&](QSqlQuery &query) {
+            if (startDT.isValid()) query.bindValue(QStringLiteral(":start"), AgcUtils::formatDateTime(startDT));
+            if (endDT.isValid()) query.bindValue(QStringLiteral(":end"), AgcUtils::formatDateTime(endDT));
+            if (rackNumber > 0) query.bindValue(QStringLiteral(":rack"), rackNumber);
+            bool wheelOk = false;
+            const int wheelValue = wheelToken.toInt(&wheelOk);
+            if (wheelOk && wheelValue >= 1 && wheelValue <= 16
+                && wheelToken != QStringLiteral("DRIVE") && wheelToken != QStringLiteral("WALK")
+                && !wheelToken.contains(',')) {
+                query.bindValue(QStringLiteral(":wheel"), wheelToken);
+            }
+        };
+
+        int totalCount = 0;
+        QSqlQuery countQuery(db);
+        countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM alertrecord") + filter);
+        bindFilters(countQuery);
+        if (countQuery.exec() && countQuery.next()) {
+            totalCount = static_cast<int>(qMin<qint64>(
+                countQuery.value(0).toLongLong(), std::numeric_limits<int>::max()));
+        }
+
+        QVector<ImageItem> items;
+        QSqlQuery dataQuery(db);
+        dataQuery.prepare(QStringLiteral("SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM alertrecord")
+                          + filter + QStringLiteral(" ORDER BY createtime DESC LIMIT %1 OFFSET %2")
+                              .arg(pageSize).arg(static_cast<qint64>(page - 1) * pageSize));
+        bindFilters(dataQuery);
+        if (dataQuery.exec()) {
+            while (dataQuery.next()) {
+                ImageItem item;
+                item.receivedAt = QDateTime::fromString(dataQuery.value(0).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                if (!item.receivedAt.isValid()) item.receivedAt = QDateTime::fromString(dataQuery.value(0).toString(), Qt::ISODate);
+                item.carrierId = dataQuery.value(1).toInt();
+                item.rack = item.carrierId;
+                item.wheelId = dataQuery.value(2).toInt();
+                item.slot = item.wheelId;
+                item.cameraId = dataQuery.value(3).toInt();
+                item.result = dataQuery.value(4).toInt();
+                const QString imageName = dataQuery.value(5).toString().trimmed();
+                item.fileName = QFileInfo(imageName).fileName();
+                item.distance = dataQuery.value(6).toDouble();
+                item.dist_norm = dataQuery.value(7).toDouble();
+                item.lower_tolerance = dataQuery.value(8).toDouble();
+                const QString imagePath = resolveImagePath(imageName, archiveDir, sourceDir);
+                if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
+                    item.filePath = QFileInfo(imagePath).absoluteFilePath();
+                    item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
+                }
+                items.append(item);
             }
         }
-    };
 
-    int totalCount = 0;
-    QSqlQuery countQuery(db);
-    countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM alertrecord") + filter);
-    bindFilters(countQuery);
-    if (countQuery.exec() && countQuery.next()) {
-        totalCount = static_cast<int>(qMin<qint64>(
-            countQuery.value(0).toLongLong(), std::numeric_limits<int>::max()));
-    }
-
-    QVector<ImageItem> items;
-    QSqlQuery dataQuery(db);
-    dataQuery.prepare(QStringLiteral("SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM alertrecord")
-                      + filter + QStringLiteral(" ORDER BY createtime DESC LIMIT %1 OFFSET %2")
-                          .arg(pageSize).arg(static_cast<qint64>(page - 1) * pageSize));
-    bindFilters(dataQuery);
-    if (dataQuery.exec()) {
-        while (dataQuery.next()) {
-            ImageItem item;
-            item.receivedAt = QDateTime::fromString(dataQuery.value(0).toString(), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-            if (!item.receivedAt.isValid()) item.receivedAt = QDateTime::fromString(dataQuery.value(0).toString(), Qt::ISODate);
-            item.carrierId = dataQuery.value(1).toInt();
-            item.rack = item.carrierId;
-            item.wheelId = dataQuery.value(2).toInt();
-            item.slot = item.wheelId;
-            item.cameraId = dataQuery.value(3).toInt();
-            item.result = dataQuery.value(4).toInt();
-            const QString imageName = dataQuery.value(5).toString().trimmed();
-            item.fileName = QFileInfo(imageName).fileName();
-            item.distance = dataQuery.value(6).toDouble();
-            item.dist_norm = dataQuery.value(7).toDouble();
-            item.lower_tolerance = dataQuery.value(8).toDouble();
-            const QString imagePath = resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory);
-            if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
-                item.filePath = QFileInfo(imagePath).absoluteFilePath();
-                item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
-            }
-            items.append(item);
+        if (m_alertSearchGeneration.load() != gen) {
+            return;
         }
-    }
-    locker.unlock();
 
-    QMetaObject::invokeMethod(this, [this, items, totalCount]() {
-        m_searchImagesModel.setItems(items);
-        m_searchSummary = QStringLiteral("取得 %1 条报警记录").arg(totalCount);
-        emit searchSummaryChanged();
-        emit searchPagedResult(totalCount);
-    }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(this, [this, gen, items, totalCount]() {
+            if (m_alertSearchGeneration.load() != gen) return;
+            m_searchImagesModel.clear();
+            m_searchImagesModel.setItems(items);
+            m_searchSummary = QStringLiteral("取得 %1 条报警记录").arg(totalCount);
+            emit searchSummaryChanged();
+            emit searchPagedResult(totalCount);
+        }, Qt::QueuedConnection);
+    });
 }
 
 void AppController::loadFtpSettingsFromFile()
@@ -2022,8 +2108,8 @@ QVariantList AppController::rackWheelDistances(int rackNumber) const
         while (q.next()) {
             int w = q.value(0).toInt();
             double dist = q.value(1).toDouble();
-            if (w >= 0 && w < 8) {
-                distances[w] = QString::number(dist, 'f', 2);
+            if (w >= 1 && w <= 8) {
+                distances[w - 1] = QString::number(dist, 'f', 2);
             }
         }
     }
@@ -2060,7 +2146,7 @@ bool AppController::saveRackWheelDistances(int rackNumber, const QVariantList &d
     for (int wheel = 0; wheel < distances.size(); ++wheel) {
         double distVal = distances.at(wheel).toString().toDouble();
         q.bindValue(0, rackNumber);
-        q.bindValue(1, wheel);
+        q.bindValue(1, wheel + 1);
         q.bindValue(2, distVal);
         if (!q.exec()) {
             LOG_ERROR("保存载具轮标准距离失败: 架号={}, 轮号={}, 错误={}",
@@ -2096,14 +2182,17 @@ void AppController::gearSumQuery(const QString &startDate, const QString &endDat
     QStringList wheelList;
     if (selectedTurns.isValid()) {
         QVariantList arr = selectedTurns.toList();
-        for (const QVariant &v : arr) wheelList << QString::number(v.toInt());
+        for (const QVariant &v : arr) {
+            const int wheel = v.toInt();
+            if (wheel >= 1 && wheel <= 16) wheelList << QString::number(wheel);
+        }
     }
 
     // default counts map
     QMap<int,QPair<int,int>> counts; // wheel -> (ok,ng)
-    int outputRangeStart = 0;
-    int outputRangeEnd = 7;
-    // If user provided explicit wheel list, try to adapt output range (support 8..15 or custom)
+    int outputRangeStart = 1;
+    int outputRangeEnd = 8;
+    // If user provided an explicit contiguous eight-wheel list, adapt the output range.
     if (!wheelList.isEmpty()) {
         QList<int> wheels;
         for (const QString &s : wheelList) wheels.append(s.toInt());
@@ -2121,7 +2210,7 @@ void AppController::gearSumQuery(const QString &startDate, const QString &endDat
     if (db.isValid() && db.isOpen()) {
         QSqlQuery q(db);
         QString sql = QStringLiteral("SELECT wheel_id, result, COUNT(*) as c FROM record");
-        QStringList where;
+        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
         if (startTime.isValid()) where << "createtime >= :start";
         if (endTime.isValid()) where << "createtime <= :end";
         if (filterByRack) where << "carrier_id = :rack";
@@ -2326,12 +2415,17 @@ void AppController::setTcpPort(int port)
 
 void AppController::onTcpBatchReceived(const QJsonObject &batchData)
 {
-    ImageIngest::BatchData batch;
     QString error;
+    (void)processTcpBatch(batchData, error);
+}
+
+bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error)
+{
+    ImageIngest::BatchData batch;
     if (!ImageIngest::parseBatchJson(batchData, batch, error)) {
         LOG_ERROR("[TCP] 批次数据解析失败: {}", error.toStdString());
         setStatusMessage(QStringLiteral("TCP 报文解析失败: %1").arg(error));
-        return;
+        return false;
     }
 
     {
@@ -2339,7 +2433,7 @@ void AppController::onTcpBatchReceived(const QJsonObject &batchData)
         if (!ImageIngest::recordBatch(QSqlDatabase::database(), batch, error)) {
             LOG_ERROR("[TCP] 数据原子入库失败: {}", error.toStdString());
             setStatusMessage(QStringLiteral("数据入库失败: %1").arg(error));
-            return;
+            return false;
         }
     }
 
@@ -2425,6 +2519,7 @@ void AppController::onTcpBatchReceived(const QJsonObject &batchData)
     m_currentImagesModel.setItems(cards);
     LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片", batch.carrierId);
     setStatusMessage(QStringLiteral("载具 #%1 测量数据已接收，共 %2 轮").arg(batch.carrierId).arg(batch.wheels.size()));
+    return true;
 }
 
 void AppController::onFtpImageStored(const QString &filePath)
@@ -3006,4 +3101,3 @@ void AppController::openFtpRootDirectory()
         QDesktopServices::openUrl(QUrl::fromLocalFile(root));
     }
 }
-

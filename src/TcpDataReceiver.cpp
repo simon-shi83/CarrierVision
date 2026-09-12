@@ -80,6 +80,14 @@ void TcpDataReceiver::onNewConnection()
         QTcpSocket *sock = m_server.nextPendingConnection();
         if (!sock) continue;
 
+        if (m_clientBuffers.size() >= MaxClients) {
+            LOG_WARN("[TCP] 达到最大客户端数 {}，拒绝新连接", MaxClients);
+            sock->write("{\"status\":\"ERROR\",\"message\":\"Too many connections\"}\n");
+            sock->disconnectFromHost();
+            sock->deleteLater();
+            continue;
+        }
+
         m_clientBuffers.insert(sock, QByteArray());
 
         connect(sock, &QTcpSocket::readyRead, this, &TcpDataReceiver::onClientReadyRead);
@@ -99,6 +107,20 @@ void TcpDataReceiver::onClientReadyRead()
 
     QByteArray &buffer = m_clientBuffers[sock];
     buffer.append(sock->readAll());
+
+    // 防御无换行垃圾数据耗尽内存（单客户端上限 2MB）
+    static constexpr int kMaxTcpBuffer = 2 * 1024 * 1024;
+    if (buffer.size() > kMaxTcpBuffer) {
+        LOG_WARN("[TCP] 客户端数据无换行超过2MB上限，已主动断开以防内存溢出: {}",
+                 sock->peerAddress().toString().toStdString());
+        emit logMessage(QStringLiteral("[TCP] 客户端数据超限，断开连接"));
+        m_clientBuffers.remove(sock);
+        sock->disconnect(this);
+        sock->close();
+        sock->deleteLater();
+        emit clientCountChanged(m_clientBuffers.size());
+        return;
+    }
 
     // 协议规范：以换行符 '\n' 分包
     int newlineIndex = -1;
@@ -133,9 +155,25 @@ void TcpDataReceiver::onClientReadyRead()
         const int carrierId = obj.value(QStringLiteral("carrierId")).toInt();
         const QJsonArray wheels = obj.value(QStringLiteral("wheels")).toArray();
 
-        LOG_INFO("[TCP] 成功接收载具 {} 数据包, 包含 {} 轮检测数据", carrierId, wheels.size());
+        LOG_INFO("[TCP] 收到载具 {} 数据包, 包含 {} 轮检测数据", carrierId, wheels.size());
         emit logMessage(QStringLiteral("[TCP] 收到载具 %1 数据包 (轮数=%2)").arg(carrierId).arg(wheels.size()));
-        emit dataBatchReceived(obj);
+        QString processingError;
+        bool accepted = true;
+        if (batchHandler) {
+            accepted = batchHandler(obj, processingError);
+        } else {
+            emit dataBatchReceived(obj);
+        }
+
+        if (!accepted) {
+            QJsonObject errorObject{
+                {QStringLiteral("status"), QStringLiteral("ERROR")},
+                {QStringLiteral("message"), processingError.left(512)}
+            };
+            sock->write(QJsonDocument(errorObject).toJson(QJsonDocument::Compact) + '\n');
+            sock->flush();
+            continue;
+        }
 
         const QByteArray okRsp = QStringLiteral("{\"status\":\"OK\",\"carrierId\":%1,\"wheelCount\":%2}\n")
                                      .arg(carrierId)

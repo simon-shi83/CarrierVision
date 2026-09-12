@@ -65,8 +65,6 @@ Page {
             return "驱动轮" + wheel;
         } else if (wheel >= 9 && wheel <= 16) {
             return "走行轮" + (wheel - 8);
-        } else if (wheel >= 11 && wheel <= 18) {
-            return "走行轮" + (wheel - 10);
         }
         return "";
     }
@@ -109,7 +107,7 @@ Page {
             return;
         var normalizedPath = String(image.filePath).replace(/\\/g, "/");
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath) ? "file:///" + normalizedPath : normalizedPath;
-        var wheelName = wheel <= 8 ? ("驱动轮 " + wheel) : ("走行轮 " + (wheel >= 9 && wheel <= 16 ? wheel : (wheel - 2)));
+        var wheelName = wheel <= 8 ? ("驱动轮 " + wheel) : ("走行轮 " + wheel);
         imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time);
     }
 
@@ -136,7 +134,7 @@ Page {
             readonly property bool isOk: Boolean(modelData && (modelData.result === 1 || modelData.result === "1" || modelData.result === "OK" || modelData.result === "ok"))
             readonly property bool isNg: Boolean(modelData && (modelData.result === 0 || modelData.result === "0" || modelData.result === "NG" || modelData.result === "ng"))
             readonly property bool hasResult: isOk || isNg
-            readonly property bool isSelected: (root.selectedWheel === delegateRoot.modelData.wheel)
+            readonly property bool isSelected: Boolean(delegateRoot.modelData && (root.selectedWheel === delegateRoot.modelData.wheel))
 
             Layout.fillWidth: true
             Layout.fillHeight: false
@@ -166,7 +164,9 @@ Page {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    root.selectWheel(delegateRoot.modelData.wheel);
+                    if (delegateRoot.modelData && delegateRoot.modelData.wheel !== undefined) {
+                        root.selectWheel(delegateRoot.modelData.wheel);
+                    }
                 }
             }
 
@@ -216,10 +216,11 @@ Page {
 
                 Label {
                     text: {
-                        var w = delegateRoot.modelData ? delegateRoot.modelData.wheel : 0;
-                        if (w <= 8) return "轮位 " + w;
-                        if (w >= 9 && w <= 16) return "轮位 " + w;
-                        if (w >= 11 && w <= 18) return "轮位 " + (w - 2);
+                        var w = (delegateRoot.modelData && delegateRoot.modelData.wheel !== undefined) ? delegateRoot.modelData.wheel : 0;
+                        if (w <= 8)
+                            return "轮位 " + w;
+                        if (w >= 9 && w <= 16)
+                            return "轮位 " + w;
                         return "轮位 " + w;
                     }
                     color: delegateRoot.hasResult ? Theme.textPrimary : Theme.textSecondary
@@ -261,7 +262,7 @@ Page {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
-                        text: delegateRoot.hasResult ? (Number(delegateRoot.modelData.passRate || 0).toFixed(1) + "%") : "--"
+                        text: (delegateRoot.hasResult && delegateRoot.modelData) ? (Number(delegateRoot.modelData.passRate || 0).toFixed(1) + "%") : "--"
                         color: delegateRoot.hasResult ? Theme.textSecondary : Theme.textMuted
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSizeTiny
@@ -277,7 +278,7 @@ Page {
                         Rectangle {
                             height: parent.height
                             radius: 1.5
-                            width: delegateRoot.hasResult ? (parent.width * Math.min(1.0, Math.max(0.0, (delegateRoot.modelData.passRate || 0) / 100))) : 0
+                            width: (delegateRoot.hasResult && delegateRoot.modelData) ? (parent.width * Math.min(1.0, Math.max(0.0, (delegateRoot.modelData.passRate || 0) / 100))) : 0
                             color: delegateRoot.isOk ? Theme.ok : Theme.ng
                         }
                     }
@@ -308,8 +309,10 @@ Page {
                         hoverEnabled: enabled
                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: {
-                            root.selectWheel(delegateRoot.modelData.wheel);
-                            root.openLatestImage(delegateRoot.modelData.wheel);
+                            if (delegateRoot.modelData && delegateRoot.modelData.wheel !== undefined) {
+                                root.selectWheel(delegateRoot.modelData.wheel);
+                                root.openLatestImage(delegateRoot.modelData.wheel);
+                            }
                         }
                     }
 
@@ -320,7 +323,7 @@ Page {
             }
 
             ToolTip.visible: resultMouse.containsMouse && !eyeMouse.containsMouse
-            ToolTip.text: "点击在3D模型中定位高亮标签" + (delegateRoot.hasResult ? ("\n检测时间：" + (delegateRoot.modelData.time || "实时")) : "\n(暂无点检记录)")
+            ToolTip.text: "点击在3D模型中定位高亮标签" + (delegateRoot.hasResult ? ("\n检测时间：" + ((delegateRoot.modelData && delegateRoot.modelData.time) ? delegateRoot.modelData.time : "实时")) : "\n(暂无点检记录)")
         }
     }
 

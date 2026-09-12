@@ -11,7 +11,7 @@ struct ImageItem
     int roundNumber = 0;
     int carrierId = 0;
     int cameraId = 0;
-    int wheelId = 0;
+    int wheelId = -1;
     // 兼容字段
     int slot = 0;
     int rack = 0;
@@ -54,6 +54,7 @@ public:
         DistMaxRole,
         DistNormRole,
         LowerToleranceRole,
+        LowerToleranceSnakeRole,
         WheelsInfoRole,
         ItemObjectRole,
         ReceivedAtTextRole

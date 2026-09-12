@@ -27,7 +27,7 @@ class ReleaseBoundaryTests : public QObject {
     static QString command(QTcpSocket &socket, const QByteArray &cmd) {
         socket.write(cmd + "\r\n"); return reply(socket);
     }
-    static QString imageName(const QString &root) { return root + "/time_1_1_1OK_12_20_10_end.png"; }
+    static QString imageName(const QString &root) { return root + "/upload-sample.png"; }
     static bool makeImage(const QString &path, Qt::GlobalColor color = Qt::red) {
         QImage image(8,8,QImage::Format_RGB32); image.fill(color); return image.save(path,"PNG");
     }
@@ -37,17 +37,6 @@ private slots:
         db.setDatabaseName(":memory:"); QVERIFY(db.open()); QVERIFY(DBSchema::ensureAllTables(db));
     }
     void cleanup() { db.close(); db = {}; QSqlDatabase::removeDatabase("release-test"); }
-    void rejectsUnknownResultsAndOverflow() {
-        ImageIngest::Metadata data; QString error;
-        QVERIFY(ImageIngest::parse("t_1_1_1NG_0_2_1_end.png",data,error));
-        QCOMPARE(data.wheels.first().result,0);
-        QVERIFY(ImageIngest::parse("t_50_12_11OK_12NG_0_0_0_end.png",data,error));
-        QCOMPARE(data.wheels.size(),2);
-        QVERIFY(!ImageIngest::parse("t_1_1_1_12_20_10_end.png",data,error));
-        QVERIFY(!ImageIngest::parse("t_1_1_1OK_broken_20_10_end.png",data,error));
-        QVERIFY(!ImageIngest::parse("t_1_1_1OK_999999999999_20_10_end.png",data,error));
-        QVERIFY(!ImageIngest::parse("t_51_1_1OK_12_20_10_end.png",data,error));
-    }
     void transactionRollsBackBothWheels() {
         ImageIngest::BatchData batch;
         batch.carrierId = 1;
@@ -77,6 +66,64 @@ private slots:
         QVERIFY(q.exec("SELECT COUNT(*) FROM record WHERE batch_id='BATCH_ROLLBACK_TEST'"));
         QVERIFY(q.next());
         QCOMPARE(q.value(0).toInt(), 2);
+    }
+    void batchJsonRejectsInvalidAndOversizedPayloads() {
+        ImageIngest::BatchData batch;
+        QString error;
+        QJsonObject wheel{{"wheelId", 1}, {"cameraId", 1}, {"result", "OK"}};
+        QJsonObject root{{"carrierId", 1}, {"wheels", QJsonArray{wheel}}};
+        QVERIFY(ImageIngest::parseBatchJson(root, batch, error));
+
+        for (const int invalidWheel : {0, 17, 18}) {
+            wheel["wheelId"] = invalidWheel;
+            root["wheels"] = QJsonArray{wheel};
+            QVERIFY(!ImageIngest::parseBatchJson(root, batch, error));
+        }
+        wheel["wheelId"] = 1;
+
+        root["carrierId"] = 1.5;
+        QVERIFY(!ImageIngest::parseBatchJson(root, batch, error));
+        root["carrierId"] = 1;
+        wheel["result"] = "UNKNOWN";
+        root["wheels"] = QJsonArray{wheel};
+        QVERIFY(!ImageIngest::parseBatchJson(root, batch, error));
+        wheel["result"] = "OK";
+        wheel["cameraId"] = 13;
+        root["wheels"] = QJsonArray{wheel};
+        QVERIFY(!ImageIngest::parseBatchJson(root, batch, error));
+        QJsonArray tooMany;
+        wheel["cameraId"] = 1;
+        for (int i = 0; i < 33; ++i) {
+            QJsonObject entry = wheel;
+            entry["wheelId"] = i % 16 + 1;
+            entry["cameraId"] = i % 12 + 1;
+            tooMany.append(entry);
+        }
+        root["wheels"] = tooMany;
+        QVERIFY(!ImageIngest::parseBatchJson(root, batch, error));
+    }
+    void requestIdMakesBatchInsertIdempotent() {
+        ImageIngest::BatchData batch;
+        batch.carrierId = 2;
+        batch.timestamp = QDateTime::currentDateTime();
+        batch.batchId = "batch-idempotent";
+        batch.requestId = "request-uuid-1";
+        ImageIngest::WheelItem wheel;
+        wheel.wheelId = 1;
+        wheel.cameraId = 1;
+        wheel.result = 1;
+        wheel.imageName = "one.png";
+        batch.wheels = {wheel};
+        QString error;
+        QVERIFY2(ImageIngest::recordBatch(db, batch, error), qPrintable(error));
+        QVERIFY2(ImageIngest::recordBatch(db, batch, error), qPrintable(error));
+        QSqlQuery q(db);
+        QVERIFY(q.exec("SELECT COUNT(*) FROM record WHERE batch_id='batch-idempotent'"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 1);
+
+        batch.wheels.append(wheel);
+        QVERIFY(!ImageIngest::recordBatch(db, batch, error));
     }
     void lateNgCannotResurrectOldAlert() {
         QSqlQuery q(db);
@@ -188,7 +235,7 @@ private slots:
         const QString second=command(client,"EPSV");
         QTcpSocket upload; upload.connectToHost(QHostAddress::LocalHost,second.section('|',3,3).toUShort());
         QTRY_COMPARE(upload.state(),QAbstractSocket::ConnectedState);
-        QVERIFY(command(client,"STOR time_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QVERIFY(command(client,"STOR upload-sample.png").startsWith("150"));
         upload.write("partial image");
         QVERIFY(command(client,"ABOR").startsWith("226"));
         QVERIFY(!QFile::exists(imageName(dir.path())));
@@ -208,7 +255,7 @@ private slots:
         auto *session = server.findChild<FtpControlConnection*>(); QVERIFY(session);
         QTRY_VERIFY(session->findChild<QTcpSocket*>());
         QCOMPARE(session->findChild<QTcpSocket*>()->readBufferSize(),qint64(256*1024));
-        QVERIFY(command(client,"STOR time_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QVERIFY(command(client,"STOR upload-sample.png").startsWith("150"));
         QImage image(8,8,QImage::Format_RGB32); image.fill(Qt::red); QByteArray bytes; QBuffer buffer(&bytes); QVERIFY(buffer.open(QIODevice::WriteOnly)); QVERIFY(image.save(&buffer,"PNG"));
         data.write(bytes); data.disconnectFromHost();
         QVERIFY2(reply(client).startsWith("226"),qPrintable(error)); QVERIFY(QFile::exists(imageName(dir.path())));
@@ -261,24 +308,24 @@ private slots:
         batch.carrierId = 1;
         batch.timestamp = QDateTime::fromString("2026-09-05 12:00:00", "yyyy-MM-dd HH:mm:ss");
         batch.batchId = "BATCH_1_2026-09-05 12:00:00";
-        ImageIngest::WheelItem w0;
-        w0.wheelId = 0;
-        w0.cameraId = 1;
-        w0.actualDistance = 12.5;
-        w0.baseDistance = 10.0;
-        w0.lowerTolerance = -2.0;
-        w0.result = 1; // OK
-        w0.imageName = "20260905_120000_1_w0.png";
-        batch.wheels.append(w0);
+        ImageIngest::WheelItem wheel;
+        wheel.wheelId = 1;
+        wheel.cameraId = 1;
+        wheel.actualDistance = 12.5;
+        wheel.baseDistance = 10.0;
+        wheel.lowerTolerance = -2.0;
+        wheel.result = 1; // OK
+        wheel.imageName = "20260905_120000_w1.png";
+        batch.wheels.append(wheel);
 
         QString error;
         QVERIFY(ImageIngest::recordBatch(db, batch, error));
 
         QSqlQuery q(db);
-        QVERIFY(q.exec("SELECT carrier_id, wheel_id, distance, dist_norm, lower_tolerance, result, batch_id FROM record WHERE imagename = '20260905_120000_1_w0.png'"));
+        QVERIFY(q.exec("SELECT carrier_id, wheel_id, distance, dist_norm, lower_tolerance, result, batch_id FROM record WHERE imagename = '20260905_120000_w1.png'"));
         QVERIFY(q.next());
         QCOMPARE(q.value(0).toInt(), 1);
-        QCOMPARE(q.value(1).toInt(), 0);
+        QCOMPARE(q.value(1).toInt(), 1);
         QCOMPARE(q.value(2).toDouble(), 12.5);
         QCOMPARE(q.value(3).toDouble(), 10.0);
         QCOMPARE(q.value(4).toDouble(), -2.0);
@@ -335,23 +382,23 @@ private slots:
 
         receiver.stop();
     }
-    void timestampAndCollisionParsing() {
-        const QDateTime dt = ImageIngest::parseTimestamp("20260905143000_1_1_1OK_10_20_10_end.png");
-        QCOMPARE(dt.toString("yyyy-MM-dd HH:mm:ss"), QString("2026-09-05 14:30:00"));
-
-        const QDateTime fallback(QDate(2026, 1, 1), QTime(0, 0, 0));
-        QCOMPARE(ImageIngest::parseTimestamp("no_date_1_1_1OK_end.png", fallback), fallback);
-
-        ImageIngest::Metadata data; QString error;
-        QVERIFY(ImageIngest::parse("t_1_1_1NG_0_2_1_end_v2.png", data, error));
-        QCOMPARE(data.carrierId, 1);
-        QCOMPARE(data.camera, 1);
-        QCOMPARE(data.wheels.size(), 1);
-
-        QVERIFY(ImageIngest::parse("t_50_12_11OK_12NG_0_0_0_end_v3.png", data, error));
-        QCOMPARE(data.carrierId, 50);
-        QCOMPARE(data.camera, 12);
-        QCOMPARE(data.wheels.size(), 2);
+    void tcpReceiverOnlyAcknowledgesSuccessfulCommit() {
+        TcpDataReceiver receiver;
+        receiver.batchHandler = [](const QJsonObject &, QString &error) {
+            error = QStringLiteral("database unavailable");
+            return false;
+        };
+        QVERIFY(receiver.listen(QHostAddress::LocalHost, 0));
+        QTcpSocket client;
+        client.connectToHost(QHostAddress::LocalHost, receiver.port());
+        QVERIFY(client.waitForConnected(3000));
+        QJsonObject root{{"carrierId", 3}, {"wheels", QJsonArray{QJsonObject{{"wheelId", 1}, {"result", "OK"}}}}};
+        client.write(QJsonDocument(root).toJson(QJsonDocument::Compact) + '\n');
+        QTRY_VERIFY_WITH_TIMEOUT(client.canReadLine(), 3000);
+        const QJsonObject response = QJsonDocument::fromJson(client.readLine()).object();
+        QCOMPARE(response.value("status").toString(), QString("ERROR"));
+        QVERIFY(response.value("message").toString().contains("database"));
+        receiver.stop();
     }
     void collisionSafeFtpUpload() {
         QTemporaryDir dir; FtpServer server; QString error;
@@ -368,26 +415,26 @@ private slots:
         QString epsv = command(client, "EPSV");
         QTcpSocket data1; data1.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
         QTRY_COMPARE(data1.state(), QAbstractSocket::ConnectedState);
-        QVERIFY(command(client, "STOR t_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QVERIFY(command(client, "STOR collision-sample.png").startsWith("150"));
         QImage redImg(8, 8, QImage::Format_RGB32); redImg.fill(Qt::red);
         QByteArray redBytes; QBuffer buf1(&redBytes); buf1.open(QIODevice::WriteOnly); redImg.save(&buf1, "PNG");
         data1.write(redBytes); data1.disconnectFromHost();
         QVERIFY2(reply(client).startsWith("226"), qPrintable(error));
-        const QString path1 = dir.filePath("t_1_1_1OK_12_20_10_end.png");
+        const QString path1 = dir.filePath("collision-sample.png");
         QVERIFY(QFile::exists(path1));
 
         // Second upload with same name but different content: blue image
         epsv = command(client, "EPSV");
         QTcpSocket data2; data2.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
         QTRY_COMPARE(data2.state(), QAbstractSocket::ConnectedState);
-        QVERIFY(command(client, "STOR t_1_1_1OK_12_20_10_end.png").startsWith("150"));
+        QVERIFY(command(client, "STOR collision-sample.png").startsWith("150"));
         QImage blueImg(8, 8, QImage::Format_RGB32); blueImg.fill(Qt::blue);
         QByteArray blueBytes; QBuffer buf2(&blueBytes); buf2.open(QIODevice::WriteOnly); blueImg.save(&buf2, "PNG");
         data2.write(blueBytes); data2.disconnectFromHost();
         QVERIFY2(reply(client).startsWith("226"), qPrintable(error));
 
         // Both original and version-suffixed files must exist without data loss
-        const QString path2 = dir.filePath("t_1_1_1OK_12_20_10_end_v2.png");
+        const QString path2 = dir.filePath("collision-sample_v2.png");
         QVERIFY(QFile::exists(path1));
         QVERIFY(QFile::exists(path2));
         QCOMPARE(QImage(path1).pixelColor(0, 0), QColor(Qt::red));
@@ -424,6 +471,27 @@ private slots:
         QVERIFY(AppLogger::latestWarningOrError().isEmpty());
         AppLogger::setLogCallback(nullptr);
         AppLogger::shutdown();
+    }
+    void tcpReceiverDisconnectsOverflowingClient() {
+        TcpDataReceiver receiver;
+        QVERIFY(receiver.listen(QHostAddress::LocalHost, 0));
+        quint16 port = receiver.port();
+        QTcpSocket client;
+        client.connectToHost(QHostAddress::LocalHost, port);
+        QVERIFY(client.waitForConnected(3000));
+        QTRY_COMPARE(receiver.clientCount(), 1);
+
+        // Send 2.5MB of data without any newline
+        QByteArray junk(256 * 1024, 'X');
+        for (int i = 0; i < 10; ++i) {
+            client.write(junk);
+            client.flush();
+            QTest::qWait(10);
+        }
+
+        // The receiver should disconnect the overflowing client to protect system memory
+        QTRY_COMPARE(receiver.clientCount(), 0);
+        receiver.stop();
     }
 };
 QTEST_GUILESS_MAIN(ReleaseBoundaryTests)
