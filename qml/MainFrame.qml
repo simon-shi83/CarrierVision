@@ -235,6 +235,12 @@ Window {
             onExit: {
                 exitPasswordDialog.open();
             }
+            onResetPasswordRequested: resetPasswordDialog.open()
+            onProtectedCommandRequested: (cmdId, title) => {
+                protectedCommandDialog.pendingCommand = cmdId;
+                protectedCommandDialog.subtitleText = title;
+                protectedCommandDialog.open();
+            }
             onNavigateRequested: (index, subAction) => {
                 if (index >= 0 && index < mainwindow.menuData.length) {
                     if (navMenu.activationHandler && navMenu.activationHandler(index, mainwindow.menuData[index]) === false) {
@@ -570,405 +576,79 @@ Window {
     }
 
     // ========== 设置验证模态弹窗 ==========
-    Dialog {
+    PasswordConfirmDialog {
         id: settingsPasswordDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: 420
-        padding: 0
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-
-        property string errorMessage: ""
-
-        background: Rectangle {
-            radius: Theme.radiusLg
-            color: Theme.bgPopup
-            border.width: 1
-            border.color: Theme.borderMedium
+        titleText: "安全设置访问验证"
+        subtitleText: "请输入管理员密码以进入系统设置"
+        subtitleColor: Theme.textSecondary
+        iconName: "icon_lock"
+        accentColor: Theme.primary
+        accentBgColor: Theme.primaryGlow
+        focusBorderColor: Theme.borderHighlight
+        placeholderText: "请输入密码"
+        confirmText: "确认"
+        confirmVariant: "primary"
+        confirmWidth: 76
+        failureText: "密码错误，请重新输入"
+        verify: function (password) {
+            return appController && appController.verifySettingsPassword(password);
         }
-
-        header: Rectangle {
-            implicitHeight: 68
-            color: Theme.bgCardElevated
-            radius: Theme.radiusLg
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 12
-                color: parent.color
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 16
-                spacing: 12
-
-                Rectangle {
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
-                    radius: 18
-                    color: Theme.primaryGlow
-                    border.color: Theme.primary
-                    border.width: 1
-
-                    AppIcon {
-                        anchors.centerIn: parent
-                        name: "icon_lock"
-                        size: 18
-                        color: Theme.primary
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Label {
-                        text: "安全设置访问验证"
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 16
-                        font.bold: true
-                    }
-
-                    Label {
-                        text: "请输入管理员密码以进入系统设置"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 11
-                    }
-                }
-
-                Button {
-                    Layout.preferredWidth: 28
-                    Layout.preferredHeight: 28
-                    text: "✕"
-                    onClicked: settingsPasswordDialog.close()
-                    contentItem: Text {
-                        text: parent.text
-                        color: Theme.textMuted
-                        font.pixelSize: 14
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 14
-                        color: parent.hovered ? Theme.bgCardActive : "transparent"
-                    }
-                }
-            }
+        onConfirmed: {
+            mainwindow.grantSettingsAuth();
+            navMenu.navigateTo(mainwindow.settingsMenuIndex, mainwindow.menuData[mainwindow.settingsMenuIndex]);
         }
+    }
 
-        onOpened: {
-            passwordInput.text = "";
-            errorMessage = "";
-            passwordInput.forceActiveFocus();
-            Qt.callLater(function () {
-                appController.activateEnglishInputMethod();
-            });
+    // ========== 重置设置密码确认弹窗（命令面板入口） ==========
+    PasswordConfirmDialog {
+        id: resetPasswordDialog
+        titleText: "重置安全管理密码"
+        subtitleText: "验证通过后设置密码将恢复为出厂默认 123456"
+        iconName: "icon_lock"
+        placeholderText: "请输入当前设置密码或维护口令"
+        confirmText: "确认重置"
+        failureText: "口令错误，未执行重置"
+        verify: function (password) {
+            return appController && appController.resetSettingsPasswordAuthorized(password);
         }
+    }
 
-        onAccepted: {
-            if (appController && appController.verifySettingsPassword(passwordInput.text)) {
-                mainwindow.grantSettingsAuth();
-                navMenu.navigateTo(mainwindow.settingsMenuIndex, mainwindow.menuData[mainwindow.settingsMenuIndex]);
-                close();
+    // ========== 维护命令确认弹窗（命令面板入口：历史数据清理、相机通道映射重置） ==========
+    PasswordConfirmDialog {
+        id: protectedCommandDialog
+        property string pendingCommand: ""
+        titleText: "维护操作验证"
+        iconName: "icon_lock"
+        placeholderText: "请输入设置密码以执行该操作"
+        confirmText: "确认执行"
+        failureText: "密码错误，未执行该操作"
+        verify: function (password) {
+            return appController && appController.verifySettingsPassword(password);
+        }
+        onConfirmed: {
+            if (!appController)
                 return;
-            }
-
-            errorMessage = "密码错误，请重新输入";
-            passwordInput.selectAll();
-            passwordInput.forceActiveFocus();
-        }
-
-        contentItem: Item {
-            implicitHeight: passwordContent.implicitHeight + 24
-
-            ColumnLayout {
-                id: passwordContent
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.topMargin: 16
-                anchors.bottomMargin: 8
-                spacing: 10
-
-                TextField {
-                    id: passwordInput
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    echoMode: TextInput.Password
-                    inputMethodHints: Qt.ImhLatinOnly | Qt.ImhNoPredictiveText
-                    placeholderText: "请输入密码"
-                    placeholderTextColor: Theme.textMuted
-                    color: Theme.textPrimary
-                    font.family: Theme.fontMono
-                    selectByMouse: true
-                    onActiveFocusChanged: {
-                        if (activeFocus)
-                            appController.activateEnglishInputMethod();
-                    }
-                    onAccepted: settingsPasswordDialog.accept()
-
-                    background: Rectangle {
-                        radius: Theme.radiusMd
-                        color: Theme.bgInput
-                        border.width: 1
-                        border.color: passwordInput.activeFocus ? Theme.borderHighlight : Theme.borderMedium
-                    }
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    visible: settingsPasswordDialog.errorMessage !== ""
-                    text: settingsPasswordDialog.errorMessage
-                    color: Theme.ngLight
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-            }
-        }
-
-        footer: Rectangle {
-            implicitHeight: 58
-            color: Theme.bgCardElevated
-            radius: Theme.radiusLg
-
-            Rectangle {
-                anchors.top: parent.top
-                width: parent.width
-                height: 12
-                color: parent.color
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                spacing: 10
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
-                ActionButton {
-                    text: "取消"
-                    variant: "secondary"
-                    Layout.preferredWidth: 76
-                    Layout.preferredHeight: 34
-                    onClicked: settingsPasswordDialog.close()
-                }
-
-                ActionButton {
-                    text: "确认"
-                    variant: "primary"
-                    Layout.preferredWidth: 76
-                    Layout.preferredHeight: 34
-                    onClicked: settingsPasswordDialog.accept()
-                }
-            }
+            if (pendingCommand === "act_cleanup")
+                appController.triggerCleanup();
+            else if (pendingCommand === "act_reset_mapping")
+                appController.resetSlotMapping();
+            pendingCommand = "";
         }
     }
 
     // ========== 退出确认模态弹窗 ==========
-    Dialog {
+    PasswordConfirmDialog {
         id: exitPasswordDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: 420
-        padding: 0
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        property string errorMessage: ""
-
-        background: Rectangle {
-            radius: Theme.radiusLg
-            color: Theme.bgPopup
-            border.width: 1
-            border.color: Theme.borderMedium
+        titleText: "确认退出点检系统"
+        subtitleText: "退出将终止实时采集与 FTP 服务"
+        subtitleColor: Theme.ngLight
+        iconName: "icon_close"
+        placeholderText: "请输入设置密码以确认退出"
+        confirmText: "确认退出"
+        failureText: "密码错误，请重新输入"
+        verify: function (password) {
+            return appController && appController.verifySettingsPassword(password);
         }
-
-        header: Rectangle {
-            implicitHeight: 68
-            color: Theme.bgCardElevated
-            radius: Theme.radiusLg
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 12
-                color: parent.color
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 16
-                spacing: 12
-
-                Rectangle {
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
-                    radius: 18
-                    color: Theme.ngBg
-                    border.color: Theme.ng
-                    border.width: 1
-
-                    AppIcon {
-                        anchors.centerIn: parent
-                        name: "icon_close"
-                        size: 18
-                        color: Theme.ng
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Label {
-                        text: "确认退出点检系统"
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 16
-                        font.bold: true
-                    }
-
-                    Label {
-                        text: "退出将终止实时采集与 FTP 服务"
-                        color: Theme.ngLight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 11
-                    }
-                }
-
-                Button {
-                    Layout.preferredWidth: 28
-                    Layout.preferredHeight: 28
-                    text: "✕"
-                    onClicked: exitPasswordDialog.close()
-                    contentItem: Text {
-                        text: parent.text
-                        color: Theme.textMuted
-                        font.pixelSize: 14
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 14
-                        color: parent.hovered ? Theme.bgCardActive : "transparent"
-                    }
-                }
-            }
-        }
-
-        onOpened: {
-            exitPasswordInput.text = "";
-            errorMessage = "";
-            exitPasswordInput.forceActiveFocus();
-            Qt.callLater(function () {
-                appController.activateEnglishInputMethod();
-            });
-        }
-
-        onAccepted: {
-            if (appController && appController.verifySettingsPassword(exitPasswordInput.text)) {
-                close();
-                mainwindow.quitSystem();
-                return;
-            }
-            errorMessage = "密码错误，请重新输入";
-            exitPasswordInput.selectAll();
-            exitPasswordInput.forceActiveFocus();
-        }
-
-        contentItem: Item {
-            implicitHeight: exitPasswordContent.implicitHeight + 24
-
-            ColumnLayout {
-                id: exitPasswordContent
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.topMargin: 16
-                anchors.bottomMargin: 8
-                spacing: 10
-
-                TextField {
-                    id: exitPasswordInput
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    echoMode: TextInput.Password
-                    inputMethodHints: Qt.ImhLatinOnly | Qt.ImhNoPredictiveText
-                    placeholderText: "请输入设置密码以确认退出"
-                    placeholderTextColor: Theme.textMuted
-                    color: Theme.textPrimary
-                    font.family: Theme.fontMono
-                    selectByMouse: true
-                    onActiveFocusChanged: {
-                        if (activeFocus)
-                            appController.activateEnglishInputMethod();
-                    }
-                    onAccepted: exitPasswordDialog.accept()
-
-                    background: Rectangle {
-                        radius: Theme.radiusMd
-                        color: Theme.bgInput
-                        border.width: 1
-                        border.color: exitPasswordInput.activeFocus ? Theme.ng : Theme.borderMedium
-                    }
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    visible: exitPasswordDialog.errorMessage !== ""
-                    text: exitPasswordDialog.errorMessage
-                    color: Theme.ngLight
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-            }
-        }
-
-        footer: Rectangle {
-            implicitHeight: 58
-            color: Theme.bgCardElevated
-            radius: Theme.radiusLg
-
-            Rectangle {
-                anchors.top: parent.top
-                width: parent.width
-                height: 12
-                color: parent.color
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                spacing: 10
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
-                ActionButton {
-                    text: "取消"
-                    variant: "secondary"
-                    Layout.preferredWidth: 76
-                    Layout.preferredHeight: 34
-                    onClicked: exitPasswordDialog.close()
-                }
-
-                ActionButton {
-                    text: "确认退出"
-                    variant: "danger"
-                    Layout.preferredWidth: 90
-                    Layout.preferredHeight: 34
-                    onClicked: exitPasswordDialog.accept()
-                }
-            }
-        }
+        onConfirmed: mainwindow.quitSystem()
     }
 }

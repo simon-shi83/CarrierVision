@@ -23,7 +23,6 @@ CMakeUserPresets.json
 .ninja_*
 
 # --- 编译生成的源码与 Qt 缓存 ---
-/src/version.h
 .rcc/
 *.qmlc
 *.jsc
@@ -40,7 +39,7 @@ archive
 logs/
 bin/logs/
 *.log
-data/
+/data/
 bin/data/
 *.db
 *.db-wal

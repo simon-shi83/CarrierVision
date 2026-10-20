@@ -94,9 +94,11 @@ Page {
         }
     }
 
+    property int detectionRequestId: -1
+
     function refreshDetection() {
-        if (appController && appController.homepageCurrentDetection)
-            detectionOverview = appController.homepageCurrentDetection();
+        if (appController && appController.requestStats)
+            detectionRequestId = appController.requestStats("homepageCurrentDetection", []);
     }
 
     function openLatestImage(wheel) {
@@ -122,6 +124,11 @@ Page {
 
         function onCurrentBatchChanged() {
             root.refreshDetection();
+        }
+
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.detectionRequestId)
+                root.detectionOverview = result || ({});
         }
     }
 

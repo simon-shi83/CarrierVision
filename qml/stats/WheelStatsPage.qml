@@ -20,12 +20,17 @@ Page {
     property var detailRackPercents: []
     property int detailMaxCount: 1
 
+    property int detailRequestId: -1
+
     function openWheelRackDetail(wheelNumber, resultType) {
         detailWheel = wheelNumber
         detailResult = resultType
-        var rows = (appController && appController.wheelRackResultStats) 
-            ? (appController.wheelRackResultStats(gearBar.startDate, gearBar.endDate, wheelNumber, resultType) || []) 
-            : []
+        if (appController && appController.requestStats)
+            detailRequestId = appController.requestStats("wheelRackResultStats",
+                [gearBar.startDate, gearBar.endDate, wheelNumber, resultType])
+    }
+
+    function applyWheelRackDetail(rows) {
         var counts = []
         var percents = []
         var maximum = 1
@@ -46,6 +51,14 @@ Page {
         detailRackPercents = percents
         detailMaxCount = maximum
         wheelRackDetailDialog.open()
+    }
+
+    Connections {
+        target: appController
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.detailRequestId)
+                root.applyWheelRackDetail(result || [])
+        }
     }
 
     function triggerSearch() {

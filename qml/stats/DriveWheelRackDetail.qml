@@ -18,12 +18,16 @@ Page {
         return resultType.toUpperCase() === "OK" ? "OK" : "NG"
     }
 
-    function loadStatistics() {
-        if (!appController || !appController.wheelRackResultStats || wheelNumber <= 0)
-            return
+    property int statsRequestId: -1
 
-        var rows = appController.wheelRackResultStats(startDate, endDate,
-                                                      wheelNumber, normalizedResult()) || []
+    function loadStatistics() {
+        if (!appController || !appController.requestStats || wheelNumber <= 0)
+            return
+        statsRequestId = appController.requestStats("wheelRackResultStats",
+            [startDate, endDate, wheelNumber, normalizedResult()])
+    }
+
+    function applyStatistics(rows) {
         var filtered = []
         for (var i = 0; i < rows.length; ++i) {
             if (Number(rows[i].count) > 0)
@@ -48,6 +52,14 @@ Page {
     onWheelNumberChanged: loadStatistics()
     onResultTypeChanged: loadStatistics()
     Component.onCompleted: loadStatistics()
+
+    Connections {
+        target: appController
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.statsRequestId)
+                root.applyStatistics(result || [])
+        }
+    }
 
     Rectangle {
         anchors.fill: parent

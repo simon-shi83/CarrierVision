@@ -57,12 +57,11 @@ set(PROJECT_VERSION
     CACHE STRING "SemVer 兼容版本" FORCE
 )
 
-# 生成 version.h（供 C/C++ 代码中使用）
-if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../src/version.h.in")
-    configure_file(
-        ${CMAKE_CURRENT_LIST_DIR}/../src/version.h.in
-        ${CMAKE_CURRENT_LIST_DIR}/../src/version.h
-        @ONLY
-    )
-endif()
+# 生成 version.h（供 C/C++ 代码中使用）到构建目录，避免污染源码树
+set(CARRIERVISION_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+configure_file(
+    ${CMAKE_CURRENT_LIST_DIR}/../src/common/version.h.in
+    ${CARRIERVISION_GENERATED_DIR}/version.h
+    @ONLY
+)
 

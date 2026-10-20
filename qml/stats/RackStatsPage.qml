@@ -26,12 +26,20 @@ Page {
     property var detailLossRates: [0, 0, 0, 0, 0, 0, 0, 0]
     property real detailMaxValue: 1
 
+    property int statsRequestId: -1
+
     function loadStats(startDate, endDate) {
-        if (!appController) return
-        var stats = root.isWalkWheel 
-            ? (appController.walkingWheelRackStats ? appController.walkingWheelRackStats(startDate, endDate) : [])
-            : (appController.driveWheelRackStats ? appController.driveWheelRackStats(startDate, endDate) : [])
-        updateData(stats || [])
+        if (!appController || !appController.requestStats) return
+        statsRequestId = appController.requestStats(
+            root.isWalkWheel ? "walkingWheelRackStats" : "driveWheelRackStats", [startDate, endDate])
+    }
+
+    Connections {
+        target: appController
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.statsRequestId)
+                root.updateData(result || [])
+        }
     }
 
     function generateCsv() {

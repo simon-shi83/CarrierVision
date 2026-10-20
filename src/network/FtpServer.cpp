@@ -1,5 +1,5 @@
-#include "FtpServer.h"
-#include "AppLogger.h"
+#include "network/FtpServer.h"
+#include "common/AppLogger.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFileInfo>
@@ -783,6 +783,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
 // --- FtpServer ---
 FtpServer::FtpServer(QObject *parent)
     : QObject(parent)
+    , m_server(this) // 作为子对象随 FtpServer 一起 moveToThread
 {
     connect(&m_server, &QTcpServer::newConnection, this, &FtpServer::onNewConnection);
 }
@@ -869,7 +870,6 @@ void FtpServer::onNewConnection()
         // log client connect with session id and peer address when available
         const QString peer = sock->peerAddress().toString();
         const quint32 sid = static_cast<quint32>(reinterpret_cast<quintptr>(conn) & 0xffffffff);
-        conn->moveToThread(this->thread());
         conn->setProperty("sessionId", (qulonglong)sid);
         emit logMessage(ftpLogPrefix() + QStringLiteral("New connection: session=%1 peer=%2").arg(sid).arg(peer));
         LOG_DEBUG("FTP 客户端建立连接: session={} peer={}", sid, peer.toStdString());

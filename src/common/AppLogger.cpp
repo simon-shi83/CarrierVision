@@ -1,4 +1,4 @@
-#include "AppLogger.h"
+#include "common/AppLogger.h"
 
 #include <QCoreApplication>
 #include <QDateTime>

@@ -1,6 +1,6 @@
-#include "WeeklyReport.h"
-#include "DbSchema.h"
-#include "AppLogger.h"
+#include "data/WeeklyReport.h"
+#include "data/DbSchema.h"
+#include "common/AppLogger.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>

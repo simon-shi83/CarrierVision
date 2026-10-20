@@ -1214,6 +1214,7 @@ Item {
 
                     property string message: ""
                     property bool messageIsError: false
+                    property bool maintenanceSet: appController && appController.hasMaintenancePassword ? appController.hasMaintenancePassword() : false
 
                     ColumnLayout {
                         id: pwdCol
@@ -1384,6 +1385,58 @@ Item {
                                 font.pixelSize: Theme.fontBody
                                 font.weight: Theme.weightMedium
                                 elide: Text.ElideRight
+                            }
+                        }
+
+                        // 维护口令：忘记设置密码时，可在标题栏命令面板凭此口令重置设置密码
+                        RowLayout {
+                            spacing: 10
+                            Label {
+                                text: "维护口令:"
+                                color: Theme.textSecondary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.weightMedium
+                                Layout.preferredWidth: 80
+                            }
+                            TextField {
+                                id: maintenancePasswordField
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 32
+                                echoMode: TextInput.Password
+                                placeholderText: pwdCol.parent.maintenanceSet
+                                                 ? "已设置；输入新口令并填写上方当前密码可更换 (≥ 6 位)"
+                                                 : "未设置；用于忘记设置密码时授权重置 (≥ 6 位，需填写上方当前密码)"
+                                placeholderTextColor: Theme.textMuted
+                                color: Theme.textPrimary
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontBody
+                                background: Rectangle {
+                                    color: Theme.bgInput
+                                    radius: Theme.radiusSm
+                                    border.color: maintenancePasswordField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                }
+                            }
+                            ActionButton {
+                                text: "保存口令"
+                                variant: "secondary"
+                                Layout.preferredHeight: 32
+                                Layout.preferredWidth: 84
+                                enabled: currentPasswordField.text.length > 0 && maintenancePasswordField.text.length >= 6
+                                onClicked: {
+                                    if (!appController)
+                                        return;
+                                    if (appController.setMaintenancePassword(currentPasswordField.text, maintenancePasswordField.text)) {
+                                        pwdCol.parent.message = "维护口令已保存";
+                                        pwdCol.parent.messageIsError = false;
+                                        pwdCol.parent.maintenanceSet = true;
+                                        maintenancePasswordField.text = "";
+                                        currentPasswordField.text = "";
+                                    } else {
+                                        pwdCol.parent.message = "当前密码错误，或口令不足 6 位 / 与设置密码相同";
+                                        pwdCol.parent.messageIsError = true;
+                                    }
+                                }
                             }
                         }
                     }

@@ -1,6 +1,6 @@
-#include "ImageIngest.h"
-#include "AgcUtils.h"
-#include "AppLogger.h"
+#include "ingest/ImageIngest.h"
+#include "common/AgcUtils.h"
+#include "common/AppLogger.h"
 #include <QFileInfo>
 #include <QFile>
 #include <QSaveFile>

@@ -9,14 +9,14 @@
 #include <QQuickStyle>
 #include <QTimer>
 #include <QWindow>
-#include "WeeklyReport.h"
-#include "DbSchema.h"
-#include "AppLogger.h"
+#include "data/WeeklyReport.h"
+#include "data/DbSchema.h"
+#include "common/AppLogger.h"
 #include "version.h"
 #include <nlohmann/json.hpp>
 
-#include "AppController.h"
-#include "ImageItemObject.h"
+#include "app/AppController.h"
+#include "app/ImageItemObject.h"
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     // Ensure app exits when the last top-level window closes.
     app.setQuitOnLastWindowClosed(true);
     // set application icon from resources
-    app.setWindowIcon(QIcon("qrc:/icons/favicon.png"));
+    app.setWindowIcon(QIcon(QStringLiteral(":/qt/qml/CarrierVision/assets/icons/favicon.png")));
 
     // On Windows, set an explicit AppUserModelID so the taskbar groups and icon use our app identity
 #ifdef Q_OS_WIN
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
                 // 设置窗口标题
                 win->setTitle("AGC Ftp Viewer");
                 // 确保窗口使用应用图标（某些平台/环境需要在窗口级别显式设置）
-                win->setIcon(QIcon("qrc:/icons/favicon.png"));
+                win->setIcon(QIcon(QStringLiteral(":/qt/qml/CarrierVision/assets/icons/favicon.png")));
                 // 确保窗口可见并激活
                 win->show();
                 // 有时 Windows 会不在任务栏显示，使用最小化-还原技巧强制刷新任务栏图标

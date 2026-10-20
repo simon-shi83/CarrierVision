@@ -1,9 +1,10 @@
 #pragma once
 
-#include "BatchTypes.h"
-#include "ImageListModel.h"
-#include "FtpServer.h"
-#include "TcpDataReceiver.h"
+#include "app/BatchTypes.h"
+#include "app/ImageListModel.h"
+#include "network/FtpIngestService.h"
+#include "network/TcpDataReceiver.h"
+#include "ingest/IngestCoordinator.h"
 
 #include <QObject>
 #include <QHash>
@@ -13,12 +14,11 @@
 #include <QVector>
 #include <QMutex>
 #include <QTimer>
-#include <QDirIterator>
 #include <memory>
 #include <atomic>
 #include <QThreadPool>
+#include <QThread>
 #include <QFutureWatcher>
-#include <nlohmann/json.hpp>
 
 class AppController : public QObject
 {
@@ -73,7 +73,6 @@ public:
     ImageListModel *currentImagesModel();
     ImageListModel *searchImagesModel();
 
-    Q_INVOKABLE void search(const QString &startText, const QString &endText, const QString &serialKeyword, int rackNumber, const QString &wheelNo, const QString &resultFilter);
     Q_INVOKABLE void searchPaged(const QString &startText, const QString &endText, const QString &serialKeyword, int rackNumber, const QString &wheelNo, const QString &resultFilter, int page, int pageSize);
     Q_INVOKABLE void alertSearchPaged(const QString &startText, const QString &endText,
                                       int rackNumber, const QString &wheelNo,
@@ -93,7 +92,6 @@ public:
     Q_INVOKABLE int tcpPort() const;
     Q_INVOKABLE int tcpClientCount() const;
     Q_SLOT void onFtpImageStored(const QString &filePath);
-    Q_SLOT void onTcpBatchReceived(const QJsonObject &batchData);
     Q_INVOKABLE QString ftpUser() const;
     Q_INVOKABLE QString ftpRoot() const;
     Q_INVOKABLE int ftpPort() const;
@@ -110,6 +108,9 @@ public:
     Q_INVOKABLE QVariantList slotMapping() const;
     Q_INVOKABLE void setSlotMapping(int sourceOneBased, int targetValue);
     Q_INVOKABLE QVariantList rackWheelDistances(int rackNumber) const;
+    // 异步统计：kind 为下方同步统计函数名，args 与其参数顺序一致；结果经 statsReady 返回。
+    // 页面应优先使用该接口，同步版本仅为兼容保留，会阻塞界面线程。
+    Q_INVOKABLE int requestStats(const QString &kind, const QVariantList &args = {});
     Q_INVOKABLE QVariantList driveWheelRackStats(const QString &startDate, const QString &endDate);
     Q_INVOKABLE QVariantList walkingWheelRackStats(const QString &startDate, const QString &endDate);
     Q_INVOKABLE QVariantList rackWheelMonitorStatus() const;
@@ -141,6 +142,10 @@ public:
     Q_INVOKABLE bool changeSettingsPassword(const QString &currentPassword,
                                             const QString &newPassword);
     Q_INVOKABLE bool resetSettingsPassword();
+    // 命令面板等未授权入口使用：需当前设置密码或维护口令
+    Q_INVOKABLE bool resetSettingsPasswordAuthorized(const QString &password);
+    Q_INVOKABLE bool hasMaintenancePassword() const;
+    Q_INVOKABLE bool setMaintenancePassword(const QString &currentSettingsPassword, const QString &newPassword);
     Q_INVOKABLE void activateEnglishInputMethod();
     Q_INVOKABLE QString ftpLog() const;
     Q_INVOKABLE QVariantList ftpLogLines() const;
@@ -169,6 +174,7 @@ public:
 
 signals:
     void logQueryFinished(int requestId, const QVariantMap &result);
+    void statsReady(int requestId, const QString &kind, const QVariant &result);
     void latestWarnOrErrorChanged();
     void sourceDirectoryChanged();
     void archiveDirectoryChanged();
@@ -191,45 +197,26 @@ signals:
 
 private:
     void startLogQuery();
-    void recoverPendingUploads();
+    int currentRackHint() const;
     void loadSettings();
     void ensureDirectories();
-    void loadArchiveIndex();
-    void saveArchiveIndex() const;
     void loadFtpSettingsFromFile();
     bool saveFtpSettingsToFile();
     bool applyFtpConfiguration(const QString &root, int port);
-    void loadSlotMappingFromJson(const nlohmann::json &obj);
-    void saveSlotMappingToJson(nlohmann::json &obj) const;
-    QString archiveIndexPath() const;
-    QVector<ImageItem> buildImageItems(const BatchRecord &record) const;
-    void upsertRecord(const BatchRecord &record);
+    bool ftpListen(int port, const QString &root);
+    void ftpStop();
+    void ftpPushUsers();
+    void ftpPushRoot();
     void setStatusMessage(const QString &message);
     void scheduleCleanup();
-    void closeoutPreviousSession(const QString &newRackNumber);
-    void checkSessionTimeout();
-    void prunePendingImages();
+    void finishCleanup(bool removeOk, bool more, const QString &error, int logKeepDays);
     bool processTcpBatch(const QJsonObject &batchData, QString &error);
-
-    struct RackSession {
-        QString rack;
-        QString batchId;
-        int roundNumber = 0;
-        QSet<int> receivedSlots;
-        QDateTime startedAt;
-        bool completed = false;
-    };
-
-    struct PendingImage {
-        QString filePath;
-        QDateTime receivedAt;
-    };
 
     QString m_sourceDirectory;
     QString m_archiveDirectory;
     QString m_statusMessage;
 
-    QString m_currentBatchId;
+    int m_currentCarrierId = 0;
     QString m_currentSerialsRaw;
     QString m_currentReceivedAtText;
     int m_currentRoundNumber = 0;
@@ -250,7 +237,11 @@ private:
 
     QVector<int> m_slotMapping;
 
-    FtpServer m_ftpServer;
+    // FTP 服务运行在 m_ftpThread 中，只能经 invokeMethod 访问；运行状态在主线程缓存
+    QThread m_ftpThread;
+    FtpIngestService *m_ftpService = nullptr;
+    bool m_ftpRunning = false;
+    int m_ftpClientCount = 0;
     TcpDataReceiver m_tcpReceiver;
     int m_tcpPort = 9000;
 
@@ -258,27 +249,23 @@ private:
     QVariantList m_ftpLogLines;
     QString m_ftpLogPath;
 
-    QList<BatchRecord> m_records;
     ImageListModel m_currentImagesModel;
     ImageListModel m_searchImagesModel;
-    QHash<QString, PendingImage> m_pendingImages;
-    // CopyWorker removed; file-moving/archiving handled by FtpServer and archive logic
+    IngestCoordinator::PendingImageCache m_pendingImages;
     QVariantList m_gearSumResult;
-    QHash<QString, int> m_lastTotalByRack;
     mutable QMutex m_dbMutex;
     QThreadPool m_logPool;
     QThreadPool m_searchPool;
+    QThreadPool m_statsPool;
+    int m_statsRequestSeq = 0;
+    QThreadPool m_maintenancePool;
+    bool m_cleanupRunning = false;
     QFutureWatcher<QVariantMap> m_logWatcher;
     QVariantList m_logRequest;
     int m_logGeneration = 0;
     int m_activeLogRequest = 0;
     bool m_logBusy = false;
     QTimer m_cleanupTimer;
-    QTimer m_ingestRetryTimer;
-    std::unique_ptr<QDirIterator> m_pendingScan;
-    QHash<QString, RackSession> m_activeRackSessions;
-    QString m_currentSessionRack;
-    QTimer m_safetyTimeoutTimer;
     QTimer m_ftpLogThrottleTimer;
     std::atomic<int> m_searchGeneration{0};
     std::atomic<int> m_alertSearchGeneration{0};

@@ -1,8 +1,8 @@
-#include "ImageListModel.h"
-#include "AppLogger.h"
+#include "app/ImageListModel.h"
+#include "common/AppLogger.h"
 
-#include "AgcUtils.h"
-#include "ImageItemObject.h"
+#include "common/AgcUtils.h"
+#include "app/ImageItemObject.h"
 
 #include <QFileInfo>
 #include <QUrl>

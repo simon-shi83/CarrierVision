@@ -8,13 +8,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include "DbSchema.h"
-#include "AgcUtils.h"
-#include "ImageIngest.h"
-#include "ArchiveMaintenance.h"
-#include "FtpServer.h"
-#include "TcpDataReceiver.h"
-#include "AppLogger.h"
+#include "data/DbSchema.h"
+#include "common/AgcUtils.h"
+#include "ingest/ImageIngest.h"
+#include "data/ArchiveMaintenance.h"
+#include "network/FtpServer.h"
+#include "network/FtpIngestService.h"
+#include "network/TcpDataReceiver.h"
+#include "common/AppLogger.h"
 
 class ReleaseBoundaryTests : public QObject {
     Q_OBJECT
@@ -261,6 +262,68 @@ private slots:
         QVERIFY2(reply(client).startsWith("226"),qPrintable(error)); QVERIFY(QFile::exists(imageName(dir.path())));
         server.setUsers({}); QTRY_COMPARE(server.clientCount(),0);
         server.stop();
+    }
+    void ftpIngestServiceUploadsAndRecoversOnWorkerThread() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        // 上次异常退出遗留的恢复标记：图片已完整落盘，恢复扫描应补发入库通知并清除标记
+        const QString recovered = dir.filePath("recovered.png");
+        QVERIFY(makeImage(recovered));
+        QFile marker(recovered + ".cv-pending");
+        QVERIFY(marker.open(QIODevice::WriteOnly)); marker.write("x"); marker.close();
+
+        QThread thread;
+        auto *service = new FtpIngestService;
+        service->moveToThread(&thread);
+        connect(&thread, &QThread::finished, service, &QObject::deleteLater);
+        QStringList stored, failures;
+        std::atomic<QThread *> emitThread{nullptr};
+        connect(service, &FtpIngestService::imageStored, service,
+                [&emitThread](const QString &) { emitThread = QThread::currentThread(); }, Qt::DirectConnection);
+        connect(service, &FtpIngestService::imageStored, this,
+                [&stored](const QString &path) { stored << QFileInfo(path).fileName(); });
+        connect(service, &FtpIngestService::ingestFailed, this,
+                [&failures](const QString &error) { failures << error; });
+        thread.start();
+
+        quint16 port = 0;
+        const QString root = dir.path();
+        QMetaObject::invokeMethod(service, [service, root, &port]() {
+            service->setRoot(root);
+            if (service->start(0, root, {{"u", "p"}}, false, QHostAddress::LocalHost)) port = service->port();
+        }, Qt::BlockingQueuedConnection);
+        QVERIFY(port);
+
+        QTRY_VERIFY(stored.contains("recovered.png"));
+        QVERIFY(!QFile::exists(recovered + ".cv-pending"));
+
+        QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, port);
+        QVERIFY(reply(client).startsWith("220"));
+        QVERIFY(command(client, "USER u").startsWith("331"));
+        QVERIFY(command(client, "PASS p").startsWith("230"));
+        auto upload = [&](const QByteArray &name, const QByteArray &bytes) {
+            const QString epsv = command(client, "EPSV");
+            QTcpSocket data; data.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
+            if (!data.waitForConnected(3000)) return QString();
+            const QString started = command(client, "STOR " + name);
+            if (!started.startsWith("150")) return started;
+            data.write(bytes); data.flush(); data.disconnectFromHost();
+            return reply(client);
+        };
+        QImage image(8, 8, QImage::Format_RGB32); image.fill(Qt::red);
+        QByteArray png; QBuffer buffer(&png); QVERIFY(buffer.open(QIODevice::WriteOnly)); QVERIFY(image.save(&buffer, "PNG"));
+
+        QVERIFY(upload("upload-sample.png", png).startsWith("226"));
+        QTRY_VERIFY(stored.contains("upload-sample.png"));
+        QVERIFY(!QFile::exists(imageName(root) + ".cv-pending"));
+        QCOMPARE(emitThread.load(), &thread);
+
+        QVERIFY(!upload("broken.png", "not an image").startsWith("226"));
+        QTRY_VERIFY(!failures.isEmpty());
+        QVERIFY(!stored.contains("broken.png"));
+
+        QMetaObject::invokeMethod(service, [service]() { service->shutdown(); }, Qt::BlockingQueuedConnection);
+        thread.quit();
+        QVERIFY(thread.wait(5000));
     }
     void databaseDefaultsAndHelpers() {
         QCOMPARE(DBSchema::getConfig(db, "ftp/rootDirectory", ""), QString("images"));

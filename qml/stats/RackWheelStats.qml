@@ -30,12 +30,17 @@ Page {
         return wheel;
     }
 
-    function loadStatistics() {
-        if (!appController || !appController.rackWheelResultStats || rackNumber <= 0)
-            return
+    property int statsRequestId: -1
 
-        wheelRows = appController.rackWheelResultStats(startDate, endDate, rackNumber,
-                                                        normalizedResult(), wheelType) || []
+    function loadStatistics() {
+        if (!appController || !appController.requestStats || rackNumber <= 0)
+            return
+        statsRequestId = appController.requestStats("rackWheelResultStats",
+            [startDate, endDate, rackNumber, normalizedResult(), wheelType])
+    }
+
+    function applyStatistics(rows) {
+        wheelRows = rows
         selectedWheel = wheelRows.length > 0 ? Number(wheelRows[0].wheel) : 0
         loadSelectedImages()
     }
@@ -53,6 +58,14 @@ Page {
     onResultTypeChanged: loadStatistics()
     onWheelTypeChanged: loadStatistics()
     Component.onCompleted: loadStatistics()
+
+    Connections {
+        target: appController
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.statsRequestId)
+                root.applyStatistics(result || [])
+        }
+    }
 
     Rectangle {
         anchors.fill: parent

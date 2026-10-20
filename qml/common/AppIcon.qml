@@ -16,7 +16,7 @@ Item {
         if (!name || name.length === 0) return ""
         if (name.indexOf("/") !== -1 || name.indexOf(":") !== -1)
             return name
-        return "qrc:/qt/qml/CarrierVision/icons/" + name + ".svg"
+        return "qrc:/qt/qml/CarrierVision/assets/icons/" + name + ".svg"
     }
 
     Image {

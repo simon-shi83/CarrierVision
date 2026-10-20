@@ -248,28 +248,28 @@ Qml2Imports = qml
 
     # 5. 安装便携启动脚本 CarrierVision.sh 与桌面快捷方式
     if source_dir:
-        src_scripts = Path(source_dir) / "scripts"
-        sh_script = src_scripts / "CarrierVision.sh"
+        src_packaging = Path(source_dir) / "packaging"
+        sh_script = src_packaging / "linux" / "CarrierVision.sh"
         if sh_script.exists():
             dst_sh = install_path / "CarrierVision.sh"
             shutil.copy2(sh_script, dst_sh)
             os.chmod(dst_sh, 0o755)
             print(f"[OK] 已部署便携启动脚本: {dst_sh}")
 
-        desktop_file = src_scripts / "CarrierVision.desktop"
+        desktop_file = src_packaging / "linux" / "CarrierVision.desktop"
         if desktop_file.exists():
             dst_desktop = install_path / "CarrierVision.desktop"
             shutil.copy2(desktop_file, dst_desktop)
             os.chmod(dst_desktop, 0o755)
             print(f"[OK] 已部署桌面快捷方式: {dst_desktop}")
 
-        readme_file = src_scripts / "README.txt"
+        readme_file = src_packaging / "README.txt"
         if readme_file.exists():
             dst_readme = install_path / "README.txt"
             shutil.copy2(readme_file, dst_readme)
             print(f"[OK] 已部署使用说明: {dst_readme}")
 
-        src_icon = Path(source_dir) / "icons" / "logo_agc.svg"
+        src_icon = Path(source_dir) / "assets" / "icons" / "logo_agc.svg"
         if src_icon.exists():
             dst_icon = install_path / "CarrierVision.svg"
             shutil.copy2(src_icon, dst_icon)

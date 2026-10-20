@@ -48,6 +48,9 @@ Rectangle {
 
     // ===== 信号 =====
     signal exit
+    signal resetPasswordRequested()
+    // 需验证设置密码后才执行的维护命令（命令面板无需登录即可打开）
+    signal protectedCommandRequested(string cmdId, string title)
     signal navigateRequested(int index, var subAction)
     signal searchRequested(string startDate, string endDate, int wheelNumber, string resultType)
 
@@ -114,7 +117,7 @@ Rectangle {
                 Layout.preferredHeight: 32
                 Layout.preferredWidth: 93
                 Layout.alignment: Qt.AlignVCenter
-                source: "qrc:/qt/qml/CarrierVision/icons/logo_agc.svg"
+                source: "qrc:/qt/qml/CarrierVision/assets/icons/logo_agc.svg"
                 fillMode: Image.PreserveAspectFit
                 sourceSize.width: 186
                 sourceSize.height: 64
@@ -709,7 +712,7 @@ Rectangle {
                             {
                                 cmdId: "act_cleanup",
                                 title: "立即执行超期历史数据清理",
-                                subtitle: "依据系统配置天数，即时扫描并删除超期图像与旧日志",
+                                subtitle: "需验证设置密码；依据系统配置天数，即时删除超期图像与旧日志",
                                 category: "系统维护",
                                 icon: "nav_alert",
                                 defaultOrder: 30
@@ -717,7 +720,7 @@ Rectangle {
                             {
                                 cmdId: "act_reset_mapping",
                                 title: "恢复工位相机通道映射为默认 (1:1)",
-                                subtitle: "重置 12 组工业相机通道至标准槽位 1:1 对应关系",
+                                subtitle: "需验证设置密码；重置 12 组工业相机通道至标准槽位 1:1 对应关系",
                                 category: "工程配置",
                                 icon: "icon_camera",
                                 defaultOrder: 31
@@ -725,7 +728,7 @@ Rectangle {
                             {
                                 cmdId: "act_reset_pwd",
                                 title: "重置安全管理密码为默认 (123456)",
-                                subtitle: "恢复进入高级参数设置的出厂默认密码",
+                                subtitle: "需验证当前设置密码或维护口令，恢复为出厂默认密码",
                                 category: "安全管理",
                                 icon: "icon_lock",
                                 defaultOrder: 32
@@ -869,18 +872,11 @@ Rectangle {
                             if (typeof appController !== "undefined" && appController && appController.openFtpRootDirectory) {
                                 appController.openFtpRootDirectory();
                             }
-                        } else if (item.cmdId === "act_cleanup") {
-                            if (typeof appController !== "undefined" && appController && appController.triggerCleanup) {
-                                appController.triggerCleanup();
-                            }
-                        } else if (item.cmdId === "act_reset_mapping") {
-                            if (typeof appController !== "undefined" && appController && appController.resetSlotMapping) {
-                                appController.resetSlotMapping();
-                            }
+                        } else if (item.cmdId === "act_cleanup" || item.cmdId === "act_reset_mapping") {
+                            root.protectedCommandRequested(item.cmdId, item.title);
                         } else if (item.cmdId === "act_reset_pwd") {
-                            if (typeof appController !== "undefined" && appController && appController.resetSettingsPassword) {
-                                appController.resetSettingsPassword();
-                            }
+                            // 命令面板无需登录即可打开，重置前须由主窗口弹窗验证口令
+                            root.resetPasswordRequested();
                         } else if (item.cmdId === "act_exit") {
                             root.exit();
                         } else if (item.cmdId === "query_wheel") {

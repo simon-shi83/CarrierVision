@@ -1,5 +1,5 @@
-#include "TcpDataReceiver.h"
-#include "AppLogger.h"
+#include "network/TcpDataReceiver.h"
+#include "common/AppLogger.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>

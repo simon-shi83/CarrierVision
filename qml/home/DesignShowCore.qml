@@ -445,7 +445,7 @@ Page {
 
                             RuntimeLoader {
                                 id: homeModel
-                                source: "qrc:/qt/qml/CarrierVision/icons/Assembly.glb"
+                                source: "qrc:/qt/qml/CarrierVision/assets/models/Assembly.glb"
 
                                 function fitToView() {
                                     var minimum = bounds.minimum

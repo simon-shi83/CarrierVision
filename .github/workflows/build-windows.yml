@@ -41,13 +41,20 @@ jobs:
           cmake -B build -G "Ninja" `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_PREFIX_PATH="$qtRoot" `
-            -DBUILD_TESTING=OFF `
+            -DBUILD_TESTING=ON `
             -DENABLE_WINDEPLOYQT=OFF
 
       - name: Build Project
         shell: pwsh
         run: |
           cmake --build build --config Release --parallel
+
+      - name: Run Tests
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir build --build-config Release --output-on-failure
 
       - name: Deploy Windows Package
         shell: pwsh

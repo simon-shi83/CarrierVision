@@ -162,3 +162,34 @@ ctest --test-dir build/Debug --output-on-failure
 # 启动系统
 ./build/Debug/bin/CarrierVision
 ```
+
+---
+
+## 目录结构
+
+```text
+CarrierVision/
+├── CMakeLists.txt
+├── cmake/               版本号计算（version.cmake），生成 version.h 到构建目录
+├── src/
+│   ├── main.cpp         程序入口、单实例保护、主数据库初始化
+│   ├── app/             AppController（QML 门面）、图像列表模型、批次类型
+│   ├── network/         内置 FTP 服务（独立线程）、TCP 数据接收
+│   ├── ingest/          图像校验提交、TCP 批次解析入库、FTP/TCP 关联
+│   ├── data/            表结构、统计/搜索查询、持久化配置、归档清理、周报
+│   └── common/          通用工具、日志、version.h.in
+├── qml/                 界面（按功能页分子目录，common/ 为公共组件）
+├── assets/
+│   ├── icons/           SVG 图标与程序图标，编译进程序资源
+│   └── models/          首页 3D 装配体模型
+├── packaging/           随安装包分发的文件
+│   ├── README.txt       发布说明
+│   ├── linux/           启动脚本、桌面快捷方式
+│   └── windows/         exe 图标资源、环境变量注册脚本
+├── scripts/             安装时调用的依赖部署脚本（Linux / Windows）
+├── tests/               QtTest 单元测试与集成测试
+├── third_party/         仅头文件的第三方库（版本见其中 README.md）
+└── docs/                发布记录、优化方案
+```
+
+源码以 `src/` 为头文件根目录，包含时写子目录路径，例如 `#include "data/DbSchema.h"`。

@@ -57,47 +57,60 @@ qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(CarrierVision
     src/main.cpp
-    src/AppController.cpp
-    src/AppController.h
-    src/TcpDataReceiver.cpp
-    src/TcpDataReceiver.h
-    src/FtpServer.cpp
-    src/FtpServer.h
-    src/ImageListModel.cpp
-    src/ImageListModel.h
-    src/ImageItemObject.cpp
-    src/ImageItemObject.h
-    src/BatchTypes.h
-    src/WeeklyReport.cpp
-    src/WeeklyReport.h
-    src/ArchiveMaintenance.cpp
-    src/ArchiveMaintenance.h
-    src/ImageIngest.cpp
-    src/ImageIngest.h
-    src/DbSchema.cpp
-    src/DbSchema.h
-    src/AgcUtils.cpp
-    src/AgcUtils.h
-    src/AppLogger.cpp
-    src/AppLogger.h
+    src/app/AppController.cpp
+    src/app/AppController.h
+    src/network/TcpDataReceiver.cpp
+    src/network/TcpDataReceiver.h
+    src/network/FtpServer.cpp
+    src/network/FtpServer.h
+    src/network/FtpIngestService.cpp
+    src/network/FtpIngestService.h
+    src/app/ImageListModel.cpp
+    src/app/ImageListModel.h
+    src/app/ImageItemObject.cpp
+    src/app/ImageItemObject.h
+    src/app/BatchTypes.h
+    src/data/WeeklyReport.cpp
+    src/data/WeeklyReport.h
+    src/data/ArchiveMaintenance.cpp
+    src/data/ArchiveMaintenance.h
+    src/ingest/ImageIngest.cpp
+    src/ingest/ImageIngest.h
+    src/data/DbSchema.cpp
+    src/data/DbSchema.h
+    src/data/StatsService.cpp
+    src/data/StatsService.h
+    src/data/SearchService.cpp
+    src/data/SearchService.h
+    src/data/SettingsStore.cpp
+    src/data/SettingsStore.h
+    src/ingest/IngestCoordinator.cpp
+    src/ingest/IngestCoordinator.h
+    src/common/AgcUtils.cpp
+    src/common/AgcUtils.h
+    src/common/AppLogger.cpp
+    src/common/AppLogger.h
 )
 
 if(WIN32)
     # If a Windows .rc resource file exists (to embed .ico), add it to the target sources
-    set(ICON_RC ${CMAKE_SOURCE_DIR}/resources/app_icon.rc)
+    set(ICON_RC ${CMAKE_SOURCE_DIR}/packaging/windows/app_icon.rc)
     if(EXISTS ${ICON_RC})
         message(STATUS "Found app_icon.rc, adding to CarrierVision sources for embedding exe icon")
         target_sources(CarrierVision PRIVATE ${ICON_RC})
     else()
-        message(STATUS "No app_icon.rc found; exe will not have embedded icon. To embed, add resources/app_icon.rc and icons/app_icon.ico")
+        message(STATUS "No app_icon.rc found; exe will not have embedded icon. To embed, add packaging/windows/app_icon.rc and assets/icons/favicon.ico")
     endif()
 endif()
 
-# ftpserver is built into the main CarrierVision executable (no separate ftpserver_qt target)
+# 第三方仅头文件库（版本见 third_party/README.md），作为 SYSTEM 目录避免其告警混入项目告警
+set(CARRIERVISION_THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 
 target_include_directories(CarrierVision PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CARRIERVISION_GENERATED_DIR}"   # version.h，由 cmake/version.cmake 生成
 )
+target_include_directories(CarrierVision SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
 
 set_source_files_properties(qml/Theme.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
@@ -127,6 +140,7 @@ qt_add_qml_module(CarrierVision
         qml/common/PageBar.qml
         qml/common/QueryConditionBar.qml
         qml/common/ImageGridView.qml
+        qml/common/PasswordConfirmDialog.qml
 
         # 首页与3D数字孪生视窗
         qml/home/HomeWorkspace.qml
@@ -167,35 +181,35 @@ qt_add_qml_module(CarrierVision
 
 
     RESOURCES
-        resources/icons.qrc
-        icons/Assembly.glb
-        icons/logo_agc.svg
-        icons/nav_home.svg
-        icons/nav_batch.svg
-        icons/nav_monitor.svg
-        icons/nav_search.svg
-        icons/nav_stats.svg
-        icons/nav_report.svg
-        icons/nav_alert.svg
-        icons/nav_log.svg
-        icons/nav_settings.svg
-        icons/icon_sun.svg
-        icons/icon_moon.svg
-        icons/icon_lock.svg
-        icons/icon_win_min.svg
-        icons/icon_win_max.svg
-        icons/icon_win_restore.svg
-        icons/icon_close.svg
-        icons/icon_calendar.svg
-        icons/icon_eye.svg
-        icons/icon_3d.svg
-        icons/icon_chart_bar.svg
-        icons/icon_chart_line.svg
-        icons/icon_file_text.svg
-        icons/icon_camera.svg
-        icons/icon_check_circle.svg
-        icons/icon_user.svg
-        icons/icon_arrow_down.svg
+        assets/models/Assembly.glb
+        assets/icons/favicon.png
+        assets/icons/logo_agc.svg
+        assets/icons/nav_home.svg
+        assets/icons/nav_batch.svg
+        assets/icons/nav_monitor.svg
+        assets/icons/nav_search.svg
+        assets/icons/nav_stats.svg
+        assets/icons/nav_report.svg
+        assets/icons/nav_alert.svg
+        assets/icons/nav_log.svg
+        assets/icons/nav_settings.svg
+        assets/icons/icon_sun.svg
+        assets/icons/icon_moon.svg
+        assets/icons/icon_lock.svg
+        assets/icons/icon_win_min.svg
+        assets/icons/icon_win_max.svg
+        assets/icons/icon_win_restore.svg
+        assets/icons/icon_close.svg
+        assets/icons/icon_calendar.svg
+        assets/icons/icon_eye.svg
+        assets/icons/icon_3d.svg
+        assets/icons/icon_chart_bar.svg
+        assets/icons/icon_chart_line.svg
+        assets/icons/icon_file_text.svg
+        assets/icons/icon_camera.svg
+        assets/icons/icon_check_circle.svg
+        assets/icons/icon_user.svg
+        assets/icons/icon_arrow_down.svg
 )
 
 target_link_libraries(CarrierVision PRIVATE
@@ -237,17 +251,17 @@ if(WIN32)
         RUNTIME DESTINATION .
     )
 
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/README.txt" DESTINATION .)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/README.txt")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/README.txt" DESTINATION .)
     endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_agc.svg" DESTINATION . RENAME CarrierVision.svg)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/logo_agc.svg")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/logo_agc.svg" DESTINATION . RENAME CarrierVision.svg)
     endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/register_env.bat")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/register_env.bat" DESTINATION .)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/register_env.bat")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/register_env.bat" DESTINATION .)
     endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unregister_env.bat")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unregister_env.bat" DESTINATION .)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/unregister_env.bat")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/unregister_env.bat" DESTINATION .)
     endif()
 else()
     install(TARGETS CarrierVision
@@ -308,11 +322,6 @@ if(UNIX AND NOT APPLE AND ENABLE_LINUX_DEPLOY)
     ")
 endif()
 
-# If a legacy standalone ftpserver_qt target exists in the build tree, exclude it
-# from default builds and prevent installation (FTP is embedded into CarrierVision).
-if(TARGET ftpserver_qt)
-    set_target_properties(ftpserver_qt PROPERTIES EXCLUDE_FROM_ALL TRUE EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-endif()
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(CarrierVision)
 endif()
@@ -337,18 +346,27 @@ include(CPack)
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionBoundaryTests
         tests/CoreBoundaryTests.cpp
-        src/ImageListModel.cpp
-        src/ImageListModel.h
-        src/ImageItemObject.cpp
-        src/ImageItemObject.h
-        src/AgcUtils.cpp
-        src/AgcUtils.h
-        src/DbSchema.cpp
-        src/DbSchema.h
-        src/AppLogger.cpp
-        src/AppLogger.h
+        src/data/StatsService.cpp
+        src/data/StatsService.h
+        src/data/SearchService.cpp
+        src/data/SearchService.h
+        src/data/SettingsStore.cpp
+        src/data/SettingsStore.h
+        src/ingest/IngestCoordinator.cpp
+        src/ingest/IngestCoordinator.h
+        src/app/ImageListModel.cpp
+        src/app/ImageListModel.h
+        src/app/ImageItemObject.cpp
+        src/app/ImageItemObject.h
+        src/common/AgcUtils.cpp
+        src/common/AgcUtils.h
+        src/data/DbSchema.cpp
+        src/data/DbSchema.h
+        src/common/AppLogger.cpp
+        src/common/AppLogger.h
     )
     target_include_directories(CarrierVisionBoundaryTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_include_directories(CarrierVisionBoundaryTests SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
     target_link_libraries(CarrierVisionBoundaryTests PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
     add_test(NAME CarrierVisionBoundaryTests COMMAND CarrierVisionBoundaryTests)
 endif()
@@ -356,14 +374,16 @@ endif()
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionReleaseTests
         tests/ReleaseBoundaryTests.cpp
-        src/TcpDataReceiver.cpp src/TcpDataReceiver.h
-        src/ImageIngest.cpp src/ImageIngest.h
-        src/ArchiveMaintenance.cpp src/ArchiveMaintenance.h
-        src/FtpServer.cpp src/FtpServer.h
-        src/DbSchema.cpp src/DbSchema.h
-        src/AgcUtils.cpp src/AgcUtils.h
-        src/AppLogger.cpp src/AppLogger.h)
+        src/network/TcpDataReceiver.cpp src/network/TcpDataReceiver.h
+        src/ingest/ImageIngest.cpp src/ingest/ImageIngest.h
+        src/data/ArchiveMaintenance.cpp src/data/ArchiveMaintenance.h
+        src/network/FtpServer.cpp src/network/FtpServer.h
+        src/network/FtpIngestService.cpp src/network/FtpIngestService.h
+        src/data/DbSchema.cpp src/data/DbSchema.h
+        src/common/AgcUtils.cpp src/common/AgcUtils.h
+        src/common/AppLogger.cpp src/common/AppLogger.h)
     target_include_directories(CarrierVisionReleaseTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_include_directories(CarrierVisionReleaseTests SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
     target_link_libraries(CarrierVisionReleaseTests PRIVATE Qt6::Gui Qt6::Network Qt6::Sql Qt6::Test)
     add_test(NAME CarrierVisionReleaseTests COMMAND CarrierVisionReleaseTests)
     set_tests_properties(CarrierVisionReleaseTests PROPERTIES TIMEOUT 60)
@@ -371,4 +391,12 @@ endif()
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionQmlSmoke tests/QmlDeploymentSmoke.cpp)
     target_link_libraries(CarrierVisionQmlSmoke PRIVATE Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+    # 构建树内使用 Qt 自带 QML 目录验证导入；打包后的验证仍由部署流程传入安装目录
+    add_test(NAME CarrierVisionQmlSmoke
+             COMMAND CarrierVisionQmlSmoke "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_QML}")
+endif()
+
+if(BUILD_TESTING)
+    set_tests_properties(CarrierVisionBoundaryTests CarrierVisionReleaseTests CarrierVisionQmlSmoke
+                         PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()

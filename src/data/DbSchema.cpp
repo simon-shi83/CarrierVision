@@ -1,6 +1,6 @@
-#include "DbSchema.h"
-#include "AgcUtils.h"
-#include "AppLogger.h"
+#include "data/DbSchema.h"
+#include "common/AgcUtils.h"
+#include "common/AppLogger.h"
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QCoreApplication>

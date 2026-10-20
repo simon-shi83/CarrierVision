@@ -21,14 +21,19 @@ Page {
     property int maxRackNg: 1
     property int maxWheelNg: 1
 
-    function loadRackStatistics() {
-        if (!appController)
-            return
+    property int rackRequestId: -1
+    property int wheelRequestId: -1
 
-        var stats = root.isWalkWheel
-            ? (appController.walkingWheelRackStats ? appController.walkingWheelRackStats(dateBar.startDate, dateBar.endDate) : [])
-            : (appController.driveWheelRackStats ? appController.driveWheelRackStats(dateBar.startDate, dateBar.endDate) : [])
-        stats = stats || []
+    function loadRackStatistics() {
+        if (!appController || !appController.requestStats)
+            return
+        wheelRequestId = -1
+        rackRequestId = appController.requestStats(
+            root.isWalkWheel ? "walkingWheelRackStats" : "driveWheelRackStats",
+            [dateBar.startDate, dateBar.endDate])
+    }
+
+    function applyRackStatistics(stats) {
         var rows = []
         var maxVal = 1
         for (var i = 0; i < stats.length; ++i) {
@@ -54,11 +59,13 @@ Page {
         selectedRack = rack
         selectedWheel = 0
         wheelRows = []
-        if (!appController || !appController.rackWheelResultStats)
+        if (!appController || !appController.requestStats)
             return
+        wheelRequestId = appController.requestStats("rackWheelResultStats",
+            [dateBar.startDate, dateBar.endDate, rack, "NG", root.wheelTypeIndex])
+    }
 
-        var stats = appController.rackWheelResultStats(dateBar.startDate, dateBar.endDate,
-                                                        rack, "NG", root.wheelTypeIndex) || []
+    function applyWheelStatistics(stats) {
         var rows = []
         var maxVal = 1
         for (var i = 0; i < stats.length; ++i) {
@@ -75,6 +82,16 @@ Page {
             loadImages(rows[0].wheel)
         else if (appController.clearSearch)
             appController.clearSearch()
+    }
+
+    Connections {
+        target: appController
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.rackRequestId)
+                root.applyRackStatistics(result || [])
+            else if (requestId === root.wheelRequestId)
+                root.applyWheelStatistics(result || [])
+        }
     }
 
     function loadImages(wheel) {

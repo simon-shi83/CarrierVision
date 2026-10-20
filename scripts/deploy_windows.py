@@ -176,13 +176,13 @@ start "" "%APP_DIR%CarrierVision.exe" %*
     print(f"[Windows Deploy] Generated portable startup batch script: {bat_path}")
 
     # 4.5 复制环境变量注册与注销批处理脚本
-    reg_src = source_path / "scripts" / "register_env.bat"
+    reg_src = source_path / "packaging" / "windows" / "register_env.bat"
     reg_dst = install_path / "register_env.bat"
     if reg_src.is_file() and not reg_dst.is_file():
         shutil.copy2(reg_src, reg_dst)
         print(f"[Windows Deploy] Copied {reg_src.name} to package root.")
 
-    unreg_src = source_path / "scripts" / "unregister_env.bat"
+    unreg_src = source_path / "packaging" / "windows" / "unregister_env.bat"
     unreg_dst = install_path / "unregister_env.bat"
     if unreg_src.is_file() and not unreg_dst.is_file():
         shutil.copy2(unreg_src, unreg_dst)
@@ -197,14 +197,14 @@ start "" "%APP_DIR%CarrierVision.exe" %*
         except Exception as e:
             print(f"[Windows Deploy] Warning removing {legacy_logo}: {e}")
 
-    readme_src = source_path / "scripts" / "README.txt"
+    readme_src = source_path / "packaging" / "README.txt"
     readme_dst = install_path / "README.txt"
     if readme_src.is_file() and not readme_dst.is_file():
         shutil.copy2(readme_src, readme_dst)
 
     icon_dst = install_path / "CarrierVision.svg"
     if not icon_dst.is_file():
-        icon_src = source_path / "icons" / "logo_agc.svg"
+        icon_src = source_path / "assets" / "icons" / "logo_agc.svg"
         if icon_src.is_file():
             shutil.copy2(icon_src, icon_dst)
 

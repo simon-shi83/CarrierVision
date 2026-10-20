@@ -17,24 +17,31 @@ Item {
         return rack + ":" + wheel
     }
 
-    function refreshStatus() {
-        if (!appController || !appController.rackWheelMonitorStatus)
-            return
+    property int statusRequestId: -1
+    property int photoCountRequestId: -1
 
-        var latest = appController.rackWheelMonitorStatus()
+    function refreshStatus() {
+        if (!appController || !appController.requestStats)
+            return
+        statusRequestId = appController.requestStats("rackWheelMonitorStatus", [])
+        photoCountRequestId = appController.requestStats("rackPhotoCounts", [])
+    }
+
+    function applyStatus(latest) {
         var cells = ({})
         for (var i = 0; i < latest.length; ++i) {
             var item = latest[i]
             cells[cellKey(item.rack, item.wheel)] = item
         }
         statusByCell = cells
+        lastUpdated = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss")
+    }
 
-        var photoCounts = appController.rackPhotoCounts ? appController.rackPhotoCounts() : []
+    function applyPhotoCounts(photoCounts) {
         var counts = ({})
         for (var j = 0; j < photoCounts.length; ++j)
             counts[photoCounts[j].rack] = Number(photoCounts[j].count) || 0
         photoCountByRack = counts
-        lastUpdated = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss")
     }
 
     function openLatestImage(rackNumber, wheelNumber, wheelLabel) {
@@ -71,6 +78,12 @@ Item {
         target: appController
         function onRackWheelMonitorUpdated() {
             root.refreshStatus()
+        }
+        function onStatsReady(requestId, kind, result) {
+            if (requestId === root.statusRequestId)
+                root.applyStatus(result || [])
+            else if (requestId === root.photoCountRequestId)
+                root.applyPhotoCounts(result || [])
         }
     }
 
