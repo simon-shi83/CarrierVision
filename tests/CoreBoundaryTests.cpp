@@ -307,7 +307,8 @@ private slots:
             const QString appDir = QDir::cleanPath(QCoreApplication::applicationDirPath());
             QCOMPARE(AgcUtils::resolveAppPath(QStringLiteral("images")), appDir + QStringLiteral("/images"));
             QCOMPARE(AgcUtils::toAppRelativePath(appDir + QStringLiteral("/images")), QStringLiteral("images"));
-            QCOMPARE(AgcUtils::toAppRelativePath(QStringLiteral("/data/upload")), QDir::cleanPath(QStringLiteral("/data/upload")));
+            const QString outside = QDir::cleanPath(QDir::tempPath() + QStringLiteral("/cv-upload"));
+            QCOMPARE(AgcUtils::toAppRelativePath(outside), outside);
             QCOMPARE(AgcUtils::toAppRelativePath(appDir), appDir);
 
             // 明文存储的 FTP 账户在加载时升级为哈希，原密码仍可验证
