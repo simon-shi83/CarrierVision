@@ -15,7 +15,30 @@
 
 namespace ImageIngest {
 
-bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
+QString normalizeImageName(const QString &raw, QString &error, bool *strippedPath)
+{
+    const QString trimmed = raw.trimmed();
+    QString name = trimmed;
+    const int separator = qMax(name.lastIndexOf(u'/'), name.lastIndexOf(u'\\'));
+    if (separator >= 0) name = name.mid(separator + 1);
+    if (name.isEmpty()) {
+        error = trimmed.isEmpty() ? QStringLiteral("imageName 不能为空")
+                                  : QStringLiteral("imageName 缺少文件名: %1").arg(trimmed.left(128));
+        return QString();
+    }
+    if (name.startsWith(u'.')) {
+        error = QStringLiteral("imageName 不能以 . 开头: %1").arg(name.left(128));
+        return QString();
+    }
+    if (!AgcUtils::isImageFile(name)) {
+        error = QStringLiteral("imageName 不是支持的图片格式: %1").arg(name.left(128));
+        return QString();
+    }
+    if (strippedPath) *strippedPath = separator >= 0;
+    return name;
+}
+
+bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error, const ParseLimits &limits)
 {
     out = {};
     if (!obj.value(QStringLiteral("carrierId")).isDouble()
@@ -52,6 +75,18 @@ bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
     if (!out.timestamp.isValid()) {
         out.timestamp = QDateTime::currentDateTime();
     }
+    if (limits.now.isValid()) {
+        if (out.timestamp > limits.now.addSecs(limits.maxFutureSecs)) {
+            error = QStringLiteral("timestamp %1 晚于服务器时间超过 %2 秒，请检查客户端时钟")
+                        .arg(AgcUtils::formatDateTime(out.timestamp)).arg(limits.maxFutureSecs);
+            return false;
+        }
+        if (limits.maxAgeDays > 0 && out.timestamp < limits.now.addDays(-limits.maxAgeDays)) {
+            error = QStringLiteral("timestamp %1 早于数据保留期 %2 天")
+                        .arg(AgcUtils::formatDateTime(out.timestamp)).arg(limits.maxAgeDays);
+            return false;
+        }
+    }
 
     out.requestId = obj.value(QStringLiteral("requestId")).toString().trimmed();
     if (out.requestId.size() > 128 || out.requestId.contains(QChar::Null)) {
@@ -69,6 +104,8 @@ bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
         return false;
     }
     QSet<QString> wheelKeys;
+    QString pathExample;
+    int strippedCount = 0;
     for (const QJsonValue &val : wheelsArr) {
         if (!val.isObject()) {
             error = QStringLiteral("wheels 中包含非对象元素");
@@ -95,16 +132,22 @@ bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
         item.baseDistance = wObj.value(QStringLiteral("baseDistance")).toDouble();
         item.lowerTolerance = wObj.value(QStringLiteral("lowerTolerance")).toDouble();
 
-        item.imageName = wObj.value(QStringLiteral("imageName")).toString().trimmed();
-
+        const QString rawImageName = wObj.value(QStringLiteral("imageName")).toString();
         if (item.wheelId < 1 || item.wheelId > 16
             || item.cameraId < 1 || item.cameraId > 12
             || !std::isfinite(item.actualDistance)
             || !std::isfinite(item.baseDistance)
             || !std::isfinite(item.lowerTolerance)
-            || item.imageName.size() > 512 || item.imageName.contains(QChar::Null)) {
+            || rawImageName.size() > 512 || rawImageName.contains(QChar::Null)) {
             error = QStringLiteral("轮号、相机号、距离或图片名超出有效范围");
             return false;
+        }
+        bool stripped = false;
+        item.imageName = normalizeImageName(rawImageName, error, &stripped);
+        if (item.imageName.isEmpty()) return false;
+        if (stripped) {
+            if (pathExample.isEmpty()) pathExample = rawImageName.trimmed().left(256);
+            ++strippedCount;
         }
 
         const QJsonValue resultValue = wObj.value(QStringLiteral("result"));
@@ -138,6 +181,10 @@ bool parseBatchJson(const QJsonObject &obj, BatchData &out, QString &error)
     if (out.wheels.isEmpty()) {
         error = QStringLiteral("wheels 列表为空");
         return false;
+    }
+    if (strippedCount > 0) {
+        LOG_WARN("[TCP] 载具 {} 的 {} 个轮 imageName 含路径，已只取文件名（例: '{}'），请客户端只发送文件名",
+                 out.carrierId, strippedCount, pathExample.toStdString());
     }
 
     return true;
@@ -190,8 +237,8 @@ bool recordBatch(QSqlDatabase db, const BatchData &batch, QString &error)
 
     QSqlQuery q(db);
     if (!q.prepare(R"(
-        INSERT INTO record(createtime, carrier_id, camera_id, wheel_id, result, distance, dist_norm, lower_tolerance, imagename, batch_id)
-        VALUES(:time, :carrier, :camera, :wheel, :result, :dist, :norm, :tol, :image, :batch)
+        INSERT INTO record(createtime, carrier_id, camera_id, wheel_id, result, distance, dist_norm, lower_tolerance, imagename, batch_id, image_path)
+        VALUES(:time, :carrier, :camera, :wheel, :result, :dist, :norm, :tol, :image, :batch, :path)
     )")) {
         error = q.lastError().text();
         db.rollback();
@@ -209,6 +256,7 @@ bool recordBatch(QSqlDatabase db, const BatchData &batch, QString &error)
         q.bindValue(QStringLiteral(":tol"), wheel.lowerTolerance);
         q.bindValue(QStringLiteral(":image"), wheel.imageName);
         q.bindValue(QStringLiteral(":batch"), batch.batchId);
+        q.bindValue(QStringLiteral(":path"), wheel.imagePath.isEmpty() ? QVariant() : QVariant(wheel.imagePath));
 
         if (!q.exec()) {
             error = q.lastError().text();
@@ -219,11 +267,64 @@ bool recordBatch(QSqlDatabase db, const BatchData &batch, QString &error)
 
     if (!db.commit()) {
         error = db.lastError().text();
+        db.rollback();
         return false;
     }
 
     return true;
 }
+
+namespace {
+
+// 读取文件末尾最多 n 字节
+QByteArray tail(const QString &path, qint64 size, qint64 n)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly) || !f.seek(qMax<qint64>(0, size - n))) return QByteArray();
+    return f.read(n);
+}
+
+bool structurallyComplete(const QString &path, const QByteArray &format, qint64 fileSize, QString &reason)
+{
+    if (format == "jpeg" || format == "jpg") {
+        // 结束标记 FFD9；部分相机会在其后补零，允许最多 1 KB 的尾部填充
+        const QByteArray end = tail(path, fileSize, 1024);
+        qsizetype last = end.size() - 1;
+        while (last >= 0 && end.at(last) == '\0') --last;
+        if (last >= 1 && static_cast<uchar>(end.at(last - 1)) == 0xFF && static_cast<uchar>(end.at(last)) == 0xD9) return true;
+        reason = QStringLiteral("JPEG 缺少结束标记 (FFD9)，文件可能被截断");
+        return false;
+    }
+    if (format == "png") {
+        static const QByteArray iend = QByteArray::fromHex("0000000049454e44ae426082");
+        if (tail(path, fileSize, iend.size()) == iend) return true;
+        reason = QStringLiteral("PNG 缺少 IEND 结束块，文件可能被截断");
+        return false;
+    }
+    if (format == "bmp") {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) { reason = f.errorString(); return false; }
+        const QByteArray header = f.read(6);
+        if (header.size() == 6) {
+            const quint32 declared = quint32(uchar(header[2])) | quint32(uchar(header[3])) << 8
+                                   | quint32(uchar(header[4])) << 16 | quint32(uchar(header[5])) << 24;
+            if (declared == 0 || declared <= fileSize) return true; // 部分编码器写 0，此时无法判断
+            reason = QStringLiteral("BMP 实际大小 %1 小于声明的 %2 字节").arg(fileSize).arg(declared);
+            return false;
+        }
+        reason = QStringLiteral("BMP 文件头不完整");
+        return false;
+    }
+    QImageReader reader(path);
+    reader.setDecideFormatFromContent(true);
+    if (reader.read().isNull()) {
+        reason = reader.errorString();
+        return false;
+    }
+    return true;
+}
+
+} // namespace
 
 bool validate(const QString &file, const QString &target, QString &error)
 {
@@ -247,6 +348,16 @@ bool validate(const QString &file, const QString &target, QString &error)
         error = QStringLiteral("上传图片损坏或无法解码: %1").arg(reader.errorString());
         LOG_WARN("[INGEST] 图片解码校验失败: file='{}', target='{}', error='{}'",
                  file.toStdString(), target.toStdString(), error.toStdString());
+        return false;
+    }
+    // 截断检查：仅读文件头无法发现传输中断。JPEG/PNG/BMP 检查结束标记或声明长度（开销可忽略）；
+    // 其他格式完整解码一次（Qt 的 JPEG/BMP 解码器会容忍截断，所以不能只靠解码判断）
+    const QByteArray format = reader.format().toLower();
+    QString truncation;
+    if (!structurallyComplete(file, format, fileSize, truncation)) {
+        error = QStringLiteral("上传图片数据不完整: %1").arg(truncation);
+        LOG_WARN("[INGEST] 图片不完整: file='{}', target='{}', 原因='{}'",
+                 file.toStdString(), target.toStdString(), truncation.toStdString());
         return false;
     }
     return true;

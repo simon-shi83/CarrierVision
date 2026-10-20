@@ -22,6 +22,10 @@ QVariantList wheelRackResultStats(const QSqlDatabase &db, const QString &startDa
 QVariantList rackWheelResultStats(const QSqlDatabase &db, const QString &startDate, const QString &endDate,
                                   int rackNumber, const QString &resultType, int wheelType);
 
+// 轮系汇总：按轮号统计 OK/NG 数量。rackno 为空表示全部架号；selectedTurns 为连续 8 个轮号时输出该范围，否则输出 1~8
+QVariantList gearSum(const QSqlDatabase &db, const QString &startDate, const QString &endDate,
+                     const QString &rackno, const QVariantList &selectedTurns);
+
 // 按名称分发，供异步请求使用；kind 未知或参数不足时 ok 置为 false
 QVariant run(const QSqlDatabase &db, const QString &kind, const QVariantList &args, bool *ok = nullptr);
 

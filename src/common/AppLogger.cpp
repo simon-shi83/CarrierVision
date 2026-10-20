@@ -1,4 +1,5 @@
 #include "common/AppLogger.h"
+#include <QHash>
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -127,7 +128,8 @@ protected:
             QString lvlStr = (msg.level == spdlog::level::warn) ? QStringLiteral("WARN") :
                              (msg.level == spdlog::level::err) ? QStringLiteral("ERROR") : QStringLiteral("CRITICAL");
             QString msgStr = QString::fromUtf8(msg.payload.data(), static_cast<int>(msg.payload.size()));
-            QString timeStr = QString::fromStdString(formatDate(now));
+            // 状态栏显示用的完整时间（此前误用 formatDate，只有日期）
+            QString timeStr = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
             notifyLogEntry(lvlStr, msgStr, timeStr);
         }
 
@@ -423,6 +425,20 @@ std::shared_ptr<spdlog::logger> AppLogger::logger()
         return nullptr;
     }
     return s_logger;
+}
+
+bool AppLogger::setLevel(const QString &level)
+{
+    const QString name = level.trimmed().toLower();
+    static const QHash<QString, spdlog::level::level_enum> levels{
+        {QStringLiteral("trace"), spdlog::level::trace}, {QStringLiteral("debug"), spdlog::level::debug},
+        {QStringLiteral("info"), spdlog::level::info},   {QStringLiteral("warn"), spdlog::level::warn},
+        {QStringLiteral("error"), spdlog::level::err},
+    };
+    const auto it = levels.constFind(name);
+    if (it == levels.cend() || !s_logger) return false;
+    s_logger->set_level(it.value());
+    return true;
 }
 
 QString AppLogger::getLogDirectory()

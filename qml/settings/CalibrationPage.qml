@@ -481,6 +481,9 @@ Item {
                                     anchors.fill: parent
                                     anchors.margins: 2
                                     source: imageUrl
+                                    // 按显示尺寸的 2 倍解码，避免按相机原图分辨率占用内存
+                                    sourceSize.width: Math.min(4096, Math.max(1, width * 2))
+                                    sourceSize.height: Math.min(4096, Math.max(1, height * 2))
                                     fillMode: Image.PreserveAspectFit
                                     asynchronous: true
                                     cache: false

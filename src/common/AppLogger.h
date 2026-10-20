@@ -25,6 +25,8 @@ public:
     static void shutdown();
     static std::shared_ptr<spdlog::logger> logger();
     static QString getLogDirectory();
+    // 设置日志级别：trace/debug/info/warn/error；无法识别时返回 false 且不修改
+    static bool setLevel(const QString &level);
 
     // 日志查询与统计接口（供前端及控制器使用）
     static QStringList getAvailableDates();

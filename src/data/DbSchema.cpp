@@ -283,12 +283,30 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
             dist_norm REAL NOT NULL DEFAULT 0.0,
             lower_tolerance REAL NOT NULL DEFAULT 0.0,
             imagename TEXT NOT NULL,
-            batch_id TEXT DEFAULT ''
+            batch_id TEXT DEFAULT '',
+            image_path TEXT
         )
     )";
     if(!q.exec(createRecord)){
         LOG_ERROR("DBSchema: 创建 record 表失败: {}", q.lastError().text().toStdString());
         return false;
+    }
+    // 旧库迁移：image_path 记录实际落盘的图片（绝对路径），为空时按 imagename 兼容查找
+    {
+        bool hasImagePath = false;
+        QSqlQuery columns(db);
+        if (columns.exec(QStringLiteral("PRAGMA table_info(record)"))) {
+            while (columns.next()) {
+                if (columns.value(1).toString() == QLatin1String("image_path")) hasImagePath = true;
+            }
+        }
+        if (!hasImagePath) {
+            if (!q.exec(QStringLiteral("ALTER TABLE record ADD COLUMN image_path TEXT"))) {
+                LOG_ERROR("DBSchema: 为 record 增加 image_path 列失败: {}", q.lastError().text().toStdString());
+                return false;
+            }
+            LOG_INFO("DBSchema: 已为 record 表增加 image_path 列");
+        }
     }
 
     const auto execRequired = [&q](const QString &sql, const char *operation) {
@@ -300,7 +318,8 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_carrier_wheel ON record(carrier_id, wheel_id, createtime DESC)", "创建载具轮号索引")
         || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_createtime ON record(createtime DESC)", "创建时间索引")
         || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_batch ON record(batch_id)", "创建批次索引")
-        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_image ON record(imagename)", "创建图片名索引")) {
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_image ON record(imagename)", "创建图片名索引")
+        || !execRequired("CREATE INDEX IF NOT EXISTS idx_record_image_path ON record(image_path)", "创建图片路径索引")) {
         return false;
     }
 

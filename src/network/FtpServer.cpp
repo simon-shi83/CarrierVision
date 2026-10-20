@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QTimer>
+#include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QCryptographicHash>
 #include <QDirIterator>
@@ -337,7 +338,7 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
                     }
                 }
 
-                finalizeOk = uploadHandler && uploadHandler(temporaryPath, effectiveFinalPath);
+                finalizeOk = uploadHandler && uploadHandler(temporaryPath, effectiveFinalPath, m_pendingStorePath);
             }
         } else {
             m_storeFile->remove();
@@ -379,6 +380,21 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
     m_storeBytesReceived = 0;
     m_pendingStorePath.clear();
     closeDataConnection();
+}
+
+bool FtpControlConnection::listenPassive()
+{
+    if (passivePortMin == 0 || passivePortMax < passivePortMin)
+        return m_pasvServer->listen(QHostAddress::Any, 0);
+    // 在配置的端口范围内从随机位置开始尝试，便于现场防火墙只放行固定范围
+    const int count = passivePortMax - passivePortMin + 1;
+    const int offset = static_cast<int>(QRandomGenerator::global()->bounded(count));
+    for (int i = 0; i < count; ++i) {
+        const quint16 port = static_cast<quint16>(passivePortMin + (offset + i) % count);
+        if (m_pasvServer->listen(QHostAddress::Any, port)) return true;
+    }
+    emit logMessage(ftpLogPrefix() + QStringLiteral("被动端口 %1-%2 已全部占用").arg(passivePortMin).arg(passivePortMax));
+    return false;
 }
 
 void FtpControlConnection::onPasvNewConnection()
@@ -581,6 +597,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         } else {
             m_user.clear();
             ++m_failedLoginAttempts;
+            emit loginFailed();
             sendReply(530, "Invalid username.");
             if (m_failedLoginAttempts >= 5 && m_ctrl) m_ctrl->disconnectFromHost();
         }
@@ -589,9 +606,11 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         else if (!m_user.isEmpty() && passwordMatches(arg, m_users.value(m_user))) {
             m_loggedIn = true;
             m_failedLoginAttempts = 0;
+            emit loginSucceeded();
             sendReply(230, "User logged in, proceed.");
         } else {
             ++m_failedLoginAttempts;
+            emit loginFailed();
             sendReply(530, "Login incorrect.");
             if (m_failedLoginAttempts >= 5 && m_ctrl) m_ctrl->disconnectFromHost();
         }
@@ -694,7 +713,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         if (m_pasvServer) { m_pasvServer->close(); delete m_pasvServer; m_pasvServer = nullptr; }
         m_pasvServer = new QTcpServer(this);
         connect(m_pasvServer, &QTcpServer::newConnection, this, &FtpControlConnection::onPasvNewConnection);
-        if (!m_pasvServer->listen(QHostAddress::Any, 0)) {
+        if (!listenPassive()) {
             sendReply(425, "Can't open data connection.");
             return;
         }
@@ -712,7 +731,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         if (m_pasvServer) { m_pasvServer->close(); delete m_pasvServer; m_pasvServer = nullptr; }
         m_pasvServer = new QTcpServer(this);
         connect(m_pasvServer, &QTcpServer::newConnection, this, &FtpControlConnection::onPasvNewConnection);
-        if (!m_pasvServer->listen(QHostAddress::Any, 0)) {
+        if (!listenPassive()) {
             sendReply(425, "Can't open data connection.");
             return;
         }
@@ -740,6 +759,11 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         if (arg.isEmpty()) { sendReply(501, "No filename."); return; }
         if (m_waitingForStore) { sendReply(503, "Another upload is already active."); return; }
         if (!m_pasvServer && !m_dataSocket) { sendReply(425, "Use PASV/PORT first."); return; }
+        if (uploadGate && !uploadGate()) {
+            emit logMessage(ftpLogPrefix() + QStringLiteral("存储空间不足，拒绝上传: %1").arg(arg));
+            sendReply(452, "Insufficient storage space.");
+            return;
+        }
         QString path = resolveWithinRoot(arg, false);
         emit logMessage(ftpLogPrefix() + QStringLiteral("[s%1][%2] STOR debug: arg='%3' resolved='%4'")
             .arg(this->property("sessionId").toULongLong())
@@ -857,16 +881,41 @@ void FtpServer::onNewConnection()
     while (m_server.hasPendingConnections()) {
         QTcpSocket *sock = m_server.nextPendingConnection();
         if (!sock) continue;
-        if (m_clientCount >= MaxClients) {
-            sock->write("421 Too many connections.\r\n");
+        const QString peerKey = NetworkAccess::peerKey(sock->peerAddress());
+        const char *rejection = nullptr;
+        if (!NetworkAccess::isAllowed(sock->peerAddress(), m_allowList)) rejection = "421 Access denied.\r\n";
+        else if (m_loginThrottle.isBanned(peerKey, QDateTime::currentDateTime())) rejection = "421 Too many failed logins, try later.\r\n";
+        else if (m_clientCount >= MaxClients) rejection = "421 Too many connections.\r\n";
+        if (rejection) {
+            emit logMessage(ftpLogPrefix() + QStringLiteral("拒绝连接 %1: %2").arg(peerKey, QString::fromLatin1(rejection).trimmed()));
+            // 先发出拒绝原因再断开；断开完成后再删除，否则未发出的数据会随套接字一起丢失
+            connect(sock, &QAbstractSocket::disconnected, sock, &QObject::deleteLater);
+            sock->write(rejection);
+            sock->flush();
             sock->disconnectFromHost();
-            sock->deleteLater();
+            if (sock->state() == QAbstractSocket::UnconnectedState) sock->deleteLater();
             continue;
         }
         sock->setReadBufferSize(64 * 1024 + 1);
         // create connection handler
         auto *conn = new FtpControlConnection(sock, m_rootDir, m_users, m_allowAnonymous, this);
         conn->uploadHandler = uploadHandler;
+        conn->uploadGate = uploadGate;
+        conn->passivePortMin = m_passiveMin;
+        conn->passivePortMax = m_passiveMax;
+        connect(conn, &FtpControlConnection::loginFailed, this, [this, peerKey]() {
+            if (m_loginThrottle.recordFailure(peerKey, QDateTime::currentDateTime())) {
+                LOG_WARN("[FTP] 来源 {} 登录失败次数过多，封禁 15 分钟", peerKey.toStdString());
+                emit logMessage(ftpLogPrefix() + QStringLiteral("来源 %1 登录失败次数过多，封禁 15 分钟").arg(peerKey));
+                // 封禁立即生效：断开该来源的所有现有会话
+                for (auto *session : findChildren<FtpControlConnection *>())
+                    if (session->property("peerKey").toString() == peerKey) session->shutdown();
+            }
+        });
+        connect(conn, &FtpControlConnection::loginSucceeded, this, [this, peerKey]() {
+            m_loginThrottle.recordSuccess(peerKey);
+        });
+        conn->setProperty("peerKey", peerKey);
         // log client connect with session id and peer address when available
         const QString peer = sock->peerAddress().toString();
         const quint32 sid = static_cast<quint32>(reinterpret_cast<quintptr>(conn) & 0xffffffff);

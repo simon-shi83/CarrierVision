@@ -11,9 +11,9 @@ QString imageKey(const QString &name)
     return QFileInfo(name).fileName().toCaseFolded();
 }
 
-void PendingImageCache::add(const QString &filePath, const QDateTime &receivedAt)
+void PendingImageCache::add(const QString &imageName, const QString &filePath, const QDateTime &receivedAt)
 {
-    const QString key = imageKey(filePath);
+    const QString key = imageKey(imageName);
     if (key.isEmpty()) return;
     m_entries.insert(key, {filePath, receivedAt});
 }

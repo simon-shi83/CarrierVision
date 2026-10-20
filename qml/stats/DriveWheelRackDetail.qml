@@ -19,6 +19,8 @@ Page {
     }
 
     property int statsRequestId: -1
+    // 图像总数（后端单次最多返回 200 张，超出时界面注明只显示最新部分）
+    property int imageTotal: 0
 
     function loadStatistics() {
         if (!appController || !appController.requestStats || wheelNumber <= 0)
@@ -44,7 +46,7 @@ Page {
         appController.searchPaged(startDate, endDate, "", selectedRack,
                                   String(wheelNumber),
                                   normalizedResult() === "OK" ? "1" : "0",
-                                  1, 1000)
+                                  1, 200)
     }
 
     onStartDateChanged: loadStatistics()
@@ -58,6 +60,9 @@ Page {
         function onStatsReady(requestId, kind, result) {
             if (requestId === root.statsRequestId)
                 root.applyStatistics(result || [])
+        }
+        function onSearchPagedResult(totalCount) {
+            root.imageTotal = totalCount
         }
     }
 
@@ -209,7 +214,11 @@ Page {
                             }
                             Item { Layout.fillWidth: true }
                             Label {
-                                text: "共 " + (appController.searchImagesModel ? appController.searchImagesModel.count : 0) + " 张图像"
+                                text: {
+                                    var shown = appController.searchImagesModel ? appController.searchImagesModel.count : 0
+                                    return root.imageTotal > shown ? ("共 " + root.imageTotal + " 张，显示最新 " + shown + " 张")
+                                                                   : ("共 " + shown + " 张图像")
+                                }
                                 color: Theme.textSecondary
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontSizeSmall
@@ -248,6 +257,9 @@ Page {
                                         Image {
                                             anchors.fill: parent
                                             source: fileUrl || ""
+                                            // 按显示尺寸的 2 倍解码，避免按相机原图分辨率占用内存
+                                            sourceSize.width: Math.min(4096, Math.max(1, width * 2))
+                                            sourceSize.height: Math.min(4096, Math.max(1, height * 2))
                                             fillMode: Image.PreserveAspectFit
                                             asynchronous: true
                                             cache: false

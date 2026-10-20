@@ -24,7 +24,8 @@ public:
     static constexpr int kMaxEntries = 512;
     static constexpr int kMaxAgeSecs = 5 * 60;
 
-    void add(const QString &filePath, const QDateTime &receivedAt);
+    // imageName 为客户端请求的文件名（匹配键），filePath 为实际落盘路径
+    void add(const QString &imageName, const QString &filePath, const QDateTime &receivedAt);
     // 按图像名查找仍存在的缓存文件路径，找不到返回空串
     QString find(const QString &imageName) const;
     void remove(const QString &imageName);

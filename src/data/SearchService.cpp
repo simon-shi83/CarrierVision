@@ -17,9 +17,14 @@ namespace SearchService {
 
 QString resolveImagePath(const QString &rawName, const QString &archiveDir, const QString &sourceDir)
 {
-    const QString trimmed = rawName.trimmed();
+    // 只在图像根目录内查找：绝对路径、盘符路径或带 .. 的名称只取文件名，不访问根目录之外的文件
+    const QString normalized = QDir::fromNativeSeparators(rawName.trimmed());
+    if (normalized.isEmpty()) return QString();
+    const bool unsafe = QDir::isAbsolutePath(normalized)
+        || (normalized.size() > 1 && normalized.at(1) == u':')
+        || normalized.split(u'/').contains(QStringLiteral(".."));
+    const QString trimmed = unsafe ? QFileInfo(normalized).fileName() : normalized;
     if (trimmed.isEmpty()) return QString();
-    if (QFile::exists(trimmed)) return QFileInfo(trimmed).absoluteFilePath();
 
     // 缓存上次命中的有效根路径（线程局部），在连续解析同一批次图像时几乎 100% 首测命中
     static thread_local QString s_lastHitRoot;
@@ -98,6 +103,16 @@ QString resolveImagePath(const QString &rawName, const QString &archiveDir, cons
     return QString();
 }
 
+QString resolveRecordImage(const QString &imagePath, const QString &imageName,
+                           const QString &archiveDir, const QString &sourceDir)
+{
+    if (!imagePath.isEmpty()) {
+        const QFileInfo stored(imagePath);
+        if (stored.isAbsolute() && stored.isFile()) return stored.absoluteFilePath();
+    }
+    return resolveImagePath(imageName, archiveDir, sourceDir);
+}
+
 RecordFilter buildRecordFilter(const QString &startText, const QString &endText, int rackNumber, const QString &wheelNo)
 {
     RecordFilter filter;
@@ -165,7 +180,8 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
     const qint64 offset = static_cast<qint64>(page - 1) * pageSize;
     QSqlQuery dataQuery(db);
     if (!dataQuery.prepare(QStringLiteral(
-            "SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance FROM ")
+            "SELECT createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance, %1 FROM ")
+            .arg(table == QLatin1String("record") ? QStringLiteral("image_path") : QStringLiteral("NULL"))
             + table + filter.clause()
             + QStringLiteral(" ORDER BY createtime DESC LIMIT %1 OFFSET %2").arg(pageSize).arg(offset))) {
         LOG_ERROR("分页查询数据预处理失败({}): {}", table.toStdString(), dataQuery.lastError().text().toStdString());
@@ -192,8 +208,8 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
         item.dist_norm = dataQuery.value(7).toDouble();
         item.lower_tolerance = dataQuery.value(8).toDouble();
         item.fileName = QFileInfo(rawName).fileName();
-        // resolveImagePath 只返回已确认存在的路径，无需再次检查
-        const QString resolvedPath = resolveImagePath(rawName, archiveDir, sourceDir);
+        // resolveRecordImage 只返回已确认存在的路径，无需再次检查
+        const QString resolvedPath = resolveRecordImage(dataQuery.value(9).toString(), rawName, archiveDir, sourceDir);
         if (!resolvedPath.isEmpty()) {
             item.filePath = resolvedPath;
             item.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();

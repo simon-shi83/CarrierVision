@@ -6,11 +6,13 @@
 #include <QDate>
 #include <QDateTime>
 #include <QHash>
+#include <QMap>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTime>
 #include <QVector>
 
+#include <algorithm>
 #include <numeric>
 
 namespace {
@@ -361,6 +363,102 @@ QVariantList rackWheelResultStats(const QSqlDatabase &db, const QString &startDa
         row.insert(QStringLiteral("count"), slotCounts[s]);
         row.insert(QStringLiteral("result"), isOk ? QStringLiteral("OK") : QStringLiteral("NG"));
         out.append(row);
+    }
+    return out;
+}
+
+QVariantList gearSum(const QSqlDatabase &db, const QString &startDate, const QString &endDate,
+                     const QString &rackno, const QVariantList &selectedTurns)
+{
+    // Build date bounds
+    QDateTime startTime = AgcUtils::parseFlexibleDateTime(startDate, false);
+    QDateTime endTime = AgcUtils::parseFlexibleDateTime(endDate, true);
+    const QString rackTrimmed = rackno.trimmed();
+    bool rackOk = false;
+    const int rackValue = rackTrimmed.toInt(&rackOk);
+    const bool filterByRack = !rackTrimmed.isEmpty() && (!rackOk || rackValue > 0);
+
+    // prepare wheel filter
+    QStringList wheelList;
+    {
+        for (const QVariant &v : selectedTurns) {
+            const int wheel = v.toInt();
+            if (wheel >= 1 && wheel <= 16) wheelList << QString::number(wheel);
+        }
+    }
+
+    // default counts map
+    QMap<int,QPair<int,int>> counts; // wheel -> (ok,ng)
+    int outputRangeStart = 1;
+    int outputRangeEnd = 8;
+    // If user provided an explicit contiguous eight-wheel list, adapt the output range.
+    if (!wheelList.isEmpty()) {
+        QList<int> wheels;
+        for (const QString &s : wheelList) wheels.append(s.toInt());
+        std::sort(wheels.begin(), wheels.end());
+        int minw = wheels.first();
+        int maxw = wheels.last();
+        if (wheels.size() == 8 && maxw - minw == 7) {
+            outputRangeStart = minw;
+            outputRangeEnd = maxw;
+        }
+    }
+    for (int i=outputRangeStart;i<=outputRangeEnd;i++) counts[i] = qMakePair(0,0);
+
+    if (db.isValid() && db.isOpen()) {
+        QSqlQuery q(db);
+        QString sql = QStringLiteral("SELECT wheel_id, result, COUNT(*) as c FROM record");
+        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
+        if (startTime.isValid()) where << "createtime >= :start";
+        if (endTime.isValid()) where << "createtime <= :end";
+        if (filterByRack) where << "carrier_id = :rack";
+        if (!wheelList.isEmpty()) where << QStringLiteral("wheel_id IN (%1)").arg(wheelList.join(","));
+        if (!where.isEmpty()) sql += " WHERE " + where.join(" AND ");
+        sql += " GROUP BY wheel_id, result";
+
+        if (!q.prepare(sql)) {
+            LOG_ERROR("gearSum SQL 预处理失败: {}", q.lastError().text().toStdString());
+        } else {
+            if (startTime.isValid()) q.bindValue(":start", AgcUtils::formatDateTime(startTime));
+            if (endTime.isValid()) q.bindValue(":end", AgcUtils::formatDateTime(endTime));
+            if (filterByRack) q.bindValue(":rack", rackValue);
+
+            // Log final SQL and parameters for debugging
+            QString debugSql = sql;
+            LOG_DEBUG("gearSum SQL: {}", debugSql.toStdString());
+            QStringList paramLog;
+            if (startTime.isValid()) paramLog << QStringLiteral(":start=%1").arg(AgcUtils::formatDateTime(startTime));
+            if (endTime.isValid()) paramLog << QStringLiteral(":end=%1").arg(AgcUtils::formatDateTime(endTime));
+            if (filterByRack) paramLog << QStringLiteral(":rack=%1").arg(rackValue);
+            else paramLog << QStringLiteral(":rack=ALL");
+            if (!wheelList.isEmpty()) paramLog << QStringLiteral("wheels=%1").arg(wheelList.join(","));
+            LOG_DEBUG("gearSum 参数: {}", paramLog.join(" ").toStdString());
+
+            if (q.exec()) {
+                while (q.next()) {
+                    int wheel = q.value(0).toInt();
+                    int res = q.value(1).toInt();
+                    int c = q.value(2).toInt();
+                    LOG_DEBUG("gearSum 行数据: wheel={} res={} count={}", wheel, res, c);
+                    if (wheel >= outputRangeStart && wheel <= outputRangeEnd) {
+                        if (res == 1) counts[wheel].first += c; else counts[wheel].second += c;
+                    }
+                }
+            } else {
+                LOG_ERROR("gearSum 数据库查询失败: {}", q.lastError().text().toStdString());
+            }
+        }
+    } else {
+        LOG_ERROR("gearSum 无法执行查询，数据库未连接");
+    }
+
+    QVariantList out;
+    for (int i = outputRangeStart; i <= outputRangeEnd; ++i) {
+        QVariantMap mapItem;
+        mapItem.insert(QStringLiteral("wheel"), i);
+        mapItem.insert(QStringLiteral("ok"), counts[i].first);
+        mapItem.insert(QStringLiteral("ng"), counts[i].second);
+        out.append(mapItem);
     }
     return out;
 }

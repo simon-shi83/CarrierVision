@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <atomic>
 #include <memory>
 
 // FTP 接收服务：在独立线程中运行 FTP 服务、上传图像校验/提交以及 .cv-pending 恢复扫描。
@@ -28,9 +29,13 @@ public:
     void setRoot(const QString &root);
     // 停止服务与定时器，准备退出线程
     void shutdown();
+    // 磁盘空间不足时由主线程设置为 false，新上传以 452 拒绝；线程安全
+    void setAcceptUploads(bool accept) { m_acceptUploads.store(accept); }
+    void setAccessPolicy(const QList<NetworkAccess::Subnet> &allowList, quint16 passiveMin, quint16 passiveMax);
 
 signals:
-    void imageStored(const QString &filePath);
+    // filePath 为实际落盘路径；requestedPath 为客户端请求的路径（发生 _vN 版本化时两者不同）
+    void imageStored(const QString &filePath, const QString &requestedPath);
     void ingestFailed(const QString &error);
     void runningChanged(bool running);
     void clientCountChanged(int count);
@@ -42,5 +47,6 @@ private:
     FtpServer m_server;
     QTimer m_retryTimer;
     QString m_root;
+    std::atomic<bool> m_acceptUploads{true};
     std::unique_ptr<QDirIterator> m_pendingScan;
 };

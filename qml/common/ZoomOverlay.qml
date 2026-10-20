@@ -224,7 +224,7 @@ Item {
                 sourceSize.width: 8192
                 sourceSize.height: 8192
                 asynchronous: true
-                cache: true
+                cache: false // 大图单张可达数百 MB，不进入共享图片缓存
                 fillMode: Image.PreserveAspectFit
                 width: Math.max(1, implicitWidth * root.contentScale)
                 height: Math.max(1, implicitHeight * root.contentScale)
@@ -255,7 +255,7 @@ Item {
                 sourceSize.width: 8192
                 sourceSize.height: 8192
                 asynchronous: true
-                cache: true
+                cache: false // 大图单张可达数百 MB，不进入共享图片缓存
                 fillMode: Image.PreserveAspectFit
                 width: Math.max(1, implicitWidth * root.contentScale)
                 height: Math.max(1, implicitHeight * root.contentScale)

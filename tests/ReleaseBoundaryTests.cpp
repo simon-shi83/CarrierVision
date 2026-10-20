@@ -12,6 +12,7 @@
 #include "common/AgcUtils.h"
 #include "ingest/ImageIngest.h"
 #include "data/ArchiveMaintenance.h"
+#include "data/DatabaseGuard.h"
 #include "network/FtpServer.h"
 #include "network/FtpIngestService.h"
 #include "network/TcpDataReceiver.h"
@@ -71,9 +72,40 @@ private slots:
     void batchJsonRejectsInvalidAndOversizedPayloads() {
         ImageIngest::BatchData batch;
         QString error;
-        QJsonObject wheel{{"wheelId", 1}, {"cameraId", 1}, {"result", "OK"}};
+        QJsonObject wheel{{"wheelId", 1}, {"cameraId", 1}, {"result", "OK"}, {"imageName", "cam01.png"}};
         QJsonObject root{{"carrierId", 1}, {"wheels", QJsonArray{wheel}}};
         QVERIFY(ImageIngest::parseBatchJson(root, batch, error));
+
+        // imageName：带路径时只取文件名；空名、. 开头、非图片扩展名拒收
+        auto imageNameResult = [&](const QString &name) {
+            QJsonObject w = wheel; w["imageName"] = name;
+            QJsonObject r = root; r["wheels"] = QJsonArray{w};
+            return ImageIngest::parseBatchJson(r, batch, error) ? batch.wheels.first().imageName : QStringLiteral("<rejected>");
+        };
+        QCOMPARE(imageNameResult("D:\\cam\\A_1.png"), QStringLiteral("A_1.png"));
+        QCOMPARE(imageNameResult("/data/cam/../A_2.JPG"), QStringLiteral("A_2.JPG"));
+        QCOMPARE(imageNameResult(""), QStringLiteral("<rejected>"));
+        QCOMPARE(imageNameResult("cam/"), QStringLiteral("<rejected>"));
+        QCOMPARE(imageNameResult("../.hidden.png"), QStringLiteral("<rejected>"));
+        QCOMPARE(imageNameResult("report.txt"), QStringLiteral("<rejected>"));
+
+        // 时间戳范围：未来不超过 10 分钟，过去不超过保留天数；未提供限制时不检查
+        const QDateTime now = QDateTime::fromString("2026-10-20 12:00:00", "yyyy-MM-dd HH:mm:ss");
+        ImageIngest::ParseLimits limits;
+        limits.now = now;
+        limits.maxAgeDays = 90;
+        auto timestampOk = [&](const QDateTime &time) {
+            QJsonObject r = root; r["timestamp"] = time.toString("yyyyMMdd_HHmmss");
+            return ImageIngest::parseBatchJson(r, batch, error, limits);
+        };
+        QVERIFY(timestampOk(now.addSecs(300)));
+        QVERIFY(!timestampOk(now.addSecs(900)));
+        QVERIFY(timestampOk(now.addDays(-89)));
+        QVERIFY(!timestampOk(now.addDays(-91)));
+        QJsonObject future = root; future["timestamp"] = "20990101_000000";
+        QVERIFY(ImageIngest::parseBatchJson(future, batch, error));
+        QVERIFY(!ImageIngest::parseBatchJson(future, batch, error, limits));
+        QVERIFY(error.contains(QStringLiteral("客户端时钟")));
 
         for (const int invalidWheel : {0, 17, 18}) {
             wheel["wheelId"] = invalidWheel;
@@ -176,6 +208,160 @@ private slots:
         QVERIFY(ArchiveMaintenance::cleanup(db,dir.path(),{dir.path()},QDateTime::fromString("2026-06-07T01:00:00",Qt::ISODate),removed,more,error));
         QVERIFY(QFile::exists(target)); QCOMPARE(removed,0);
     }
+    void cleanupProgressesPastUnsafePathsAndUsesImagePath() {
+        QTemporaryDir dir; QVERIFY(QDir().mkpath(dir.filePath("cam1")));
+        QSqlQuery q(db);
+        q.prepare("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename,image_path) VALUES(:t,1,1,1,1,:n,:p)");
+        auto add = [&](const QString &time, const QString &name, const QVariant &path) {
+            q.bindValue(":t", time); q.bindValue(":n", name); q.bindValue(":p", path); return q.exec();
+        };
+        // 500 组路径不安全的过期记录（历史数据中的绝对路径与 ../），曾导致清理永久停滞
+        for (int i = 0; i < 500; ++i)
+            QVERIFY(add("2025-01-01 00:00:00", (i % 2 ? "/data/cam/A_%1.png" : "../cam/A_%1.png") + QString::number(i), QVariant()));
+        QVERIFY(makeImage(dir.filePath("normal.png")));
+        QVERIFY(add("2025-01-01 00:00:00", "normal.png", QVariant()));
+        // 实际落盘在子目录、且被版本化的文件：按 image_path 清理
+        const QString versioned = dir.filePath("cam1/x_v2.png");
+        QVERIFY(makeImage(versioned));
+        QVERIFY(add("2025-01-01 00:00:00", "x.png", versioned));
+        q.finish();
+
+        const QDateTime cutoff = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
+        int removed = 0; bool more = false; QString error;
+        ArchiveMaintenance::CleanupStats stats;
+        int rounds = 0;
+        do {
+            QVERIFY2(ArchiveMaintenance::cleanup(db, dir.path(), {dir.path()}, cutoff, removed, more, error, &stats), qPrintable(error));
+        } while (more && ++rounds < 5);
+        QVERIFY(!QFile::exists(dir.filePath("normal.png")));
+        QVERIFY(!QFile::exists(versioned));
+        QVERIFY(q.exec("SELECT COUNT(*) FROM record")); QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(), 0);
+    }
+    void orphanSweepDeletesOnlyOldUnreferencedImages() {
+        QTemporaryDir dir; QVERIFY(QDir().mkpath(dir.filePath("sub")));
+        const QDateTime old = QDateTime::currentDateTime().addDays(-200);
+        auto makeOld = [&](const QString &rel) {
+            const QString path = dir.filePath(rel);
+            if (!makeImage(path)) return false;
+            QFile f(path);
+            return f.open(QIODevice::ReadWrite) && f.setFileTime(old, QFileDevice::FileModificationTime);
+        };
+        QVERIFY(makeOld("orphan.png"));
+        QVERIFY(makeOld("sub/orphan_v2.png"));
+        QVERIFY(makeOld("by_name.png"));
+        QVERIFY(makeOld("by_path.png"));
+        QVERIFY(makeOld("pending.png"));
+        QFile marker(dir.filePath("pending.png.cv-pending")); QVERIFY(marker.open(QIODevice::WriteOnly)); marker.close();
+        QVERIFY(makeImage(dir.filePath("fresh.png")));
+        QSqlQuery q(db);
+        QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-01-01 00:00:00',1,1,1,1,'by_name.png')"));
+        q.prepare("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename,image_path) VALUES('2026-01-01 00:00:00',1,1,2,1,'other.png',:p)");
+        q.bindValue(":p", QFileInfo(dir.filePath("by_path.png")).canonicalFilePath()); QVERIFY(q.exec());
+        QString error;
+        const int deleted = ArchiveMaintenance::sweepOrphans(db, {dir.path(), dir.path()}, QDateTime::currentDateTime().addDays(-97), 100, error);
+        QCOMPARE(deleted, 2);
+        QVERIFY(!QFile::exists(dir.filePath("orphan.png")));
+        QVERIFY(!QFile::exists(dir.filePath("sub/orphan_v2.png")));
+        for (const char *kept : {"by_name.png", "by_path.png", "pending.png", "fresh.png"})
+            QVERIFY2(QFile::exists(dir.filePath(kept)), kept);
+        QVERIFY(QDir(dir.filePath("sub")).exists());
+    }
+    void validateRejectsTruncatedImages() {
+        QTemporaryDir dir; QString error;
+        QImage image(64, 48, QImage::Format_RGB32); image.fill(Qt::darkCyan);
+        for (const char *fmt : {"jpg", "png", "bmp"}) {
+            const QString path = dir.filePath(QString("full.%1").arg(fmt));
+            QVERIFY(image.save(path, fmt));
+            QVERIFY2(ImageIngest::validate(path, path, error), qPrintable(error));
+            QFile f(path); QVERIFY(f.open(QIODevice::ReadOnly)); const QByteArray data = f.readAll(); f.close();
+            const QString cut = dir.filePath(QString("cut.%1").arg(fmt));
+            QFile c(cut); QVERIFY(c.open(QIODevice::WriteOnly)); c.write(data.left(data.size() * 2 / 3)); c.close();
+            QVERIFY2(!ImageIngest::validate(cut, cut, error), fmt);
+            if (QByteArray(fmt) == "jpg") {
+                // 部分相机在 JPEG 结束标记后补零：仍应接受
+                const QString padded = dir.filePath("padded.jpg");
+                QFile p(padded); QVERIFY(p.open(QIODevice::WriteOnly)); p.write(data + QByteArray(64, '\0')); p.close();
+                QVERIFY2(ImageIngest::validate(padded, padded, error), qPrintable(error));
+            }
+        }
+    }
+    void ftpLocksOutRepeatedFailuresAndUsesPassiveRange() {
+        QTemporaryDir dir; FtpServer server;
+        server.setPassivePortRange(52300, 52310);
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0, dir.path(), QMap<QString,QString>{{"u","p"}}));
+        // 被动端口落在配置范围内
+        {
+            QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, server.port());
+            QVERIFY(reply(client).startsWith("220"));
+            QVERIFY(command(client, "USER u").startsWith("331"));
+            QVERIFY(command(client, "PASS p").startsWith("230"));
+            const quint16 port = command(client, "EPSV").section('|', 3, 3).toUShort();
+            QVERIFY2(port >= 52300 && port <= 52310, qPrintable(QString::number(port)));
+        }
+        // 每个连接失败 5 次后被断开；同一来源累计 10 次后封禁，新连接直接 421
+        for (int connection = 0; connection < 2; ++connection) {
+            QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, server.port());
+            QVERIFY(reply(client).startsWith("220"));
+            for (int i = 0; i < 5; ++i) {
+                command(client, "USER u");
+                command(client, "PASS wrong");
+            }
+            QTRY_VERIFY(client.state() != QAbstractSocket::ConnectedState || !client.isValid());
+        }
+        QTcpSocket banned; banned.connectToHost(QHostAddress::LocalHost, server.port());
+        const QString bannedReply = reply(banned);
+        QVERIFY2(bannedReply.startsWith("421"), qPrintable(bannedReply));
+        server.stop();
+    }
+    void databaseBackupAndCorruptionRecovery() {
+        QTemporaryDir dir;
+        const QString dbPath = dir.filePath("dataAgc.db");
+        const QString backupDir = dir.filePath("backup");
+        {
+            QSqlDatabase file = QSqlDatabase::addDatabase("QSQLITE", "guard-test");
+            file.setDatabaseName(dbPath);
+            QVERIFY(file.open());
+            QVERIFY(DBSchema::ensureAllTables(file));
+            QSqlQuery q(file);
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-10-01 00:00:00',1,1,1,1,'kept.png')"));
+            QVERIFY(file.transaction());
+            for (int i = 0; i < 2000; ++i)
+                QVERIFY(q.exec(QString("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES('2026-10-01 00:00:00',1,1,1,1,'pad_%1.png')").arg(i)));
+            QVERIFY(file.commit());
+            QString detail; QVERIFY(DatabaseGuard::quickCheck(file, detail));
+            QString error, created;
+            for (int i = 0; i < 4; ++i) {
+                QVERIFY2(DatabaseGuard::backup(file, backupDir, 3, error, &created), qPrintable(error));
+                QTest::qWait(1100); // 备份文件名精确到秒
+            }
+            QCOMPARE(DatabaseGuard::backups(backupDir).size(), 3);   // 只保留最近 3 份
+            QCOMPARE(DatabaseGuard::backups(backupDir).first(), created);
+            file.close();
+        }
+        QSqlDatabase::removeDatabase("guard-test");
+
+        QVERIFY(DatabaseGuard::recoverIfCorrupt(dbPath, backupDir).isEmpty()); // 正常库不处理
+
+        // 破坏数据页（保留文件头，使其仍能打开但检查失败）
+        QFile f(dbPath); QVERIFY(f.open(QIODevice::ReadWrite));
+        const qint64 size = f.size();
+        QVERIFY(f.seek(size / 2)); QVERIFY(f.write(QByteArray(8192, '\x5a')) == 8192); f.close();
+
+        const QString message = DatabaseGuard::recoverIfCorrupt(dbPath, backupDir);
+        QVERIFY2(message.contains("已从备份"), qPrintable(message));
+        QVERIFY(!QDir(dir.path()).entryList({"dataAgc.db.corrupt-*"}, QDir::Files).isEmpty()); // 原文件保留
+        {
+            QSqlDatabase restored = QSqlDatabase::addDatabase("QSQLITE", "guard-restored");
+            restored.setDatabaseName(dbPath);
+            QVERIFY(restored.open());
+            QString detail; QVERIFY(DatabaseGuard::quickCheck(restored, detail));
+            QSqlQuery q(restored);
+            QVERIFY(q.exec("SELECT COUNT(*) FROM record WHERE imagename='kept.png'")); QVERIFY(q.next());
+            QCOMPARE(q.value(0).toInt(), 1);
+            restored.close();
+        }
+        QSqlDatabase::removeDatabase("guard-restored");
+    }
     void logsUseNumericVolumesAndBoundedPagination() {
         QTemporaryDir dir;
         AppLogger::init(dir.path()); AppLogger::shutdown();
@@ -246,7 +432,7 @@ private slots:
     }
     void ftpUploadAndCredentialRevocation() {
         QTemporaryDir dir; FtpServer server; QString error;
-        server.uploadHandler = [&](const QString &staged,const QString &target) { return ImageIngest::accept(staged,target,[](const QString&){return true;},error); };
+        server.uploadHandler = [&](const QString &staged,const QString &target,const QString &) { return ImageIngest::accept(staged,target,[](const QString&){return true;},error); };
         QVERIFY(server.listen(QHostAddress::LocalHost,0,dir.path(),QMap<QString,QString>{{"u","p"}}));
         QTcpSocket client; client.connectToHost(QHostAddress::LocalHost,server.port()); QVERIFY(reply(client).startsWith("220"));
         QVERIFY(command(client,"USER u").startsWith("331")); QVERIFY(command(client,"PASS p").startsWith("230"));
@@ -465,7 +651,7 @@ private slots:
     }
     void collisionSafeFtpUpload() {
         QTemporaryDir dir; FtpServer server; QString error;
-        server.uploadHandler = [&](const QString &staged, const QString &target) {
+        server.uploadHandler = [&](const QString &staged, const QString &target, const QString &) {
             return ImageIngest::accept(staged, target, [](const QString&){ return true; }, error);
         };
         QVERIFY(server.listen(QHostAddress::LocalHost, 0, dir.path(), QMap<QString,QString>{{"u","p"}}));
@@ -553,6 +739,38 @@ private slots:
         }
 
         // The receiver should disconnect the overflowing client to protect system memory
+        QTRY_COMPARE(receiver.clientCount(), 0);
+        receiver.stop();
+    }
+    void tcpReceiverDropsIdleAndOversizedLines() {
+        TcpDataReceiver receiver;
+        receiver.setIdleTimeoutMs(300);
+        receiver.batchHandler = [](const QJsonObject &, QString &) { return true; };
+        QVERIFY(receiver.listen(QHostAddress::LocalHost, 0));
+
+        // 空闲连接：超时后被断开
+        QTcpSocket idle;
+        idle.connectToHost(QHostAddress::LocalHost, receiver.port());
+        QVERIFY(idle.waitForConnected(3000));
+        QTRY_COMPARE(receiver.clientCount(), 1);
+        QTRY_COMPARE_WITH_TIMEOUT(receiver.clientCount(), 0, 3000);
+
+        // 活跃连接持续发送有效报文时不被断开
+        QTcpSocket active;
+        active.connectToHost(QHostAddress::LocalHost, receiver.port());
+        QVERIFY(active.waitForConnected(3000));
+        const QByteArray ok = R"({"carrierId":1,"wheels":[{"wheelId":1,"result":"OK","imageName":"a.png"}]})" "\n";
+        for (int i = 0; i < 6; ++i) {
+            active.write(ok);
+            QTRY_VERIFY(active.canReadLine());
+            QVERIFY(active.readLine().contains("\"OK\""));
+            QTest::qWait(100);
+        }
+        QCOMPARE(receiver.clientCount(), 1);
+
+        // 单条报文超过 64 KB：断开
+        QByteArray huge = "{\"carrierId\":1,\"wheels\":[],\"pad\":\"" + QByteArray(70 * 1024, 'x') + "\"}\n";
+        active.write(huge);
         QTRY_COMPARE(receiver.clientCount(), 0);
         receiver.stop();
     }

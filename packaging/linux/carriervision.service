@@ -1,0 +1,27 @@
+# CarrierVision systemd 用户服务：异常退出后自动重启。
+#
+# 安装（以运行界面的用户身份执行，无需 root）：
+#   1. 将下方 ExecStart 中的 /opt/CarrierVision 改为实际安装目录
+#   2. mkdir -p ~/.config/systemd/user && cp carriervision.service ~/.config/systemd/user/
+#   3. systemctl --user daemon-reload && systemctl --user enable --now carriervision.service
+#   4. 无人值守开机自动登录桌面时，执行一次：loginctl enable-linger $USER
+#
+# 查看状态：systemctl --user status carriervision；查看重启记录：journalctl --user -u carriervision
+
+[Unit]
+Description=CarrierVision 载具视觉检测系统
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/opt/CarrierVision/CarrierVision.sh
+# 仅在异常退出（崩溃、被信号终止）时重启；在界面中正常退出不会被拉起
+Restart=on-failure
+RestartSec=5
+# 1 小时内最多重启 10 次，避免启动即崩溃时无限循环
+StartLimitIntervalSec=3600
+StartLimitBurst=10
+
+[Install]
+WantedBy=graphical-session.target

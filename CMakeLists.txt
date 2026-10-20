@@ -65,6 +65,8 @@ qt_add_executable(CarrierVision
     src/network/FtpServer.h
     src/network/FtpIngestService.cpp
     src/network/FtpIngestService.h
+    src/network/NetworkAccess.cpp
+    src/network/NetworkAccess.h
     src/app/ImageListModel.cpp
     src/app/ImageListModel.h
     src/app/ImageItemObject.cpp
@@ -78,6 +80,8 @@ qt_add_executable(CarrierVision
     src/ingest/ImageIngest.h
     src/data/DbSchema.cpp
     src/data/DbSchema.h
+    src/data/DatabaseGuard.cpp
+    src/data/DatabaseGuard.h
     src/data/StatsService.cpp
     src/data/StatsService.h
     src/data/SearchService.cpp
@@ -90,6 +94,10 @@ qt_add_executable(CarrierVision
     src/common/AgcUtils.h
     src/common/AppLogger.cpp
     src/common/AppLogger.h
+    src/common/StorageMonitor.cpp
+    src/common/StorageMonitor.h
+    src/common/CrashHandler.cpp
+    src/common/CrashHandler.h
 )
 
 if(WIN32)
@@ -226,6 +234,12 @@ target_link_libraries(CarrierVision PRIVATE
 if(TARGET Qt6::QuickEffects)
     target_link_libraries(CarrierVision PRIVATE Qt6::QuickEffects)
 endif()
+if(WIN32)
+    target_link_libraries(CarrierVision PRIVATE Dbghelp)   # CrashHandler 写 minidump
+else()
+    # 导出符号，使 crash.log 中的调用栈能显示函数名（strip --strip-unneeded 会保留动态符号表）
+    set_target_properties(CarrierVision PROPERTIES ENABLE_EXPORTS ON)
+endif()
 
 set_target_properties(CarrierVision PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -354,6 +368,10 @@ if(BUILD_TESTING)
         src/data/SettingsStore.h
         src/ingest/IngestCoordinator.cpp
         src/ingest/IngestCoordinator.h
+        src/common/StorageMonitor.cpp
+        src/common/StorageMonitor.h
+        src/network/NetworkAccess.cpp
+        src/network/NetworkAccess.h
         src/app/ImageListModel.cpp
         src/app/ImageListModel.h
         src/app/ImageItemObject.cpp
@@ -367,7 +385,7 @@ if(BUILD_TESTING)
     )
     target_include_directories(CarrierVisionBoundaryTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     target_include_directories(CarrierVisionBoundaryTests SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
-    target_link_libraries(CarrierVisionBoundaryTests PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+    target_link_libraries(CarrierVisionBoundaryTests PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Test)
     add_test(NAME CarrierVisionBoundaryTests COMMAND CarrierVisionBoundaryTests)
 endif()
 
@@ -379,7 +397,9 @@ if(BUILD_TESTING)
         src/data/ArchiveMaintenance.cpp src/data/ArchiveMaintenance.h
         src/network/FtpServer.cpp src/network/FtpServer.h
         src/network/FtpIngestService.cpp src/network/FtpIngestService.h
+        src/network/NetworkAccess.cpp src/network/NetworkAccess.h
         src/data/DbSchema.cpp src/data/DbSchema.h
+        src/data/DatabaseGuard.cpp src/data/DatabaseGuard.h
         src/common/AgcUtils.cpp src/common/AgcUtils.h
         src/common/AppLogger.cpp src/common/AppLogger.h)
     target_include_directories(CarrierVisionReleaseTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

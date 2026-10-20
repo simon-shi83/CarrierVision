@@ -90,7 +90,7 @@ Rectangle {
                 Layout.preferredHeight: 20
                 implicitWidth: camText.implicitWidth + 12
                 radius: Theme.radiusPill
-                color: !cardRoot.hasImage ? Theme.bgCardElevated : (cardRoot.result === 0 ? Theme.ngGlow : Theme.primaryGlow)
+                color: !cardRoot.hasImage ? Theme.bgCardElevated : (cardRoot.result === 0 ? Theme.ngBg : Theme.primaryGlow)
                 border.color: !cardRoot.hasImage ? Theme.borderSubtle : (cardRoot.result === 0 ? Theme.ng : Theme.primary)
                 border.width: 1
 

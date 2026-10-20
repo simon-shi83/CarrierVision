@@ -188,6 +188,12 @@ start "" "%APP_DIR%CarrierVision.exe" %*
         shutil.copy2(unreg_src, unreg_dst)
         print(f"[Windows Deploy] Copied {unreg_src.name} to package root.")
 
+    watchdog_src = source_path / "packaging" / "windows" / "CarrierVision_watchdog.bat"
+    watchdog_dst = install_path / "CarrierVision_watchdog.bat"
+    if watchdog_src.is_file():
+        shutil.copy2(watchdog_src, watchdog_dst)
+        print(f"[Windows Deploy] Copied {watchdog_src.name} to package root.")
+
     # 4.6 部署说明文件与图标（清理多余的原始 logo_agc.svg，确保仅保留 CarrierVision.svg）
     legacy_logo = install_path / "logo_agc.svg"
     if legacy_logo.is_file():

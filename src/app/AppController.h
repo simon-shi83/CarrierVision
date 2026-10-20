@@ -5,7 +5,9 @@
 #include "network/FtpIngestService.h"
 #include "network/TcpDataReceiver.h"
 #include "ingest/IngestCoordinator.h"
+#include "common/StorageMonitor.h"
 
+#include <QFile>
 #include <QObject>
 #include <QHash>
 #include <QDateTime>
@@ -53,6 +55,8 @@ class AppController : public QObject
     Q_PROPERTY(QString ftpLog READ ftpLog NOTIFY ftpLogChanged)
     Q_PROPERTY(QVariantList ftpLogLines READ ftpLogLines NOTIFY ftpLogChanged)
     Q_PROPERTY(QVariantMap latestWarnOrError READ latestWarnOrError NOTIFY latestWarnOrErrorChanged)
+    // {level: ok|warn|rejectUploads|rejectData, path, freeBytes, totalBytes, freePercent}
+    Q_PROPERTY(QVariantMap storageStatus READ storageStatus NOTIFY storageStatusChanged)
 
 public:
     explicit AppController(QObject *parent = nullptr);
@@ -91,7 +95,7 @@ public:
     Q_INVOKABLE bool tcpRunning() const;
     Q_INVOKABLE int tcpPort() const;
     Q_INVOKABLE int tcpClientCount() const;
-    Q_SLOT void onFtpImageStored(const QString &filePath);
+    Q_SLOT void onFtpImageStored(const QString &filePath, const QString &requestedPath);
     Q_INVOKABLE QString ftpUser() const;
     Q_INVOKABLE QString ftpRoot() const;
     Q_INVOKABLE int ftpPort() const;
@@ -170,12 +174,14 @@ public:
     QVariantList gearSumResult() const;
 
     QVariantMap latestWarnOrError() const;
+    QVariantMap storageStatus() const;
     Q_INVOKABLE void clearLatestWarnOrError();
 
 signals:
     void logQueryFinished(int requestId, const QVariantMap &result);
     void statsReady(int requestId, const QString &kind, const QVariant &result);
     void latestWarnOrErrorChanged();
+    void storageStatusChanged();
     void sourceDirectoryChanged();
     void archiveDirectoryChanged();
     void statusMessageChanged();
@@ -204,12 +210,16 @@ private:
     bool saveFtpSettingsToFile();
     bool applyFtpConfiguration(const QString &root, int port);
     bool ftpListen(int port, const QString &root);
+    QList<NetworkAccess::Subnet> networkAllowList() const;
     void ftpStop();
     void ftpPushUsers();
     void ftpPushRoot();
     void setStatusMessage(const QString &message);
-    void scheduleCleanup();
-    void finishCleanup(bool removeOk, bool more, const QString &error, int logKeepDays);
+    void runScheduledTasks();
+    void startMaintenance(bool emergency);
+    void appendFtpLog(const QString &message);
+    void checkStorage();
+    QStringList storagePaths() const;
     bool processTcpBatch(const QJsonObject &batchData, QString &error);
 
     QString m_sourceDirectory;
@@ -245,7 +255,7 @@ private:
     TcpDataReceiver m_tcpReceiver;
     int m_tcpPort = 9000;
 
-    QString m_ftpLogBuffer;
+    QFile m_ftpLogFile;
     QVariantList m_ftpLogLines;
     QString m_ftpLogPath;
 
@@ -258,14 +268,24 @@ private:
     QThreadPool m_searchPool;
     QThreadPool m_statsPool;
     int m_statsRequestSeq = 0;
+    int m_gearSumGeneration = 0;
     QThreadPool m_maintenancePool;
     bool m_cleanupRunning = false;
+    QTimer m_storageTimer;
+    StorageMonitor::Level m_storageLevel = StorageMonitor::Level::Ok;
+    QVariantMap m_storageStatus;
+    QDateTime m_lastEmergencyCleanup;
     QFutureWatcher<QVariantMap> m_logWatcher;
     QVariantList m_logRequest;
     int m_logGeneration = 0;
     int m_activeLogRequest = 0;
     bool m_logBusy = false;
-    QTimer m_cleanupTimer;
+    QTimer m_scheduleTimer;
+    bool m_reportRunning = false;
+    bool m_backupRunning = false;
+    QTimer m_serviceRetryTimer;
+    bool m_ftpStoppedByUser = false;
+    bool m_tcpStoppedByUser = false;
     QTimer m_ftpLogThrottleTimer;
     std::atomic<int> m_searchGeneration{0};
     std::atomic<int> m_alertSearchGeneration{0};

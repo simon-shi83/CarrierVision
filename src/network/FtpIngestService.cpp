@@ -14,13 +14,14 @@ FtpIngestService::FtpIngestService(QObject *parent)
     connect(&m_server, &FtpServer::runningChanged, this, &FtpIngestService::runningChanged);
     connect(&m_server, &FtpServer::clientCountChanged, this, &FtpIngestService::clientCountChanged);
     connect(&m_server, &FtpServer::logMessage, this, &FtpIngestService::logMessage);
-    m_server.uploadHandler = [this](const QString &staged, const QString &target) {
+    m_server.uploadHandler = [this](const QString &staged, const QString &target, const QString &requested) {
         QString error;
         const bool accepted = ImageIngest::accept(staged, target,
-            [this](const QString &path) { emit imageStored(path); return true; }, error);
+            [this, &requested](const QString &path) { emit imageStored(path, requested); return true; }, error);
         if (!accepted) emit ingestFailed(error);
         return accepted;
     };
+    m_server.uploadGate = [this]() { return m_acceptUploads.load(); };
     connect(&m_retryTimer, &QTimer::timeout, this, &FtpIngestService::recoverPendingUploads);
 }
 
@@ -29,6 +30,12 @@ bool FtpIngestService::start(quint16 port, const QString &root, const QMap<QStri
 {
     if (m_server.isRunning()) return true;
     return m_server.listen(address, port, root, users, allowAnonymous);
+}
+
+void FtpIngestService::setAccessPolicy(const QList<NetworkAccess::Subnet> &allowList, quint16 passiveMin, quint16 passiveMax)
+{
+    m_server.setAllowList(allowList);
+    m_server.setPassivePortRange(passiveMin, passiveMax);
 }
 
 void FtpIngestService::stop()
@@ -71,7 +78,7 @@ void FtpIngestService::recoverPendingUploads()
         const QString path = marker.chopped(QStringLiteral(".cv-pending").size());
         QString error;
         if (ImageIngest::validate(path, path, error)) {
-            emit imageStored(path);
+            emit imageStored(path, path); // 恢复时已无法得知原请求名，按实际文件名关联
             if (!QFile::remove(marker)) LOG_WARN("无法移除已恢复记录: {}", marker.toStdString());
         } else {
             // 如果目标文件不存在，或者标记已超过 5 分钟且无法通过验证（例如损坏或名称不符），清理该标记避免死循环

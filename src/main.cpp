@@ -5,13 +5,15 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QTimer>
 #include <QWindow>
-#include "data/WeeklyReport.h"
 #include "data/DbSchema.h"
+#include "data/DatabaseGuard.h"
 #include "common/AppLogger.h"
+#include "common/CrashHandler.h"
 #include "version.h"
 #include <nlohmann/json.hpp>
 
@@ -30,6 +32,47 @@
 #include <QSettings>
 #include <QMutex>
 #include <QMutexLocker>
+
+namespace {
+
+// 启动阶段的致命错误：显示错误窗口（不依赖 Widgets 模块），关闭后程序退出
+int showFatalError(QGuiApplication &app, const QString &title, const QString &detail)
+{
+    LOG_CRITICAL("{}: {}", title.toStdString(), detail.toStdString());
+    const QString logDir = QDir::toNativeSeparators(AppLogger::getLogDirectory());
+    QQmlEngine engine;
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import QtQuick.Layouts
+        ApplicationWindow {
+            property string titleText
+            property string detailText
+            width: 560; height: 260; visible: true
+            title: "CarrierVision 启动失败"
+            ColumnLayout {
+                anchors.fill: parent; anchors.margins: 20; spacing: 12
+                Label { text: titleText; font.pixelSize: 18; font.bold: true; color: "#c62828" }
+                Label { text: detailText; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.fillHeight: true }
+                Button { text: "退出"; Layout.alignment: Qt.AlignRight; onClicked: Qt.quit() }
+            }
+        })", QUrl());
+    QObject *window = component.createWithInitialProperties({
+        {QStringLiteral("titleText"), title},
+        {QStringLiteral("detailText"), detail + QStringLiteral("\n\n日志目录：") + logDir},
+    });
+    if (!window) {
+        LOG_ERROR("无法显示启动错误窗口: {}", component.errorString().toStdString());
+        return 1;
+    }
+    app.exec();
+    delete window;
+    AppLogger::shutdown();
+    return 1;
+}
+
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -78,6 +121,7 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QString::fromUtf8(CARRIER_VISION_VERSION_FULL));
     // 初始化 spdlog 工业日志引擎
     AppLogger::init();
+    CrashHandler::install(AppLogger::getLogDirectory());
     LOG_INFO("CarrierVision 应用程序启动, 版本: {}", CARRIER_VISION_VERSION_FULL);
 
     // remove old debug log file to keep installation clean
@@ -102,14 +146,28 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // 上次异常退出（运行标记仍在）或日常检查发现损坏时，打开数据库前先做完整性检查，损坏则从备份恢复
+    const QString dbPath = DBSchema::defaultDatabasePath();
+    const QString runningMarker = DatabaseGuard::runningMarkerPath(dbPath);
+    const QString checkMarker = DatabaseGuard::corruptMarkerPath(dbPath);
+    const bool uncleanExit = QFile::exists(runningMarker);
+    if (uncleanExit)
+        LOG_WARN("检测到上次程序未正常退出（崩溃、断电或被强制结束），启动前检查数据库完整性");
+    if (uncleanExit || QFile::exists(checkMarker)) {
+        const QString recovery = DatabaseGuard::recoverIfCorrupt(
+            dbPath, QFileInfo(dbPath).absolutePath() + QStringLiteral("/backup"));
+        if (!recovery.isEmpty()) LOG_CRITICAL("{}", recovery.toStdString());
+        QFile::remove(checkMarker);
+    }
+
     // 初始化 SQLite 数据库 dataAgc（文件 dataAgc.db）并确保表 record 存在
     {
         QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-        QString dbPath = DBSchema::defaultDatabasePath();
         db.setDatabaseName(dbPath);
         if (!db.open()) {
-            LOG_ERROR("无法打开主数据库 dataAgc: {}", db.lastError().text().toStdString());
-            return 1;
+            return showFatalError(app, QStringLiteral("无法打开主数据库"),
+                                  QStringLiteral("数据库文件：%1\n错误：%2\n请检查磁盘空间、文件权限，或数据库是否被其他程序占用。")
+                                      .arg(QDir::toNativeSeparators(dbPath), db.lastError().text()));
         } else {
             // 启用 WAL 模式以支持高并发读写，并设置 5 秒 busy_timeout 防止锁库抛错
             QSqlQuery pragmaQuery(db);
@@ -117,20 +175,33 @@ int main(int argc, char *argv[])
             pragmaQuery.exec("PRAGMA busy_timeout = 5000;");
             pragmaQuery.exec("PRAGMA synchronous = NORMAL;");
 
+            // 日志级别：system_config 中的 log/level 优先；未配置时发布版 info、调试版 debug
+#ifdef NDEBUG
+            const QString defaultLevel = QStringLiteral("info");
+#else
+            const QString defaultLevel = QStringLiteral("debug");
+#endif
+            const QString configuredLevel = DBSchema::getConfig(db, QStringLiteral("log/level"), defaultLevel);
+            if (!AppLogger::setLevel(configuredLevel)) {
+                AppLogger::setLevel(defaultLevel);
+                LOG_WARN("日志级别配置无效: '{}'，使用默认 {}", configuredLevel.toStdString(), defaultLevel.toStdString());
+            }
+
             // 集中创建所有表结构
             if(!DBSchema::ensureAllTables(db)){
-                LOG_ERROR("DBSchema: 核心表结构初始化校验失败");
-                return 1;
+                return showFatalError(app, QStringLiteral("数据库表结构初始化失败"),
+                                      QStringLiteral("数据库文件：%1\n请查看日志中 DBSchema 开头的错误；数据库可能已损坏或磁盘已满。")
+                                          .arg(QDir::toNativeSeparators(dbPath)));
             }
         }
     }
 
-    // 生成上周汇总报告并启动每周调度（在程序常驻时生效）
-    QDate today = QDate::currentDate();
-    QDate thisMonday = today.addDays(-today.dayOfWeek()+1);
-    QDate lastMonday = thisMonday.addDays(-7);
-    WeeklyReport::generateForWeek(lastMonday);
-    WeeklyReport::scheduleWeeklyReports();
+
+    {
+        QFile marker(runningMarker);
+        if (marker.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            marker.write(QDateTime::currentDateTime().toString(Qt::ISODate).toUtf8());
+    }
 
     int exitCode = 0;
     {
@@ -192,6 +263,7 @@ int main(int argc, char *argv[])
 
         exitCode = app.exec();
     }
+    QFile::remove(runningMarker); // 正常退出：下次启动无需检查数据库
     AppLogger::shutdown();
     return exitCode;
 }

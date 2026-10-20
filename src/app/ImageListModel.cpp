@@ -165,7 +165,7 @@ void ImageListModel::setItems(const QVector<ImageItem> &items)
         beginResetModel();
         m_items = items;
         while (m_itemObjects.size() > newCount) {
-            delete m_itemObjects.takeLast();
+            m_itemObjects.takeLast()->deleteLater(); // QML 绑定可能仍引用该对象，延迟到事件循环中释放
         }
         for (int i = 0; i < newCount; ++i) {
             if (i < m_itemObjects.size()) {
@@ -203,7 +203,7 @@ void ImageListModel::setItems(const QVector<ImageItem> &items)
     }
 
     while (m_itemObjects.size() > m_items.size()) {
-        delete m_itemObjects.takeLast();
+        m_itemObjects.takeLast()->deleteLater(); // QML 绑定可能仍引用该对象，延迟到事件循环中释放
     }
 }
 
@@ -243,7 +243,7 @@ void ImageListModel::clear()
     beginResetModel();
     m_items.clear();
     while (!m_itemObjects.isEmpty()) {
-        delete m_itemObjects.takeLast();
+        m_itemObjects.takeLast()->deleteLater(); // QML 绑定可能仍引用该对象，延迟到事件循环中释放
     }
     endResetModel();
     emit countChanged();

@@ -38,5 +38,8 @@ bool parseResultFilter(const QString &text, int &result);
 
 // 在原路径、归档目录、源目录及程序目录附近查找图片；只返回已确认存在的绝对路径，找不到返回空串
 QString resolveImagePath(const QString &rawName, const QString &archiveDir, const QString &sourceDir);
+// 优先使用记录中的实际落盘路径 image_path（存在时），否则按图片名查找
+QString resolveRecordImage(const QString &imagePath, const QString &imageName,
+                           const QString &archiveDir, const QString &sourceDir);
 
 } // namespace SearchService

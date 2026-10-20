@@ -9,6 +9,8 @@
 #include "data/SearchService.h"
 #include "data/SettingsStore.h"
 #include "ingest/IngestCoordinator.h"
+#include "common/StorageMonitor.h"
+#include "network/NetworkAccess.h"
 
 #include <QTemporaryDir>
 #include <QDir>
@@ -152,6 +154,19 @@ private slots:
             QCOMPARE(overview.value("totalCount").toInt(), 4);
             QCOMPARE(overview.value("ngCount").toInt(), 3);
             QCOMPARE(overview.value("drive").toList().size(), 8);
+
+            // 轮系汇总：默认输出 1~8；连续 8 个轮号时输出该范围；按架号过滤
+            const QVariantList gear = StatsService::gearSum(db, start, end, QString(), {});
+            QCOMPARE(gear.size(), 8);
+            QCOMPARE(gear.at(0).toMap().value("ok").toInt(), 1);
+            QCOMPARE(gear.at(0).toMap().value("ng").toInt(), 1);
+            QCOMPARE(gear.at(1).toMap().value("ng").toInt(), 1);
+            const QVariantList walkGear = StatsService::gearSum(db, start, end, QString(), {9, 10, 11, 12, 13, 14, 15, 16});
+            QCOMPARE(walkGear.at(1).toMap().value("wheel").toInt(), 10);
+            QCOMPARE(walkGear.at(1).toMap().value("ng").toInt(), 1);
+            const QVariantList rackGear = StatsService::gearSum(db, start, end, QStringLiteral("3"), {});
+            QCOMPARE(rackGear.at(0).toMap().value("ok").toInt(), 1);
+            QCOMPARE(rackGear.at(0).toMap().value("ng").toInt(), 0);
 
             bool known = true;
             StatsService::run(db, QStringLiteral("noSuchStats"), {}, &known);
@@ -353,9 +368,9 @@ private slots:
         const QDateTime now = QDateTime::currentDateTime();
         QVERIFY(touch(QStringLiteral("Cam01.PNG")));
         QVERIFY(touch(QStringLiteral("old.png")));
-        cache.add(dir.filePath(QStringLiteral("Cam01.PNG")), now);
-        cache.add(dir.filePath(QStringLiteral("old.png")), now.addSecs(-IngestCoordinator::PendingImageCache::kMaxAgeSecs - 1));
-        cache.add(dir.filePath(QStringLiteral("gone.png")), now);
+        cache.add(QStringLiteral("Cam01.PNG"), dir.filePath(QStringLiteral("Cam01.PNG")), now);
+        cache.add(QStringLiteral("old.png"), dir.filePath(QStringLiteral("old.png")), now.addSecs(-IngestCoordinator::PendingImageCache::kMaxAgeSecs - 1));
+        cache.add(QStringLiteral("gone.png"), dir.filePath(QStringLiteral("gone.png")), now);
         QCOMPARE(cache.size(), 3);
         QCOMPARE(cache.find(QStringLiteral("some/dir/cam01.png")), dir.filePath(QStringLiteral("Cam01.PNG")));
         QVERIFY(cache.find(QStringLiteral("gone.png")).isEmpty());
@@ -365,7 +380,7 @@ private slots:
         for (int i = 0; i < IngestCoordinator::PendingImageCache::kMaxEntries + 5; ++i) {
             const QString name = QStringLiteral("bulk_%1.png").arg(i);
             QVERIFY(touch(name));
-            cache.add(dir.filePath(name), now.addMSecs(i));
+            cache.add(name, dir.filePath(name), now.addMSecs(i));
         }
         cache.prune(now);
         QCOMPARE(cache.size(), IngestCoordinator::PendingImageCache::kMaxEntries);
@@ -401,6 +416,56 @@ private slots:
         QCOMPARE(cards.at(11).serial, QStringLiteral("CAM 12"));
         QVERIFY(cards.at(11).wheelsInfo.isEmpty());
         QVERIFY(!located.contains(QStringLiteral("x.png"))); // 相机号越界的轮数据被忽略
+    }
+    void storageMonitorLevelsAndUsage()
+    {
+        using StorageMonitor::Level;
+        QCOMPARE(StorageMonitor::levelFor(50.0, 10, 5, 2), Level::Ok);
+        QCOMPARE(StorageMonitor::levelFor(9.9, 10, 5, 2), Level::Warn);
+        QCOMPARE(StorageMonitor::levelFor(4.0, 10, 5, 2), Level::RejectUploads);
+        QCOMPARE(StorageMonitor::levelFor(1.5, 10, 5, 2), Level::RejectData);
+        QCOMPARE(StorageMonitor::levelFor(10.0, 10, 5, 2), Level::Ok); // 等于阈值不告警
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        // 尚不存在的子目录按其最近的已存在父目录所在分区计算
+        const StorageMonitor::Usage usage = StorageMonitor::lowest({QString(), dir.filePath(QStringLiteral("not/yet/created"))});
+        QVERIFY(usage.valid);
+        QVERIFY(usage.totalBytes > 0);
+        QVERIFY(usage.freePercent >= 0.0 && usage.freePercent <= 100.0);
+        QVERIFY(!StorageMonitor::lowest({}).valid);
+    }
+    void networkAccessAllowListAndThrottle()
+    {
+        bool ok = false;
+        QString error;
+        QVERIFY(NetworkAccess::parseAllowList(QString(), ok, error).isEmpty());
+        QVERIFY(ok);
+        const auto list = NetworkAccess::parseAllowList(QStringLiteral("192.168.1.0/24, 10.0.0.5;::1"), ok, error);
+        QVERIFY(ok);
+        QCOMPARE(list.size(), 3);
+        QVERIFY(NetworkAccess::isAllowed(QHostAddress(QStringLiteral("192.168.1.77")), list));
+        QVERIFY(NetworkAccess::isAllowed(QHostAddress(QStringLiteral("::ffff:192.168.1.9")), list)); // IPv4 映射地址
+        QVERIFY(NetworkAccess::isAllowed(QHostAddress(QStringLiteral("10.0.0.5")), list));
+        QVERIFY(!NetworkAccess::isAllowed(QHostAddress(QStringLiteral("10.0.0.6")), list));
+        QVERIFY(NetworkAccess::isAllowed(QHostAddress(QStringLiteral("10.0.0.6")), {})); // 空列表不限制
+        NetworkAccess::parseAllowList(QStringLiteral("192.168.1.0/24,not-an-ip"), ok, error);
+        QVERIFY(!ok);
+        QVERIFY(error.contains(QStringLiteral("not-an-ip")));
+
+        NetworkAccess::LoginThrottle throttle(3, 600, 900);
+        const QDateTime t0 = QDateTime::fromString(QStringLiteral("2026-10-20T12:00:00"), Qt::ISODate);
+        QVERIFY(!throttle.recordFailure(QStringLiteral("1.1.1.1"), t0));
+        QVERIFY(!throttle.recordFailure(QStringLiteral("1.1.1.1"), t0.addSecs(10)));
+        QVERIFY(throttle.recordFailure(QStringLiteral("1.1.1.1"), t0.addSecs(20)));     // 第 3 次封禁
+        QVERIFY(throttle.isBanned(QStringLiteral("1.1.1.1"), t0.addSecs(30)));
+        QVERIFY(!throttle.isBanned(QStringLiteral("2.2.2.2"), t0.addSecs(30)));
+        QVERIFY(!throttle.isBanned(QStringLiteral("1.1.1.1"), t0.addSecs(20 + 901)));  // 封禁到期
+        // 窗口外的失败重新计数
+        QVERIFY(!throttle.recordFailure(QStringLiteral("3.3.3.3"), t0));
+        QVERIFY(!throttle.recordFailure(QStringLiteral("3.3.3.3"), t0.addSecs(10)));
+        QVERIFY(!throttle.recordFailure(QStringLiteral("3.3.3.3"), t0.addSecs(700)));
+        QVERIFY(!throttle.isBanned(QStringLiteral("3.3.3.3"), t0.addSecs(700)));
     }
 };
 

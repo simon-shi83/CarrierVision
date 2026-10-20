@@ -6,9 +6,12 @@
 #include "ingest/ImageIngest.h"
 #include "data/ArchiveMaintenance.h"
 #include "data/StatsService.h"
+#include "data/WeeklyReport.h"
+#include "data/DatabaseGuard.h"
 #include "data/SearchService.h"
 #include "data/SettingsStore.h"
 #include "ingest/IngestCoordinator.h"
+#include "common/StorageMonitor.h"
 #include <iostream>
 #include <QDir>
 #include <QFile>
@@ -90,35 +93,116 @@ using SearchService::buildRecordFilter;
 using SearchService::parseResultFilter;
 using SearchService::queryRecordPage;
 using SearchService::resolveImagePath;
+using SearchService::resolveRecordImage;
+
+namespace {
+
+struct MaintenanceRequest {
+    QString archiveRoot;
+    QStringList managedRoots;
+    QStringList storagePaths;
+    int keepDays = 90;
+    int logKeepDays = 30;
+    bool emergency = false;
+    int recoverPercent = 10;
+};
+
+struct MaintenanceResult {
+    bool ok = true;
+    QString error;
+    int records = 0;
+    int files = 0;
+    int orphans = 0;
+    int skippedUnsafe = 0;
+    int effectiveKeepDays = 0;
+    double freePercent = 100.0;
+};
+
+constexpr int kMinKeepDaysInEmergency = 7;  // 决策 D3：紧急清理最少保留最近 7 天
+constexpr int kOrphanGraceDays = 7;          // 决策 D3：孤儿图片超过保留期 7 天后删除
+constexpr int kMaxBatchesPerRun = 200;       // 单次运行最多 200 批（约 10 万组），其余留到下次
+
+// 在维护线程执行：按批清理到没有更多过期数据为止，再清理孤儿图片与旧日志。
+// 紧急模式下从保留天数开始逐步缩短，直到剩余空间恢复到 recoverPercent 或只剩最近 7 天。
+MaintenanceResult runMaintenance(const MaintenanceRequest &request)
+{
+    MaintenanceResult result;
+    QSqlDatabase db = getThreadDatabase();
+    auto cleanTo = [&](int keepDays) {
+        const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
+        for (int batch = 0; batch < kMaxBatchesPerRun; ++batch) {
+            int removed = 0;
+            bool more = false;
+            ArchiveMaintenance::CleanupStats stats;
+            if (!ArchiveMaintenance::cleanup(db, request.archiveRoot, request.managedRoots, cutoff,
+                                             removed, more, result.error, &stats)) {
+                result.ok = false;
+                return;
+            }
+            result.records += stats.recordsDeleted;
+            result.files += stats.filesDeleted;
+            result.skippedUnsafe += stats.skippedUnsafe;
+            if (!more) break;
+        }
+        QString orphanError;
+        result.orphans += ArchiveMaintenance::sweepOrphans(db, request.managedRoots,
+            QDateTime::currentDateTime().addDays(-(request.emergency ? keepDays : keepDays + kOrphanGraceDays)),
+            5000, orphanError);
+        if (!orphanError.isEmpty()) LOG_WARN("[CLEANUP] 孤儿图片清理中断: {}", orphanError.toStdString());
+    };
+
+    int keepDays = request.keepDays;
+    cleanTo(keepDays);
+    result.freePercent = StorageMonitor::lowest(request.storagePaths).freePercent;
+    while (request.emergency && result.ok && result.freePercent < request.recoverPercent
+           && keepDays > kMinKeepDaysInEmergency) {
+        keepDays = qMax(kMinKeepDaysInEmergency, keepDays - qMax(1, (keepDays - kMinKeepDaysInEmergency) / 4));
+        LOG_WARN("[CLEANUP] 紧急清理：剩余空间 {:.1f}% 低于 {}%，临时缩短保留期至 {} 天",
+                 result.freePercent, request.recoverPercent, keepDays);
+        cleanTo(keepDays);
+        result.freePercent = StorageMonitor::lowest(request.storagePaths).freePercent;
+    }
+    result.effectiveKeepDays = keepDays;
+    if (result.ok) AppLogger::cleanupLogsOlderThanDays(request.logKeepDays);
+    return result;
+}
+
+} // namespace
 
 void AppController::triggerCleanup()
+{
+    startMaintenance(false);
+}
+
+void AppController::startMaintenance(bool emergency)
 {
     if (m_cleanupRunning) {
         LOG_INFO("历史数据清理任务正在执行，忽略重复触发");
         return;
     }
-    int keepDays = 90;
-    int logKeepDays = 30;
+    MaintenanceRequest request;
+    request.emergency = emergency;
     {
         QMutexLocker locker(&m_dbMutex);
         QSqlDatabase db = QSqlDatabase::database();
-        keepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/keepDays", 90), 3650);
-        logKeepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/logKeepDays", 30), 3650);
+        request.keepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/keepDays", 90), 3650);
+        request.logKeepDays = qBound(1, DBSchema::getConfigInt(db, "cleanup/logKeepDays", 30), 3650);
+        request.recoverPercent = qBound(1, DBSchema::getConfigInt(db, "storage/warnPercent", 10), 90);
     }
 
-    LOG_INFO("执行历史数据清理任务: 图像保留天数={} 天, 日志保留天数={} 天", keepDays, logKeepDays);
-    const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
+    LOG_INFO("执行{}历史数据清理任务: 图像保留天数={} 天, 日志保留天数={} 天",
+             emergency ? "紧急" : "", request.keepDays, request.logKeepDays);
 
-    const QString archiveRoot = m_archiveDirectory.isEmpty()
+    request.archiveRoot = m_archiveDirectory.isEmpty()
         ? (QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("images"))
         : m_archiveDirectory;
-    if (!isSafeArchiveRoot(archiveRoot)) {
-        setStatusMessage(QStringLiteral("已拒绝清理未标记或危险的图像目录: %1").arg(archiveRoot));
+    if (!isSafeArchiveRoot(request.archiveRoot)) {
+        setStatusMessage(QStringLiteral("已拒绝清理未标记或危险的图像目录: %1").arg(request.archiveRoot));
         return;
     }
 
     // Restore legacy directory staging conservatively; never recursively delete it.
-    QDir archive(archiveRoot);
+    QDir archive(request.archiveRoot);
     const auto staged = QDir(archive.filePath(".cleanup_staging")).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
     for (const auto &entry : staged) {
         const QString name = entry.fileName();
@@ -129,44 +213,108 @@ void AppController::triggerCleanup()
             return;
         }
     }
+    request.managedRoots = {request.archiveRoot, m_ftpRoot};
+    request.storagePaths = storagePaths();
+
     // 数据库与文件删除在维护线程用独立连接执行，避免阻塞界面与上传处理
     m_cleanupRunning = true;
-    const QStringList managedRoots{archiveRoot, m_ftpRoot};
-    (void)QtConcurrent::run(&m_maintenancePool, [this, archiveRoot, managedRoots, cutoff, logKeepDays]() {
-        int removed = 0;
-        bool more = false;
-        QString error;
-        const bool removeOk = ArchiveMaintenance::cleanup(getThreadDatabase(), archiveRoot,
-            managedRoots, cutoff, removed, more, error);
-        // 清理超期运行日志文件 (超过 logKeepDays 天的日志自动删除)
-        if (removeOk) AppLogger::cleanupLogsOlderThanDays(logKeepDays);
-
-        QMetaObject::invokeMethod(this, [this, removeOk, more, error, logKeepDays]() {
-            finishCleanup(removeOk, more, error, logKeepDays);
+    (void)QtConcurrent::run(&m_maintenancePool, [this, request]() {
+        const MaintenanceResult result = runMaintenance(request);
+        QMetaObject::invokeMethod(this, [this, request, result]() {
+            m_cleanupRunning = false;
+            if (!result.ok) {
+                setStatusMessage(QStringLiteral("清理未完成: %1").arg(result.error));
+                return;
+            }
+            // FTP 轮转日志与主线程日志写入共用文件，留在主线程处理
+            if (!m_ftpLogPath.isEmpty()) {
+                const QString rotatedLog = m_ftpLogPath + QStringLiteral(".1");
+                QFileInfo fi(rotatedLog);
+                if (fi.exists() && fi.lastModified() < QDateTime::currentDateTime().addDays(-request.logKeepDays)) {
+                    QFile::remove(rotatedLog);
+                    LOG_INFO("已自动删除超期 FTP 轮转日志: {}", rotatedLog.toStdString());
+                }
+            }
+            LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 剩余空间 {:.1f}%",
+                     request.emergency ? "紧急" : "", result.records, result.files, result.orphans,
+                     result.skippedUnsafe, result.freePercent);
+            if (result.skippedUnsafe > 0)
+                LOG_WARN("清理发现 {} 组图片路径不在图像目录内（已删除记录、保留文件），请检查客户端 imageName", result.skippedUnsafe);
+            if (request.emergency && result.effectiveKeepDays < request.keepDays)
+                LOG_WARN("紧急清理已临时将保留期缩短至 {} 天以释放空间", result.effectiveKeepDays);
+            setStatusMessage(QStringLiteral("%1清理完成：记录 %2 条、图片 %3 张、孤儿图片 %4 张")
+                                 .arg(request.emergency ? QStringLiteral("紧急") : QString())
+                                 .arg(result.records).arg(result.files).arg(result.orphans));
+            checkStorage();
         }, Qt::QueuedConnection);
     });
 }
 
-void AppController::finishCleanup(bool removeOk, bool more, const QString &error, int logKeepDays)
+QStringList AppController::storagePaths() const
 {
-    m_cleanupRunning = false;
-    if (!removeOk) {
-        setStatusMessage(QStringLiteral("清理未完成: %1").arg(error));
-        return;
-    }
-    if (more) QTimer::singleShot(50, this, &AppController::triggerCleanup);
+    return {m_archiveDirectory, m_ftpRoot, QFileInfo(DBSchema::defaultDatabasePath()).absolutePath(),
+            AppLogger::getLogDirectory()};
+}
 
-    // FTP 轮转日志与主线程日志写入共用文件，留在主线程处理
-    if (!m_ftpLogPath.isEmpty()) {
-        const QString rotatedLog = m_ftpLogPath + QStringLiteral(".1");
-        QFileInfo fi(rotatedLog);
-        if (fi.exists() && fi.lastModified() < QDateTime::currentDateTime().addDays(-logKeepDays)) {
-            QFile::remove(rotatedLog);
-            LOG_INFO("已自动删除超期 FTP 轮转日志: {}", rotatedLog.toStdString());
+void AppController::checkStorage()
+{
+    int warn = 10, rejectUploads = 5, rejectData = 2;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        warn = qBound(1, DBSchema::getConfigInt(db, "storage/warnPercent", 10), 90);
+        rejectUploads = qBound(1, DBSchema::getConfigInt(db, "storage/rejectUploadsPercent", 5), warn);
+        rejectData = qBound(1, DBSchema::getConfigInt(db, "storage/rejectDataPercent", 2), rejectUploads);
+    }
+    const StorageMonitor::Usage usage = StorageMonitor::lowest(storagePaths());
+    if (!usage.valid) return;
+    const StorageMonitor::Level level = StorageMonitor::levelFor(usage.freePercent, warn, rejectUploads, rejectData);
+    const bool changed = level != m_storageLevel;
+    m_storageLevel = level;
+    m_storageStatus = QVariantMap{
+        {QStringLiteral("level"), StorageMonitor::levelName(level)},
+        {QStringLiteral("path"), usage.path},
+        {QStringLiteral("freeBytes"), usage.freeBytes},
+        {QStringLiteral("totalBytes"), usage.totalBytes},
+        {QStringLiteral("freePercent"), usage.freePercent},
+    };
+    emit storageStatusChanged();
+    m_ftpService->setAcceptUploads(level < StorageMonitor::Level::RejectUploads);
+
+    if (changed) {
+        const QString text = QStringLiteral("%1 所在分区剩余 %2%（%3 GB）")
+                                 .arg(usage.path).arg(usage.freePercent, 0, 'f', 1)
+                                 .arg(usage.freeBytes / 1024.0 / 1024.0 / 1024.0, 0, 'f', 1);
+        switch (level) {
+        case StorageMonitor::Level::Ok:
+            LOG_INFO("存储空间恢复正常: {}", text.toStdString());
+            break;
+        case StorageMonitor::Level::Warn:
+            LOG_WARN("存储空间不足 {}%: {}", warn, text.toStdString());
+            break;
+        case StorageMonitor::Level::RejectUploads:
+            LOG_ERROR("存储空间低于 {}%，已暂停接收 FTP 上传: {}", rejectUploads, text.toStdString());
+            break;
+        case StorageMonitor::Level::RejectData:
+            LOG_ERROR("存储空间低于 {}%，已暂停 FTP 上传与 TCP 入库: {}", rejectData, text.toStdString());
+            break;
         }
+        if (level != StorageMonitor::Level::Ok)
+            setStatusMessage(QStringLiteral("存储空间不足：%1").arg(text));
     }
+    // 空间无法恢复时（如被其他程序占满）不必每分钟重跑，至少间隔 10 分钟，等级恶化时立即执行
+    const bool worsened = changed && level >= StorageMonitor::Level::RejectUploads;
+    if (level >= StorageMonitor::Level::RejectUploads && !m_cleanupRunning
+        && (worsened || !m_lastEmergencyCleanup.isValid()
+            || m_lastEmergencyCleanup.secsTo(QDateTime::currentDateTime()) >= 600)) {
+        m_lastEmergencyCleanup = QDateTime::currentDateTime();
+        startMaintenance(true);
+    }
+}
 
-    setStatusMessage(QStringLiteral("历史图像与日志数据清理完成"));
+QVariantMap AppController::storageStatus() const
+{
+    return m_storageStatus;
 }
 
 int AppController::cleanupKeepDays() const
@@ -251,18 +399,86 @@ void AppController::setCleanupRunHour(int hour)
         QSqlDatabase db = QSqlDatabase::database();
         DBSchema::setConfig(db, "cleanup/runHour", QString::number(hour));
     }
-    scheduleCleanup();
     LOG_DEBUG("设置清理执行时间点: 每天 {} 时", hour);
 }
 
-void AppController::scheduleCleanup()
+// 每分钟检查一次定时任务：与 system_config 中记录的上次执行日期比较，
+// 不受系统改时间、休眠唤醒影响，程序关闭期间错过的任务会在启动后补跑
+void AppController::runScheduledTasks()
 {
-    const int runHour = qBound(0, cleanupRunHour(), 23);
     const QDateTime now = QDateTime::currentDateTime();
-    QDateTime nextRun(now.date(), QTime(runHour, 0));
-    if (nextRun <= now) nextRun = nextRun.addDays(1);
-    m_cleanupTimer.setSingleShot(true);
-    m_cleanupTimer.start(static_cast<int>(qMax<qint64>(1, now.msecsTo(nextRun))));
+    const QString today = now.date().toString(Qt::ISODate);
+    const QDate thisMonday = now.date().addDays(1 - now.date().dayOfWeek());
+    const QString lastWeek = thisMonday.addDays(-7).toString(Qt::ISODate);
+    int runHour = 1;
+    QString lastCleanup;
+    QString lastReport;
+    QString lastBackup;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        runHour = qBound(0, DBSchema::getConfigInt(db, "cleanup/runHour", 1), 23);
+        lastCleanup = DBSchema::getConfig(db, "cleanup/lastRunDate");
+        lastReport = DBSchema::getConfig(db, "report/lastWeek");
+        lastBackup = DBSchema::getConfig(db, "db/lastBackupDate");
+    }
+
+    if (now.time().hour() >= runHour && lastCleanup != today && !m_cleanupRunning) {
+        {
+            QMutexLocker locker(&m_dbMutex);
+            QSqlDatabase db = QSqlDatabase::database();
+            DBSchema::setConfig(db, "cleanup/lastRunDate", today);
+        }
+        triggerCleanup();
+    }
+
+    // 数据库每日完整性检查与备份：与清理同一时段，在维护线程串行执行
+    if (now.time().hour() >= runHour && lastBackup != today && !m_backupRunning) {
+        m_backupRunning = true;
+        const QString dbPath = DBSchema::defaultDatabasePath();
+        const QString backupDir = QFileInfo(dbPath).absolutePath() + QStringLiteral("/backup");
+        const bool lowDisk = m_storageLevel >= StorageMonitor::Level::Warn;
+        (void)QtConcurrent::run(&m_maintenancePool, [this, dbPath, backupDir, lowDisk, today]() {
+            QSqlDatabase db = getThreadDatabase();
+            QString detail;
+            const bool healthy = DatabaseGuard::quickCheck(db, detail);
+            QString backupError, backupPath;
+            const bool backedUp = healthy && !lowDisk && DatabaseGuard::backup(db, backupDir, 3, backupError, &backupPath);
+            QMetaObject::invokeMethod(this, [=]() {
+                m_backupRunning = false;
+                if (!healthy) {
+                    // 运行中无法替换数据库：标记后由下次启动自动检查并从备份恢复
+                    QFile marker(DatabaseGuard::corruptMarkerPath(dbPath));
+                    if (marker.open(QIODevice::WriteOnly)) marker.write(detail.toUtf8());
+                    LOG_CRITICAL("[DB] 数据库完整性检查失败: {}；请尽快重启程序，启动时将自动从备份恢复", detail.toStdString());
+                    setStatusMessage(QStringLiteral("数据库完整性检查失败，请尽快重启程序以自动恢复"));
+                    return;
+                }
+                if (lowDisk) LOG_WARN("[DB] 存储空间不足，跳过今日数据库备份");
+                else if (!backedUp) { LOG_ERROR("[DB] 数据库备份失败: {}", backupError.toStdString()); return; }
+                else LOG_INFO("[DB] 数据库检查通过，已备份到 {}", backupPath.toStdString());
+                QMutexLocker locker(&m_dbMutex);
+                QSqlDatabase mainDb = QSqlDatabase::database();
+                DBSchema::setConfig(mainDb, "db/lastBackupDate", today);
+            }, Qt::QueuedConnection);
+        });
+    }
+
+    // 周报：上周的报表在本周一 00:10 之后生成一次；与清理共用维护线程，串行执行
+    if (lastReport != lastWeek && now >= QDateTime(thisMonday, QTime(0, 10)) && !m_reportRunning) {
+        m_reportRunning = true;
+        const QDate monday = thisMonday.addDays(-7);
+        (void)QtConcurrent::run(&m_maintenancePool, [this, monday, lastWeek]() {
+            const bool ok = WeeklyReport::generateForWeek(getThreadDatabase(), monday);
+            QMetaObject::invokeMethod(this, [this, ok, lastWeek]() {
+                m_reportRunning = false;
+                if (!ok) return; // 失败时下一分钟重试
+                QMutexLocker locker(&m_dbMutex);
+                QSqlDatabase db = QSqlDatabase::database();
+                DBSchema::setConfig(db, "report/lastWeek", lastWeek);
+            }, Qt::QueuedConnection);
+        });
+    }
 }
 
 bool AppController::saveHomepageDescription(const QString &description)
@@ -374,7 +590,10 @@ AppController::AppController(QObject *parent)
     });
     m_ftpLogThrottleTimer.setSingleShot(true);
     m_ftpLogThrottleTimer.setInterval(150);
-    connect(&m_ftpLogThrottleTimer, &QTimer::timeout, this, &AppController::ftpLogChanged);
+    connect(&m_ftpLogThrottleTimer, &QTimer::timeout, this, [this]() {
+        if (m_ftpLogFile.isOpen()) m_ftpLogFile.flush();
+        emit ftpLogChanged();
+    });
 
     const QDateTime now = QDateTime::currentDateTime();
     m_defaultSearchStart = AgcUtils::formatDateTime(now.addDays(-1));
@@ -400,11 +619,23 @@ AppController::AppController(QObject *parent)
 
     loadSettings();
     ensureDirectories();
-    connect(&m_cleanupTimer, &QTimer::timeout, this, [this]() {
-        triggerCleanup();
-        scheduleCleanup();
+    connect(&m_scheduleTimer, &QTimer::timeout, this, &AppController::runScheduledTasks);
+    // 端口被占用等原因启动失败的服务每 30 秒自动重试；用户手动停止的不重试
+    connect(&m_serviceRetryTimer, &QTimer::timeout, this, [this]() {
+        if (!m_ftpRunning && !m_ftpStoppedByUser && !m_ftpUsers.isEmpty()) {
+            LOG_INFO("FTP 服务未运行，尝试重新启动");
+            startFtpServer();
+        }
+        if (!m_tcpReceiver.isRunning() && !m_tcpStoppedByUser) {
+            LOG_INFO("TCP 数据服务未运行，尝试重新启动");
+            startTcpServer();
+        }
     });
-    scheduleCleanup();
+    m_serviceRetryTimer.start(30'000);
+    m_scheduleTimer.start(60'000);
+
+    connect(&m_storageTimer, &QTimer::timeout, this, &AppController::checkStorage);
+    m_storageTimer.start(60'000);
 
     // prepare ftp log path
     m_ftpLogPath = QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("ftp.log");
@@ -448,31 +679,7 @@ AppController::AppController(QObject *parent)
             LOG_DEBUG("[FTP] {}", cleanMessage.toStdString());
         }
 
-        const QString entry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + " " + boundedMessage;
-        m_ftpLogLines.append(entry);
-        if (m_ftpLogLines.size() > 2000) {
-            m_ftpLogLines.removeFirst();
-            int idx = m_ftpLogBuffer.indexOf(QLatin1Char('\n'));
-            if (idx >= 0) m_ftpLogBuffer.remove(0, idx + 1);
-        }
-        if (!m_ftpLogBuffer.isEmpty()) m_ftpLogBuffer.append(QLatin1Char('\n'));
-        m_ftpLogBuffer.append(entry);
-
-        QFile f(m_ftpLogPath);
-        if (f.exists() && f.size() >= 5 * 1024 * 1024) {
-            const QString oldPath = m_ftpLogPath + QStringLiteral(".1");
-            QFile::remove(oldPath);
-            QFile::rename(m_ftpLogPath, oldPath);
-        }
-        if (f.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream ts(&f);
-            ts << entry << "\n";
-            f.close();
-        }
-
-        if (!m_ftpLogThrottleTimer.isActive()) {
-            m_ftpLogThrottleTimer.start();
-        }
+        appendFtpLog(boundedMessage);
     });
     // 上传校验、提交与未决上传恢复均在 FTP 线程执行
     ftpPushRoot();
@@ -493,14 +700,14 @@ AppController::AppController(QObject *parent)
     connect(&m_tcpReceiver, &TcpDataReceiver::clientCountChanged, this, [this](int) {
         emit tcpServerStateChanged();
     });
-    connect(&m_tcpReceiver, &TcpDataReceiver::logMessage, this, [this](const QString &msg) {
-        LOG_INFO("{}", msg.toStdString());
-    });
+    // TcpDataReceiver 自身已写日志，logMessage 不再转发写入，避免每条记录两次
     m_tcpReceiver.batchHandler = [this](const QJsonObject &data, QString &error) {
         return processTcpBatch(data, error);
     };
 
     startTcpServer();
+    QTimer::singleShot(0, this, &AppController::checkStorage); // 启动后立即检查一次磁盘空间
+    QTimer::singleShot(5'000, this, &AppController::runScheduledTasks); // 补跑程序关闭期间错过的定时任务
 
     setStatusMessage(
         QStringLiteral("源目录 %1，归档目录 %2")
@@ -509,7 +716,34 @@ AppController::AppController(QObject *parent)
 
 QString AppController::ftpLog() const
 {
-    return m_ftpLogBuffer;
+    QStringList lines;
+    lines.reserve(m_ftpLogLines.size());
+    for (const QVariant &line : m_ftpLogLines) lines << line.toString();
+    return lines.join(QLatin1Char('\n'));
+}
+
+// FTP 协议日志：内存保留最近 2000 行；ftp.log 常驻打开，由节流定时器统一刷盘，超过 5 MB 轮转为 ftp.log.1
+void AppController::appendFtpLog(const QString &message)
+{
+    const QString entry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + QLatin1Char(' ') + message;
+    m_ftpLogLines.append(entry);
+    while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
+
+    if (!m_ftpLogPath.isEmpty()) {
+        if (m_ftpLogFile.isOpen() && m_ftpLogFile.size() >= 5 * 1024 * 1024) {
+            m_ftpLogFile.close();
+            const QString oldPath = m_ftpLogPath + QStringLiteral(".1");
+            QFile::remove(oldPath);
+            QFile::rename(m_ftpLogPath, oldPath);
+        }
+        if (!m_ftpLogFile.isOpen()) {
+            m_ftpLogFile.setFileName(m_ftpLogPath);
+            if (!m_ftpLogFile.open(QIODevice::Append | QIODevice::Text))
+                LOG_WARN("无法打开 FTP 日志文件: {}", m_ftpLogPath.toStdString());
+        }
+        if (m_ftpLogFile.isOpen()) m_ftpLogFile.write((entry + QLatin1Char('\n')).toUtf8());
+    }
+    if (!m_ftpLogThrottleTimer.isActive()) m_ftpLogThrottleTimer.start();
 }
 
 QVariantList AppController::weeklyReports()
@@ -598,7 +832,7 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
 
     QSqlQuery query(db);
     const QString sql = QStringLiteral(
-        "SELECT imagename, createtime, result FROM record "
+        "SELECT imagename, createtime, result, image_path FROM record "
         "WHERE carrier_id = :rack AND wheel_id = :wheel "
         "ORDER BY createtime DESC, rowid DESC LIMIT 1");
 
@@ -610,7 +844,7 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
     }
 
     const QString imageName = query.value(0).toString().trimmed();
-    QString imagePath = resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory);
+    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, m_archiveDirectory, m_sourceDirectory);
     if (imagePath.isEmpty()) imagePath = imageName;
 
     image.insert(QStringLiteral("filePath"), imagePath);
@@ -671,11 +905,6 @@ void AppController::loadFtpLogs()
         }
         f.close();
     }
-    {
-        QStringList sl;
-        for (const QVariant &v : m_ftpLogLines) sl.append(v.toString());
-        m_ftpLogBuffer = sl.join('\n');
-    }
     LOG_DEBUG("loadFtpLogs: 已加载 {} 行 FTP 日志", m_ftpLogLines.size());
     emit ftpLogChanged();
 }
@@ -683,7 +912,7 @@ void AppController::loadFtpLogs()
 void AppController::clearFtpLogs()
 {
     m_ftpLogLines.clear();
-    m_ftpLogBuffer.clear();
+    m_ftpLogFile.close();
     QFile f(m_ftpLogPath);
     if (f.exists()) f.remove();
     emit ftpLogChanged();
@@ -874,7 +1103,7 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
     if (db.isValid() && db.isOpen()) {
         QSqlQuery q(db);
         const QString sql = QStringLiteral(R"(
-            SELECT rowid, createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance
+            SELECT rowid, createtime, carrier_id, wheel_id, camera_id, result, imagename, distance, dist_norm, lower_tolerance, image_path
             FROM record
             WHERE carrier_id = :rack AND result = 1 AND distance > 0
               AND wheel_id = :wheel
@@ -911,7 +1140,7 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                     item.lower_tolerance = q.value(9).toDouble();
 
                     const QString rawName = q.value(6).toString().trimmed();
-                    item.filePath = resolveImagePath(rawName, m_archiveDirectory, m_sourceDirectory);
+                    item.filePath = resolveRecordImage(q.value(10).toString(), rawName, m_archiveDirectory, m_sourceDirectory);
                     if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
                     items.append(item);
                 }
@@ -1096,102 +1325,18 @@ QVariantList AppController::gearSumResult() const {
 }
 
 void AppController::gearSumQuery(const QString &startDate, const QString &endDate, const QString &rackno, const QVariant &selectedTurns) {
-    // Build date bounds
-    QDateTime startTime = AgcUtils::parseFlexibleDateTime(startDate, false);
-    QDateTime endTime = AgcUtils::parseFlexibleDateTime(endDate, true);
-    const QString rackTrimmed = rackno.trimmed();
-    bool rackOk = false;
-    const int rackValue = rackTrimmed.toInt(&rackOk);
-    const bool filterByRack = !rackTrimmed.isEmpty() && (!rackOk || rackValue > 0);
-
-    // prepare wheel filter
-    QStringList wheelList;
-    if (selectedTurns.isValid()) {
-        QVariantList arr = selectedTurns.toList();
-        for (const QVariant &v : arr) {
-            const int wheel = v.toInt();
-            if (wheel >= 1 && wheel <= 16) wheelList << QString::number(wheel);
-        }
-    }
-
-    // default counts map
-    QMap<int,QPair<int,int>> counts; // wheel -> (ok,ng)
-    int outputRangeStart = 1;
-    int outputRangeEnd = 8;
-    // If user provided an explicit contiguous eight-wheel list, adapt the output range.
-    if (!wheelList.isEmpty()) {
-        QList<int> wheels;
-        for (const QString &s : wheelList) wheels.append(s.toInt());
-        std::sort(wheels.begin(), wheels.end());
-        int minw = wheels.first();
-        int maxw = wheels.last();
-        if (wheels.size() == 8 && maxw - minw == 7) {
-            outputRangeStart = minw;
-            outputRangeEnd = maxw;
-        }
-    }
-    for (int i=outputRangeStart;i<=outputRangeEnd;i++) counts[i] = qMakePair(0,0);
-
-    QSqlDatabase db = QSqlDatabase::database();
-    if (db.isValid() && db.isOpen()) {
-        QSqlQuery q(db);
-        QString sql = QStringLiteral("SELECT wheel_id, result, COUNT(*) as c FROM record");
-        QStringList where{QStringLiteral("wheel_id BETWEEN 1 AND 16")};
-        if (startTime.isValid()) where << "createtime >= :start";
-        if (endTime.isValid()) where << "createtime <= :end";
-        if (filterByRack) where << "carrier_id = :rack";
-        if (!wheelList.isEmpty()) where << QStringLiteral("wheel_id IN (%1)").arg(wheelList.join(","));
-        if (!where.isEmpty()) sql += " WHERE " + where.join(" AND ");
-        sql += " GROUP BY wheel_id, result";
-
-        if (!q.prepare(sql)) {
-            LOG_ERROR("gearSum SQL 预处理失败: {}", q.lastError().text().toStdString());
-        } else {
-            if (startTime.isValid()) q.bindValue(":start", AgcUtils::formatDateTime(startTime));
-            if (endTime.isValid()) q.bindValue(":end", AgcUtils::formatDateTime(endTime));
-            if (filterByRack) q.bindValue(":rack", rackValue);
-
-            // Log final SQL and parameters for debugging
-            QString debugSql = sql;
-            LOG_DEBUG("gearSum SQL: {}", debugSql.toStdString());
-            QStringList paramLog;
-            if (startTime.isValid()) paramLog << QStringLiteral(":start=%1").arg(AgcUtils::formatDateTime(startTime));
-            if (endTime.isValid()) paramLog << QStringLiteral(":end=%1").arg(AgcUtils::formatDateTime(endTime));
-            if (filterByRack) paramLog << QStringLiteral(":rack=%1").arg(rackValue);
-            else paramLog << QStringLiteral(":rack=ALL");
-            if (!wheelList.isEmpty()) paramLog << QStringLiteral("wheels=%1").arg(wheelList.join(","));
-            LOG_DEBUG("gearSum 参数: {}", paramLog.join(" ").toStdString());
-
-            if (q.exec()) {
-                while (q.next()) {
-                    int wheel = q.value(0).toInt();
-                    int res = q.value(1).toInt();
-                    int c = q.value(2).toInt();
-                    LOG_DEBUG("gearSum 行数据: wheel={} res={} count={}", wheel, res, c);
-                    if (wheel >= outputRangeStart && wheel <= outputRangeEnd) {
-                        if (res == 1) counts[wheel].first += c; else counts[wheel].second += c;
-                    }
-                }
-            } else {
-                LOG_ERROR("gearSum 数据库查询失败: {}", q.lastError().text().toStdString());
-            }
-        }
-    } else {
-        LOG_ERROR("gearSum 无法执行查询，数据库未连接");
-    }
-
-    QVariantList out;
-    for (int i = outputRangeStart; i <= outputRangeEnd; ++i) {
-        QVariantMap mapItem;
-        mapItem.insert(QStringLiteral("wheel"), i);
-        mapItem.insert(QStringLiteral("ok"), counts[i].first);
-        mapItem.insert(QStringLiteral("ng"), counts[i].second);
-        out.append(mapItem);
-    }
-
-    m_gearSumResult = out;
-    LOG_DEBUG("gearSum 汇总统计计算完成，已触发更新");
-    emit gearSumResultChanged();
+    // 按日期范围对全部架号分组统计，在统计线程执行；只采用最后一次请求的结果
+    const int generation = ++m_gearSumGeneration;
+    const QVariantList turns = selectedTurns.isValid() ? selectedTurns.toList() : QVariantList();
+    (void)QtConcurrent::run(&m_statsPool, [this, generation, startDate, endDate, rackno, turns]() {
+        const QVariantList out = StatsService::gearSum(getThreadDatabase(), startDate, endDate, rackno, turns);
+        QMetaObject::invokeMethod(this, [this, generation, out]() {
+            if (generation != m_gearSumGeneration) return;
+            m_gearSumResult = out;
+            LOG_DEBUG("gearSum 汇总统计计算完成，已触发更新");
+            emit gearSumResultChanged();
+        }, Qt::QueuedConnection);
+    });
 }
 
 void AppController::openGenericSearch(const QString &startDate, const QString &endDate, int wheelNumber, const QString &resultType)
@@ -1201,6 +1346,7 @@ void AppController::openGenericSearch(const QString &startDate, const QString &e
 
 void AppController::startFtpServer()
 {
+    m_ftpStoppedByUser = false;
     if (m_ftpRunning) return;
     if (m_ftpUsers.isEmpty()) {
         setStatusMessage(QStringLiteral("请先创建 FTP 账户，服务未启动"));
@@ -1216,38 +1362,9 @@ void AppController::startFtpServer()
         const QString msg = QStringLiteral("FTP 服务器已启动：端口 %1，目录 %2").arg(m_ftpPort).arg(m_ftpRoot);
         setStatusMessage(msg);
         LOG_INFO("FTP 服务器已成功启动: 监听端口={}, 根目录={}, 用户数={}", m_ftpPort, m_ftpRoot.toStdString(), m_ftpUsers.size());
-        // write accounts to ftp log for visibility
-        QStringList accs;
-        for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) accs << it.key();
-        const QString acctLine = QStringLiteral("FTP ACCOUNTS: %1").arg(accs.join(","));
-        QFile af(m_ftpLogPath);
-        if (af.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream ts(&af);
-            ts << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << " " << acctLine << "\n";
-            af.close();
-        }
-        // Also append to in-memory ftp log lines so UI shows it immediately
-        const QString acctEntry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + " " + acctLine;
-        m_ftpLogLines.append(acctEntry);
-        while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
-        emit ftpLogChanged();
-        LOG_DEBUG("startFtpServer: 追加账户记录, 当前条数={}", m_ftpLogLines.size());
-        // Append startup info to ftp log buffer so UI can show current root and files
-        const QString header = QStringLiteral("FTP START: %1").arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs));
-        m_ftpLogBuffer.append(header + "\n");
-        m_ftpLogBuffer.append(QStringLiteral("根目录: %1\n").arg(m_ftpRoot));
-        QDir d(m_ftpRoot);
-        QFileInfoList files = d.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-        if (files.isEmpty()) {
-            m_ftpLogBuffer.append(QStringLiteral("(目录为空)\n"));
-        } else {
-            const int shown = qMin(200, files.size());
-            for (int i = 0; i < shown; ++i) {
-                m_ftpLogBuffer.append(files.at(i).fileName() + "\n");
-            }
-            if (files.size() > shown) m_ftpLogBuffer.append(QStringLiteral("... 共 %1 个文件\n").arg(files.size()));
-        }
-        emit ftpLogChanged();
+        QStringList accounts;
+        for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) accounts << it.key();
+        appendFtpLog(QStringLiteral("FTP START: 端口 %1，根目录 %2，账户 %3").arg(m_ftpPort).arg(m_ftpRoot, accounts.join(',')));
     } else {
         const QString msg = QStringLiteral("无法启动 FTP 服务器（端口可能被占用）：%1").arg(m_ftpPort);
         setStatusMessage(msg);
@@ -1277,13 +1394,44 @@ bool AppController::saveCsv(const QString &filePath, const QString &content)
     return true;
 }
 
+// 来源 IP 白名单（决策 D4）：system_config 中 network/allowList，默认空表示不限制
+QList<NetworkAccess::Subnet> AppController::networkAllowList() const
+{
+    QString text;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        text = DBSchema::getConfig(db, QStringLiteral("network/allowList"));
+    }
+    bool ok = true;
+    QString error;
+    const auto list = NetworkAccess::parseAllowList(text, ok, error);
+    if (!ok) LOG_WARN("来源 IP 白名单配置有误，已忽略无法解析的项: {}", error.toStdString());
+    if (!list.isEmpty()) LOG_INFO("已启用来源 IP 白名单: {}", text.toStdString());
+    return list;
+}
+
 bool AppController::ftpListen(int port, const QString &root)
 {
     FtpIngestService *service = m_ftpService;
     const auto users = m_ftpUsers;
     const bool allowAnonymous = m_ftpAllowAnonymous;
+    const auto allowList = networkAllowList();
+    int passiveMin = 50000, passiveMax = 50100; // 决策 D5
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        passiveMin = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMin"), passiveMin);
+        passiveMax = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMax"), passiveMax);
+    }
+    if (passiveMin < 1024 || passiveMax > 65535 || passiveMax < passiveMin) {
+        LOG_WARN("FTP 被动端口范围配置无效 ({}-{})，改用 50000-50100", passiveMin, passiveMax);
+        passiveMin = 50000;
+        passiveMax = 50100;
+    }
     bool ok = false;
-    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous]() {
+    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous, allowList, passiveMin, passiveMax]() {
+        service->setAccessPolicy(allowList, static_cast<quint16>(passiveMin), static_cast<quint16>(passiveMax));
         service->setRoot(root);
         return service->start(static_cast<quint16>(port), root, users, allowAnonymous);
     }, Qt::BlockingQueuedConnection, &ok);
@@ -1318,6 +1466,7 @@ void AppController::ftpPushRoot()
 
 void AppController::stopFtpServer()
 {
+    m_ftpStoppedByUser = true;
     ftpStop();
     setStatusMessage(QStringLiteral("FTP 服务器已停止"));
     LOG_INFO("FTP 服务器已停止运行");
@@ -1326,17 +1475,21 @@ void AppController::stopFtpServer()
 
 void AppController::startTcpServer()
 {
+    m_tcpStoppedByUser = false;
     if (m_tcpReceiver.isRunning()) return;
     QSqlDatabase db = QSqlDatabase::database();
     if (db.isOpen()) {
         m_tcpPort = DBSchema::getConfigInt(db, QStringLiteral("tcp/port"), 9000);
     }
-    m_tcpReceiver.listen(QHostAddress::Any, static_cast<quint16>(m_tcpPort));
+    m_tcpReceiver.setAllowList(networkAllowList());
+    if (!m_tcpReceiver.listen(QHostAddress::Any, static_cast<quint16>(m_tcpPort)))
+        setStatusMessage(QStringLiteral("TCP 数据服务启动失败（端口 %1 可能被占用），将每 30 秒自动重试").arg(m_tcpPort));
     emit tcpServerStateChanged();
 }
 
 void AppController::stopTcpServer()
 {
+    m_tcpStoppedByUser = true;
     m_tcpReceiver.stop();
     emit tcpServerStateChanged();
 }
@@ -1373,11 +1526,26 @@ void AppController::setTcpPort(int port)
 
 bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error)
 {
+    if (m_storageLevel >= StorageMonitor::Level::RejectData) {
+        error = QStringLiteral("服务器存储空间不足，暂停接收数据");
+        LOG_ERROR("[TCP] {}", error.toStdString());
+        return false;
+    }
+    ImageIngest::ParseLimits limits;
+    limits.now = QDateTime::currentDateTime();
+    limits.maxAgeDays = qBound(1, cleanupKeepDays(), 3650);
     ImageIngest::BatchData batch;
-    if (!ImageIngest::parseBatchJson(batchData, batch, error)) {
+    if (!ImageIngest::parseBatchJson(batchData, batch, error, limits)) {
         LOG_ERROR("[TCP] 批次数据解析失败: {}", error.toStdString());
         setStatusMessage(QStringLiteral("TCP 报文解析失败: %1").arg(error));
         return false;
+    }
+
+    // FTP 图像可能先于本批次到达：按客户端请求的文件名匹配缓存，实际路径随记录一起入库
+    QStringList consumed;
+    for (ImageIngest::WheelItem &wheel : batch.wheels) {
+        wheel.imagePath = m_pendingImages.find(wheel.imageName);
+        if (!wheel.imagePath.isEmpty()) consumed << wheel.imageName;
     }
 
     {
@@ -1388,6 +1556,7 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
             return false;
         }
     }
+    for (const QString &imageName : std::as_const(consumed)) m_pendingImages.remove(imageName);
 
     m_currentCarrierId = batch.carrierId;
     m_currentRoundNumber = 0;
@@ -1396,51 +1565,71 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
     m_currentCopiedCount = batch.wheels.size();
     emit currentBatchChanged();
 
-    // FTP 图像可能先于本批次到达：按发送方声明的 imageName 精确匹配缓存，否则到归档目录查找
-    QStringList consumed;
+    QHash<QString, QString> associated;
+    for (const ImageIngest::WheelItem &wheel : std::as_const(batch.wheels)) {
+        if (!wheel.imagePath.isEmpty()) associated.insert(wheel.imageName, wheel.imagePath);
+    }
     const QVector<ImageItem> cards = IngestCoordinator::buildStationCards(batch, [&](const QString &imageName) {
-        const QString cached = m_pendingImages.find(imageName);
-        if (!cached.isEmpty()) {
-            consumed << imageName;
-            return cached;
-        }
-        return resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory);
+        const QString path = associated.value(imageName);
+        // 图片尚未到达：先按文件名在归档目录查找用于显示，到达后由 onFtpImageStored 更新卡片与记录
+        return path.isEmpty() ? resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory) : path;
     });
-    for (const QString &imageName : std::as_const(consumed)) m_pendingImages.remove(imageName);
     m_currentImagesModel.setItems(cards);
     LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片", batch.carrierId);
     setStatusMessage(QStringLiteral("载具 #%1 测量数据已接收，共 %2 轮").arg(batch.carrierId).arg(batch.wheels.size()));
     return true;
 }
 
-void AppController::onFtpImageStored(const QString &filePath)
+void AppController::onFtpImageStored(const QString &filePath, const QString &requestedPath)
 {
     const QFileInfo file(filePath);
     if (!file.isFile() || file.isSymbolicLink()) return;
-    const QString fileName = file.fileName();
-    const QString resolvedUrl = QUrl::fromLocalFile(file.absoluteFilePath()).toString();
+    const QString absolutePath = file.absoluteFilePath();
+    // 以客户端请求的文件名关联：同名不同内容被保存为 _vN 时，仍对应报文中的 imageName
+    const QString requestedName = QFileInfo(requestedPath.isEmpty() ? filePath : requestedPath).fileName();
+    const QString resolvedUrl = QUrl::fromLocalFile(absolutePath).toString();
 
-    const QString imageKey = IngestCoordinator::imageKey(fileName);
-    bool matched = false;
-    for (int i = 0; i < m_currentImagesModel.count(); ++i) {
-        ImageItem item = m_currentImagesModel.itemAt(i);
-        if (IngestCoordinator::imageKey(item.fileName) == imageKey && !imageKey.isEmpty()) {
-            item.filePath = file.absoluteFilePath();
-            item.fileUrl = resolvedUrl;
-            item.fileName = fileName;
-            m_currentImagesModel.updateSlotItem(i, item);
-            matched = true;
-        }
+    // 记录先到的情况：补写实际路径。仅限最近 1 小时、尚未关联的记录，
+    // 避免升级前的历史记录（image_path 均为空）被同名新图误关联
+    int linkedRows = 0;
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlQuery update(QSqlDatabase::database());
+        update.prepare(QStringLiteral(
+            "UPDATE record SET image_path = :path "
+            "WHERE createtime >= :since AND imagename = :name COLLATE NOCASE "
+            "AND (image_path IS NULL OR image_path = '')"));
+        update.bindValue(QStringLiteral(":path"), absolutePath);
+        update.bindValue(QStringLiteral(":since"), AgcUtils::formatDateTime(QDateTime::currentDateTime().addSecs(-3600)));
+        update.bindValue(QStringLiteral(":name"), requestedName);
+        if (update.exec()) linkedRows = update.numRowsAffected();
+        else LOG_ERROR("[FTP] 补写图片路径失败: {}", update.lastError().text().toStdString());
     }
 
-    if (!matched) {
+    // 只更新正在等待这张图的批次卡片；否则（如 _vN 新图先于其批次到达）放入缓存，
+    // 避免把新图显示到界面上同名的上一批次卡片上
+    bool matchedCard = false;
+    if (linkedRows > 0) {
+        const QString imageKey = IngestCoordinator::imageKey(requestedName);
+        for (int i = 0; i < m_currentImagesModel.count(); ++i) {
+            ImageItem item = m_currentImagesModel.itemAt(i);
+            if (!imageKey.isEmpty() && IngestCoordinator::imageKey(item.fileName) == imageKey) {
+                item.filePath = absolutePath;
+                item.fileUrl = resolvedUrl;
+                m_currentImagesModel.updateSlotItem(i, item);
+                matchedCard = true;
+            }
+        }
+    } else {
         const QDateTime now = QDateTime::currentDateTime();
-        m_pendingImages.add(file.absoluteFilePath(), now);
+        m_pendingImages.add(requestedName, absolutePath, now);
         m_pendingImages.prune(now);
     }
 
-    LOG_INFO("[FTP] 图像文件入库归档: {}, 关联卡片={}, 待关联缓存={}",
-             fileName.toStdString(), matched, m_pendingImages.size());
+    LOG_INFO("[FTP] 图像文件入库归档: {}{}, 关联卡片={}, 关联记录={}, 待关联缓存={}",
+             file.fileName().toStdString(),
+             requestedName != file.fileName() ? (" (请求名 " + requestedName.toStdString() + ")") : std::string(),
+             matchedCard, linkedRows, m_pendingImages.size());
 }
 
 QString AppController::ftpUser() const

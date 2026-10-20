@@ -99,7 +99,7 @@ Page {
         if (!appController || !appController.searchPaged || selectedRack <= 0)
             return
         appController.searchPaged(dateBar.startDate, dateBar.endDate, "", selectedRack,
-                                  String(wheel), "0", 1, 1000)
+                                  String(wheel), "0", 1, 200)
     }
 
     function generateCsv() {

@@ -263,6 +263,12 @@ Qml2Imports = qml
             os.chmod(dst_desktop, 0o755)
             print(f"[OK] 已部署桌面快捷方式: {dst_desktop}")
 
+        service_file = src_packaging / "linux" / "carriervision.service"
+        if service_file.exists():
+            dst_service = install_path / "carriervision.service"
+            shutil.copy2(service_file, dst_service)
+            print(f"[OK] 已部署 systemd 守护服务模板: {dst_service}")
+
         readme_file = src_packaging / "README.txt"
         if readme_file.exists():
             dst_readme = install_path / "README.txt"

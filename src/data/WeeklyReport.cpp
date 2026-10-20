@@ -9,7 +9,6 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QTextStream>
-#include <QTimer>
 #include <array>
 
 using namespace std;
@@ -19,11 +18,6 @@ namespace WeeklyReport {
 static const array<int,8> DRIVERS = {1,2,3,4,5,6,7,8};
 static const array<int,8> DEFORMED = {9,10,11,12,13,14,15,16};
 static const array<int,50> RACKS = [](){ array<int,50> a{}; for(int i=0;i<50;i++) a[i]=i+1; return a;}();
-
-static QDate lastMondayForDate(const QDate &d){
-    QDate monday = d.addDays(-d.dayOfWeek()+1);
-    return monday.addDays(-7); // last week's monday
-}
 
 static QString ensureOutDir(){
     QString out = QCoreApplication::applicationDirPath() + QDir::separator() + "data";
@@ -54,7 +48,7 @@ static bool writeCsv(const QString &path, const QList<QList<QVariant>> &rows){
     return f.commit();
 }
 
-bool generateForWeek(const QDate &monday){
+bool generateForWeek(QSqlDatabase db, const QDate &monday){
     // monday is the week start (Mon)
     QDate start = monday;
     QDate end = monday.addDays(6);
@@ -69,21 +63,8 @@ bool generateForWeek(const QDate &monday){
 
     bool ok1 = false, ok2 = false;
     bool dbOk = true;
-    bool needRemoveConn = false;
 
     {
-        QSqlDatabase db = QSqlDatabase::database();
-        if(!db.isValid()){
-            db = QSqlDatabase::addDatabase("QSQLITE", "weekly_report_conn");
-            db.setDatabaseName(DBSchema::defaultDatabasePath());
-            if(!db.open()){
-                LOG_ERROR("WeeklyReport: 打开数据库失败: {}", db.lastError().text().toStdString());
-                needRemoveConn = true;
-            } else {
-                needRemoveConn = true;
-            }
-        }
-
         if(db.isOpen()){
             QSqlQuery q(db);
             q.prepare(QStringLiteral("SELECT carrier_id, wheel_id, result FROM record WHERE createtime >= :start AND createtime < :end AND wheel_id BETWEEN 1 AND 16"));
@@ -112,6 +93,7 @@ bool generateForWeek(const QDate &monday){
 
                 if (aggr.isEmpty()) {
                     LOG_INFO("WeeklyReport: {} 至 {} 无巡检记录，跳过生成周报", startTag.toStdString(), endTag.toStdString());
+                    ok1 = ok2 = true; // 无需生成，不必重试
                 } else {
                     // build rows
                     QList<QList<QVariant>> driversRows;
@@ -178,31 +160,7 @@ bool generateForWeek(const QDate &monday){
         }
     }
 
-    if(needRemoveConn){
-        QSqlDatabase::removeDatabase("weekly_report_conn");
-    }
-
     return ok1 && ok2 && dbOk;
-}
-
-static void scheduleNextWeeklyReport(){
-    QDate today = QDate::currentDate();
-    QDate monday = today.addDays(-today.dayOfWeek()+1);
-    QDate nextMonday = monday.addDays(7);
-
-    QDateTime nextRun(nextMonday, QTime(0,10));
-    qint64 msecs = QDateTime::currentDateTime().msecsTo(nextRun);
-    if(msecs < 1) msecs = 1;
-
-    QTimer::singleShot(static_cast<int>(msecs), qApp, [](){
-        QDate monday = QDate::currentDate().addDays(-QDate::currentDate().dayOfWeek()+1);
-        generateForWeek(monday.addDays(-7));
-        scheduleNextWeeklyReport();
-    });
-}
-
-void scheduleWeeklyReports(){
-    scheduleNextWeeklyReport();
 }
 
 } // namespace WeeklyReport
