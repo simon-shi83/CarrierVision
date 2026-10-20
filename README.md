@@ -174,6 +174,16 @@ ctest --test-dir build/Debug --output-on-failure
 ./build/Debug/bin/CarrierVision
 ```
 
+发布版打包（安装时自动收集 Qt 运行库、插件与 QML 模块，生成可直接拷贝运行的目录）：
+
+```bash
+cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -G Ninja
+cmake --build build/Release -j8
+cmake --install build/Release      # 输出到 install/CarrierVision_linux_<版本>
+```
+
+持续集成：推送到 `main` 或向 `main` 发起 PR 时，GitHub Actions 自动执行 Windows 构建、全部测试并打包为 zip（在运行记录的 Artifacts 中下载，保留 14 天）。也可在 Actions 页面手动对任意分支运行。
+
 ---
 
 ## 运行配置与运维
@@ -212,6 +222,8 @@ ctest --test-dir build/Debug --output-on-failure
 python3 scripts/simulator.py --interval 5 --duration 72h --fault-rate 0.05 --pid $(pgrep -x CarrierVision)
 ```
 
+默认使用 `agc` / `123456` 账户和 21、9000 端口，现场修改过时用 `--user`、`--password`、`--ftp-port`、`--tcp-port` 指定。出现非预期结果（正常数据被拒、异常数据被接受、被测进程退出）时退出码为 1。
+
 ---
 
 ## 目录结构
@@ -221,24 +233,25 @@ CarrierVision/
 ├── CMakeLists.txt
 ├── cmake/               版本号计算（version.cmake），生成 version.h 到构建目录
 ├── src/
-│   ├── main.cpp         程序入口、单实例保护、主数据库初始化
+│   ├── main.cpp         程序入口、单实例保护、数据库完整性检查与初始化
 │   ├── app/             AppController（QML 门面）、图像列表模型、批次类型
-│   ├── network/         内置 FTP 服务（独立线程）、TCP 数据接收
+│   ├── network/         内置 FTP 服务（独立线程）、TCP 数据接收、来源 IP 白名单与登录封禁
 │   ├── ingest/          图像校验提交、TCP 批次解析入库、FTP/TCP 关联
-│   ├── data/            表结构、统计/搜索查询、持久化配置、归档清理、周报
-│   └── common/          通用工具、日志、version.h.in
+│   ├── data/            表结构、统计/搜索查询、持久化配置、归档清理、周报、数据库备份与恢复
+│   └── common/          通用工具、日志、磁盘空间监控、崩溃记录、version.h.in
 ├── qml/                 界面（按功能页分子目录，common/ 为公共组件）
 ├── assets/
 │   ├── icons/           SVG 图标与程序图标，编译进程序资源
 │   └── models/          首页 3D 装配体模型
 ├── packaging/           随安装包分发的文件
 │   ├── README.txt       发布说明
-│   ├── linux/           启动脚本、桌面快捷方式
-│   └── windows/         exe 图标资源、环境变量注册脚本
-├── scripts/             安装时调用的依赖部署脚本（Linux / Windows）
+│   ├── linux/           启动脚本、桌面快捷方式、systemd 守护服务
+│   └── windows/         exe 图标资源、环境变量注册脚本、守护启动脚本
+├── scripts/             安装时调用的依赖部署脚本（Linux / Windows）、产线模拟器 simulator.py
 ├── tests/               QtTest 单元测试与集成测试
 ├── third_party/         仅头文件的第三方库（版本见其中 README.md）
-└── docs/                发布记录、优化方案
+├── docs/                发布记录、两轮优化方案及实测数据
+└── .github/workflows/   Windows 构建、测试与打包
 ```
 
 源码以 `src/` 为头文件根目录，包含时写子目录路径，例如 `#include "data/DbSchema.h"`。
