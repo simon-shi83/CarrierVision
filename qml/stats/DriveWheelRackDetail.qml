@@ -68,10 +68,10 @@ Page {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusMd
-        color: Theme.bgCard
+        radius: Theme.radiusSmall
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -82,10 +82,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 46
-                radius: Theme.radiusMd
-                color: Theme.bgCardElevated
+                radius: Theme.radiusSmall
+                color: Theme.surfaceAlt
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -94,22 +94,22 @@ Page {
 
                     Label {
                         text: "架轮判定下钻明细"
-                        color: Theme.primaryLight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeH3
-                        font.bold: true
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontBody
+                        font.weight: Theme.fontMedium
                     }
-                    Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 18; color: Theme.divider }
-                    Label { text: "时间: " + (startDate || "--") + " ~ " + (endDate || "--"); color: Theme.textSecondary; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall }
-                    Label { text: "轮号: #" + wheelNumber; color: Theme.textPrimary; font.bold: true; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall }
+                    Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 18; color: Theme.borderMuted }
+                    Label { text: "时间: " + (startDate || "--") + " ~ " + (endDate || "--"); color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontCaption }
+                    Label { text: "轮号: #" + wheelNumber; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontCaption }
                     Label {
                         text: "判定: " + normalizedResult()
-                        color: normalizedResult() === "OK" ? Theme.ok : Theme.ng
-                        font.bold: true
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: normalizedResult() === "OK" ? Theme.ok : Theme.danger
+                        font.weight: Theme.fontMedium
+                        font.pixelSize: Theme.fontCaption
                     }
                     Item { Layout.fillWidth: true }
-                    Label { text: "共 " + rackRows.length + " 个架号有记录"; color: Theme.textMuted; font.pixelSize: Theme.fontSizeSmall }
+                    Label { text: "共 " + rackRows.length + " 个架号有记录"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                 }
             }
 
@@ -123,10 +123,10 @@ Page {
                 Rectangle {
                     Layout.preferredWidth: 320
                     Layout.fillHeight: true
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
                     border.width: 1
-                    border.color: Theme.borderSubtle
+                    border.color: Theme.borderMuted
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -136,15 +136,15 @@ Page {
                         Rectangle {
                             Layout.fillWidth: true
                             height: 32
-                            color: Theme.bgCardActive
-                            radius: Theme.radiusSm
+                            color: Theme.pressed
+                            radius: Theme.radiusMicro
 
                             RowLayout {
                                 anchors.fill: parent
-                                Text { text: "架号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
-                                Text { text: "轮号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
-                                Text { text: "判定"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
-                                Text { text: "计数"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
+                                Text { text: "架号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                                Text { text: "轮号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                                Text { text: "判定"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                                Text { text: "计数"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                             }
                         }
 
@@ -161,17 +161,17 @@ Page {
                                 readonly property bool selected: Number(modelData.rack) === root.selectedRack
                                 width: rackList.width
                                 height: 38
-                                radius: Theme.radiusSm
-                                color: selected ? Theme.bgCardActive : (itemMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                                radius: Theme.radiusMicro
+                                color: selected ? Theme.pressed : (itemMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                                 border.width: 1
-                                border.color: selected ? Theme.primary : "transparent"
+                                border.color: selected ? Theme.accent : "transparent"
 
                                 RowLayout {
                                     anchors.fill: parent
-                                    Text { text: "#" + parent.parent.modelData.rack; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? Theme.primaryLight : Theme.textPrimary; font.bold: true; font.family: Theme.fontMono }
-                                    Text { text: String(root.wheelNumber); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: Theme.textSecondary; font.family: Theme.fontMono }
-                                    Text { text: root.normalizedResult(); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: root.normalizedResult() === "OK" ? Theme.ok : Theme.ng; font.bold: true; font.family: Theme.fontMono }
-                                    Text { text: parent.parent.modelData.count; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; color: Theme.textPrimary; font.bold: true; font.family: Theme.fontMono }
+                                    Text { text: "#" + parent.parent.modelData.rack; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? Theme.accent : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: String(root.wheelNumber); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: root.normalizedResult(); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: root.normalizedResult() === "OK" ? Theme.ok : Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: parent.parent.modelData.count; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                 }
 
                                 MouseArea {
@@ -193,10 +193,10 @@ Page {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
                     border.width: 1
-                    border.color: Theme.borderSubtle
+                    border.color: Theme.borderMuted
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -207,10 +207,10 @@ Page {
                             Layout.fillWidth: true
                             Label {
                                 text: selectedRack > 0 ? "架号 #" + selectedRack + " 的检测原图" : "检测原图"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeH3
-                                font.bold: true
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
                             }
                             Item { Layout.fillWidth: true }
                             Label {
@@ -219,9 +219,9 @@ Page {
                                     return root.imageTotal > shown ? ("共 " + root.imageTotal + " 张，显示最新 " + shown + " 张")
                                                                    : ("共 " + shown + " 张图像")
                                 }
-                                color: Theme.textSecondary
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
 
@@ -237,10 +237,10 @@ Page {
                             delegate: Rectangle {
                                 width: 210
                                 height: 170
-                                radius: Theme.radiusMd
-                                color: thumbMouse.containsMouse ? Theme.bgCardActive : Theme.bgCard
+                                radius: Theme.radiusSmall
+                                color: thumbMouse.containsMouse ? Theme.pressed : Theme.surface
                                 border.width: 1
-                                border.color: thumbMouse.containsMouse ? Theme.primary : Theme.borderSubtle
+                                border.color: thumbMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
 
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -250,8 +250,8 @@ Page {
                                     Rectangle {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
-                                        radius: Theme.radiusSm
-                                        color: Theme.bgInput
+                                        radius: Theme.radiusMicro
+                                        color: Theme.fieldFill
                                         clip: true
 
                                         Image {
@@ -270,9 +270,9 @@ Page {
                                     Label {
                                         Layout.fillWidth: true
                                         text: fileName
-                                        color: Theme.textPrimary
+                                        color: Theme.text
                                         font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.pixelSize: Theme.fontMicro
                                         horizontalAlignment: Text.AlignHCenter
                                         elide: Text.ElideMiddle
                                     }
@@ -280,9 +280,9 @@ Page {
                                     Label {
                                         Layout.fillWidth: true
                                         text: receivedAtText
-                                        color: Theme.textMuted
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeTiny
+                                        color: Theme.muted
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontMicro
                                         horizontalAlignment: Text.AlignHCenter
                                         elide: Text.ElideRight
                                     }
@@ -303,8 +303,8 @@ Page {
                                 anchors.centerIn: parent
                                 visible: thumbnailView.count === 0
                                 text: selectedRack > 0 ? "暂无图片" : "请从左侧选择架号"
-                                color: Theme.textMuted
-                                font.family: Theme.fontFamily
+                                color: Theme.muted
+                                font.family: Theme.fontSans
                             }
                         }
                     }

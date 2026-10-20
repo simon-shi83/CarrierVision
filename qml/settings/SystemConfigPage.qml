@@ -32,10 +32,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: descCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: descCol
@@ -50,22 +50,22 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "系统常规与显示偏好"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Label {
                                 text: "支持定制主页左上角展示的标语与界面视觉模式"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
@@ -77,18 +77,18 @@ Item {
                             Layout.preferredHeight: 68
                             text: appController ? appController.homepageDescription : ""
                             placeholderText: "请输入系统主页展示的说明信息..."
-                            placeholderTextColor: Theme.textMuted
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
+                            placeholderTextColor: Theme.muted
+                            color: Theme.text
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontBody
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
 
                             background: Rectangle {
-                                radius: Theme.radiusSm
-                                color: Theme.bgInput
+                                radius: Theme.radiusMicro
+                                color: Theme.fieldFill
                                 border.width: 1
-                                border.color: descriptionInput.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                border.color: descriptionInput.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                             }
                         }
 
@@ -113,10 +113,10 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 50
-                            color: Theme.bgInput
-                            radius: Theme.radiusSm
+                            color: Theme.fieldFill
+                            radius: Theme.radiusMicro
                             border.width: 1
-                            border.color: Theme.borderSubtle
+                            border.color: Theme.borderMuted
 
                             RowLayout {
                                 anchors.fill: parent
@@ -127,22 +127,22 @@ Item {
                                 AppIcon {
                                     name: Theme.isDark ? "icon_moon" : "icon_sun"
                                     size: 18
-                                    color: Theme.primaryLight
+                                    color: Theme.textSoft
                                 }
 
                                 ColumnLayout {
                                     spacing: 2
                                     Text {
                                         text: "界面视觉模式"
-                                        color: Theme.textPrimary
-                                        font.family: Theme.fontFamily
+                                        color: Theme.text
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontBody
-                                        font.weight: Theme.weightMedium
+                                        font.weight: Theme.fontMedium
                                     }
                                     Text {
                                         text: Theme.isDark ? "当前为【极夜冷黑】工业主题 (适配车间暗光与高对比度巡检)" : "当前为【简约清晰】明亮主题 (适配日间光照良好工位)"
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontFamily
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontCaption
                                     }
                                 }
@@ -167,10 +167,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: slotCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: slotCol
@@ -186,22 +186,22 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "工位相机通道映射配置"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Label {
                                 text: "配置物理工业相机采集通道 (1~12) 映射至显示槽位 (Slot 1~12)"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
@@ -220,10 +220,10 @@ Item {
                                     id: camItem
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 52
-                                    radius: Theme.radiusSm
-                                    color: Theme.bgInput
+                                    radius: Theme.radiusMicro
+                                    color: Theme.fieldFill
                                     border.width: 1
-                                    border.color: Theme.borderSubtle
+                                    border.color: Theme.borderMuted
 
                                     readonly property int camNumber: index + 1
                                     readonly property int currentSlot: {
@@ -244,33 +244,33 @@ Item {
                                         Rectangle {
                                             Layout.preferredWidth: 30
                                             Layout.preferredHeight: 30
-                                            radius: Theme.radiusSm
-                                            color: Theme.primaryGlow
-                                            border.color: Theme.primary
+                                            radius: Theme.radiusMicro
+                                            color: Theme.activeSubtle
+                                            border.color: Theme.accent
                                             border.width: 1
 
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: (camItem.camNumber < 10 ? "0" : "") + camItem.camNumber
-                                                color: Theme.primaryLight
-                                                font.family: Theme.fontMono
+                                                color: Theme.text
+                                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                                 font.pixelSize: Theme.fontCaption
-                                                font.weight: Theme.weightBold
+                                                font.weight: Theme.fontBold
                                             }
                                         }
 
                                         // 相机标签
                                         Text {
                                             text: "CAM" + camItem.camNumber
-                                            color: Theme.textPrimary
-                                            font.family: Theme.fontMono
+                                            color: Theme.text
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                             font.pixelSize: Theme.fontBody
-                                            font.weight: Theme.weightMedium
+                                            font.weight: Theme.fontMedium
                                         }
 
                                         Text {
                                             text: "→"
-                                            color: Theme.textMuted
+                                            color: Theme.muted
                                             font.pixelSize: Theme.fontCaption
                                         }
 
@@ -281,19 +281,19 @@ Item {
                                             Layout.preferredHeight: 30
                                             model: ["槽位 01", "槽位 02", "槽位 03", "槽位 04", "槽位 05", "槽位 06", "槽位 07", "槽位 08", "槽位 09", "槽位 10", "槽位 11", "槽位 12"]
                                             currentIndex: Math.max(0, Math.min(11, camItem.currentSlot - 1))
-                                            font.family: Theme.fontMono
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                             font.pixelSize: Theme.fontBody
 
                                             background: Rectangle {
-                                                color: slotCombo.hovered ? Theme.bgCardElevated : Theme.bgCard
-                                                radius: Theme.radiusSm
-                                                border.color: slotCombo.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                                                color: slotCombo.hovered ? Theme.surfaceAlt : Theme.surface
+                                                radius: Theme.radiusMicro
+                                                border.color: slotCombo.activeFocus ? Theme.selectedBorder : Theme.border
                                                 border.width: 1
                                             }
 
                                             contentItem: Text {
                                                 text: slotCombo.currentText
-                                                color: Theme.textPrimary
+                                                color: Theme.text
                                                 font: slotCombo.font
                                                 verticalAlignment: Text.AlignVCenter
                                                 leftPadding: 8
@@ -316,9 +316,9 @@ Item {
                             spacing: 8
 
                             Text {
-                                text: "💡 提示: 若现场布线或网口物理顺序发生调整，直接修改对应槽位即可即时生效"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                text: "提示: 若现场布线或网口物理顺序发生调整，直接修改对应槽位即可即时生效"
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
 
@@ -344,10 +344,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: tcpCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: tcpCol
@@ -363,14 +363,14 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "TCP 数据接收服务管理"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
@@ -380,8 +380,8 @@ Item {
                                 Layout.preferredHeight: 24
                                 implicitWidth: tcpStatusText.implicitWidth + 20
                                 radius: Theme.radiusPill
-                                color: (appController && appController.tcpRunning) ? Theme.okBg : Theme.ngBg
-                                border.color: (appController && appController.tcpRunning) ? Theme.okBorder : Theme.ngBorder
+                                color: (appController && appController.tcpRunning) ? Theme.okSoft : Theme.dangerSoft
+                                border.color: (appController && appController.tcpRunning) ? Theme.okBorder : Theme.dangerBorder
                                 border.width: 1
 
                                 RowLayout {
@@ -391,15 +391,15 @@ Item {
                                         width: 6
                                         height: 6
                                         radius: 3
-                                        color: (appController && appController.tcpRunning) ? Theme.ok : Theme.ng
+                                        color: (appController && appController.tcpRunning) ? Theme.ok : Theme.danger
                                     }
                                     Text {
                                         id: tcpStatusText
                                         text: (appController && appController.tcpRunning) ? ("监听中 · " + appController.tcpClientCount + " 客户端") : "服务已停止"
-                                        color: (appController && appController.tcpRunning) ? Theme.okLight : Theme.ngLight
-                                        font.family: Theme.fontFamily
+                                        color: (appController && appController.tcpRunning) ? Theme.ok : Theme.danger
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontCaption
-                                        font.weight: Theme.weightMedium
+                                        font.weight: Theme.fontMedium
                                     }
                                 }
                             }
@@ -407,8 +407,8 @@ Item {
 
                         Label {
                             text: "负责高速接收上位机/机台通过 TCP 传输的 JSON 格式检测数据报文，并触发即时入库与监控刷新"
-                            color: Theme.textSecondary
-                            font.family: Theme.fontFamily
+                            color: Theme.textSoft
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
                         }
 
@@ -419,10 +419,10 @@ Item {
 
                             Label {
                                 text: "监听端口:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                             }
 
                             TextField {
@@ -430,13 +430,13 @@ Item {
                                 text: appController ? String(appController.tcpPort) : "9000"
                                 Layout.preferredWidth: 80
                                 Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: rootTcpPort.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: rootTcpPort.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
 
@@ -478,10 +478,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: ftpCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: ftpCol
@@ -497,14 +497,14 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "FTP 传输服务管理"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
@@ -514,8 +514,8 @@ Item {
                                 Layout.preferredHeight: 24
                                 implicitWidth: statusText.implicitWidth + 20
                                 radius: Theme.radiusPill
-                                color: (appController && appController.ftpRunning) ? Theme.okBg : Theme.ngBg
-                                border.color: (appController && appController.ftpRunning) ? Theme.okBorder : Theme.ngBorder
+                                color: (appController && appController.ftpRunning) ? Theme.okSoft : Theme.dangerSoft
+                                border.color: (appController && appController.ftpRunning) ? Theme.okBorder : Theme.dangerBorder
                                 border.width: 1
 
                                 RowLayout {
@@ -525,15 +525,15 @@ Item {
                                         width: 6
                                         height: 6
                                         radius: 3
-                                        color: (appController && appController.ftpRunning) ? Theme.ok : Theme.ng
+                                        color: (appController && appController.ftpRunning) ? Theme.ok : Theme.danger
                                     }
                                     Text {
                                         id: statusText
                                         text: (appController && appController.ftpRunning) ? "服务运行中" : "服务已停止"
-                                        color: (appController && appController.ftpRunning) ? Theme.okLight : Theme.ngLight
-                                        font.family: Theme.fontFamily
+                                        color: (appController && appController.ftpRunning) ? Theme.ok : Theme.danger
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontCaption
-                                        font.weight: Theme.weightMedium
+                                        font.weight: Theme.fontMedium
                                     }
                                 }
                             }
@@ -546,10 +546,10 @@ Item {
 
                             Label {
                                 text: "图像存储目录:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 96
                             }
 
@@ -559,13 +559,13 @@ Item {
                                 placeholderText: "相对路径以程序目录为准，如 images"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: ftpRootInput.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: ftpRootInput.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
 
@@ -601,33 +601,33 @@ Item {
                             TextField {
                                 id: newUser
                                 placeholderText: "新用户名"
-                                placeholderTextColor: Theme.textMuted
+                                placeholderTextColor: Theme.muted
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: newUser.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: newUser.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
 
                             TextField {
                                 id: newPass
                                 placeholderText: "密码"
-                                placeholderTextColor: Theme.textMuted
+                                placeholderTextColor: Theme.muted
                                 echoMode: TextInput.Password
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: newPass.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: newPass.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
 
@@ -650,10 +650,10 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: Math.max(80, Math.min(180, accountsList.count * 38 + 10))
-                            color: Theme.bgInput
-                            radius: Theme.radiusSm
+                            color: Theme.fieldFill
+                            radius: Theme.radiusMicro
                             border.width: 1
-                            border.color: Theme.borderSubtle
+                            border.color: Theme.borderMuted
                             clip: true
 
                             ListView {
@@ -667,8 +667,8 @@ Item {
                                     id: accountDelegateRoot
                                     width: accountsList.width
                                     height: 34
-                                    radius: Theme.radiusSm
-                                    color: itemMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                                    radius: Theme.radiusMicro
+                                    color: itemMouse.containsMouse ? Theme.pressed : "transparent"
 
                                     MouseArea {
                                         id: itemMouse
@@ -689,12 +689,12 @@ Item {
                                             AppIcon {
                                                 name: "icon_user"
                                                 size: 14
-                                                color: Theme.primaryLight
+                                                color: Theme.textSoft
                                             }
                                             Text {
                                                 text: (modelData && modelData.user) ? modelData.user : ""
-                                                color: Theme.textPrimary
-                                                font.family: Theme.fontMono
+                                                color: Theme.text
+                                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                                 font.pixelSize: Theme.fontBody
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
@@ -703,8 +703,8 @@ Item {
 
                                         Text {
                                             text: (modelData && modelData.hasPassword) ? "••••••••" : "(无密码)"
-                                            color: Theme.textMuted
-                                            font.family: Theme.fontMono
+                                            color: Theme.muted
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                             font.pixelSize: Theme.fontBody
                                             Layout.fillWidth: true
                                         }
@@ -712,7 +712,7 @@ Item {
                                         ActionButton {
                                             text: "删除"
                                             variant: "danger"
-                                            btnRadius: Theme.radiusSm
+                                            btnRadius: Theme.radiusMicro
                                             Layout.preferredWidth: 52
                                             Layout.preferredHeight: 26
                                             onClicked: {
@@ -734,14 +734,14 @@ Item {
                                     Layout.alignment: Qt.AlignHCenter
                                     name: "icon_user"
                                     size: 24
-                                    color: Theme.textMuted
+                                    color: Theme.muted
                                     opacity: 0.4
                                 }
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     text: "暂无 FTP 访问账户，请在上方添加"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontCaption
                                 }
                             }
@@ -754,10 +754,10 @@ Item {
 
                             Label {
                                 text: "监听端口:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                             }
 
                             TextField {
@@ -765,13 +765,13 @@ Item {
                                 text: appController ? String(appController.ftpPort) : "21"
                                 Layout.preferredWidth: 68
                                 Layout.preferredHeight: 32
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: rootFtpPort.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: rootFtpPort.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
 
@@ -813,10 +813,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: storageCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: storageCol
@@ -831,22 +831,22 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "系统数据与存储路径管理"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Label {
                                 text: "查看本地点检图像及运行日志的实际存储路径"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
@@ -858,20 +858,20 @@ Item {
 
                             Label {
                                 text: "图像存储目录:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 96
                             }
 
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: Theme.bgInput
-                                radius: Theme.radiusSm
+                                color: Theme.fieldFill
+                                radius: Theme.radiusMicro
                                 border.width: 1
-                                border.color: Theme.borderSubtle
+                                border.color: Theme.borderMuted
 
                                 Text {
                                     anchors.fill: parent
@@ -879,8 +879,8 @@ Item {
                                     anchors.rightMargin: 10
                                     verticalAlignment: Text.AlignVCenter
                                     text: appController ? appController.archiveDirectory : ""
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontMono
+                                    color: Theme.text
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                     font.pixelSize: Theme.fontBody
                                     elide: Text.ElideMiddle
                                 }
@@ -905,20 +905,20 @@ Item {
 
                             Label {
                                 text: "系统运行日志:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 96
                             }
 
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: Theme.bgInput
-                                radius: Theme.radiusSm
+                                color: Theme.fieldFill
+                                radius: Theme.radiusMicro
                                 border.width: 1
-                                border.color: Theme.borderSubtle
+                                border.color: Theme.borderMuted
 
                                 Text {
                                     anchors.fill: parent
@@ -926,8 +926,8 @@ Item {
                                     anchors.rightMargin: 10
                                     verticalAlignment: Text.AlignVCenter
                                     text: "logs/ 目录 (每日按日期轮转归档，支持追溯排查)"
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontBody
                                     elide: Text.ElideRight
                                 }
@@ -951,10 +951,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: cleanCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         id: cleanCol
@@ -970,22 +970,22 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.warning
+                                color: Theme.warn
                             }
                             Label {
                                 text: "磁盘与历史数据自动清理"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Label {
                                 text: "系统每日定时扫描，超期图像与日志自动删除"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
@@ -1001,10 +1001,10 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 80
-                                radius: Theme.radiusSm
-                                color: Theme.bgInput
+                                radius: Theme.radiusMicro
+                                color: Theme.fieldFill
                                 border.width: 1
-                                border.color: Theme.borderSubtle
+                                border.color: Theme.borderMuted
 
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -1015,11 +1015,11 @@ Item {
                                         Layout.fillWidth: true
                                         spacing: 6
                                         Text {
-                                            text: "🖼️ 图像保留期限:"
-                                            color: Theme.textPrimary
-                                            font.family: Theme.fontFamily
+                                            text: "图像保留期限:"
+                                            color: Theme.text
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontBody
-                                            font.weight: Theme.weightMedium
+                                            font.weight: Theme.fontMedium
                                         }
                                         Item {
                                             Layout.fillWidth: true
@@ -1035,17 +1035,17 @@ Item {
                                                 if (appController)
                                                     appController.setCleanupKeepDays(value);
                                             }
-                                            font.family: Theme.fontMono
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                             font.pixelSize: Theme.fontBody
                                             background: Rectangle {
-                                                radius: Theme.radiusSm
-                                                color: Theme.bgCard
-                                                border.color: Theme.borderMedium
+                                                radius: Theme.radiusMicro
+                                                color: Theme.surface
+                                                border.color: Theme.border
                                             }
                                             contentItem: TextInput {
                                                 text: imageKeepDaysBox.textFromValue(imageKeepDaysBox.value, imageKeepDaysBox.locale)
-                                                color: Theme.textPrimary
-                                                font.family: Theme.fontMono
+                                                color: Theme.text
+                                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                                 font.pixelSize: Theme.fontBody
                                                 horizontalAlignment: Qt.AlignHCenter
                                                 verticalAlignment: Qt.AlignVCenter
@@ -1058,8 +1058,8 @@ Item {
 
                                     Text {
                                         text: "超过此天数的检测图片及对应记录将自动删除释放磁盘空间"
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontFamily
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontCaption
                                     }
                                 }
@@ -1069,10 +1069,10 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 80
-                                radius: Theme.radiusSm
-                                color: Theme.bgInput
+                                radius: Theme.radiusMicro
+                                color: Theme.fieldFill
                                 border.width: 1
-                                border.color: Theme.borderSubtle
+                                border.color: Theme.borderMuted
 
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -1083,11 +1083,11 @@ Item {
                                         Layout.fillWidth: true
                                         spacing: 6
                                         Text {
-                                            text: "📑 日志保留期限:"
-                                            color: Theme.textPrimary
-                                            font.family: Theme.fontFamily
+                                            text: "日志保留期限:"
+                                            color: Theme.text
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontBody
-                                            font.weight: Theme.weightMedium
+                                            font.weight: Theme.fontMedium
                                         }
                                         Item {
                                             Layout.fillWidth: true
@@ -1103,17 +1103,17 @@ Item {
                                                 if (appController)
                                                     appController.setCleanupLogKeepDays(value);
                                             }
-                                            font.family: Theme.fontMono
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                             font.pixelSize: Theme.fontBody
                                             background: Rectangle {
-                                                radius: Theme.radiusSm
-                                                color: Theme.bgCard
-                                                border.color: Theme.borderMedium
+                                                radius: Theme.radiusMicro
+                                                color: Theme.surface
+                                                border.color: Theme.border
                                             }
                                             contentItem: TextInput {
                                                 text: logKeepDaysBox.textFromValue(logKeepDaysBox.value, logKeepDaysBox.locale)
-                                                color: Theme.textPrimary
-                                                font.family: Theme.fontMono
+                                                color: Theme.text
+                                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                                 font.pixelSize: Theme.fontBody
                                                 horizontalAlignment: Qt.AlignHCenter
                                                 verticalAlignment: Qt.AlignVCenter
@@ -1126,8 +1126,8 @@ Item {
 
                                     Text {
                                         text: "超过此天数的系统运行日志文件将自动清理"
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontFamily
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontCaption
                                     }
                                 }
@@ -1141,10 +1141,10 @@ Item {
 
                             Label {
                                 text: "每日定时清理时间:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                             }
 
                             ComboBox {
@@ -1162,17 +1162,17 @@ Item {
                                     if (appController)
                                         appController.setCleanupRunHour(currentIndex);
                                 }
-                                font.family: Theme.fontMono
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    radius: Theme.radiusSm
-                                    color: Theme.bgInput
-                                    border.color: Theme.borderSubtle
+                                    radius: Theme.radiusMicro
+                                    color: Theme.fieldFill
+                                    border.color: Theme.borderMuted
                                 }
                                 contentItem: Text {
                                     text: runHourBoxRight.currentText
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontMono
+                                    color: Theme.text
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                     font.pixelSize: Theme.fontBody
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -1181,8 +1181,8 @@ Item {
 
                             Text {
                                 text: "(每日在指定时间自动启动全盘扫描清理)"
-                                color: Theme.textMuted
-                                font.family: Theme.fontFamily
+                                color: Theme.muted
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
 
@@ -1208,10 +1208,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: pwdCol.implicitHeight + 28
-                    color: Theme.bgCard
-                    radius: Theme.radiusLg
+                    color: Theme.surface
+                    radius: Theme.radiusMedium
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     property string message: ""
                     property bool messageIsError: false
@@ -1230,22 +1230,22 @@ Item {
                                 width: 3.5
                                 height: 16
                                 radius: 2
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "管理安全密码设置"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontH2
-                                font.weight: Theme.weightSemiBold
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontBold
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Label {
                                 text: "修改进入系统高级设置与参数调整的安全保护密码 (默认: 123456)"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                             }
                         }
@@ -1254,10 +1254,10 @@ Item {
                             spacing: 10
                             Label {
                                 text: "当前密码:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 80
                             }
                             TextField {
@@ -1266,14 +1266,14 @@ Item {
                                 Layout.preferredHeight: 32
                                 echoMode: TextInput.Password
                                 placeholderText: "请输入当前管理密码"
-                                placeholderTextColor: Theme.textMuted
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                placeholderTextColor: Theme.muted
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: currentPasswordField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: currentPasswordField.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
                         }
@@ -1282,10 +1282,10 @@ Item {
                             spacing: 10
                             Label {
                                 text: "新设密码:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 80
                             }
                             TextField {
@@ -1294,14 +1294,14 @@ Item {
                                 Layout.preferredHeight: 32
                                 echoMode: TextInput.Password
                                 placeholderText: "请输入新设管理密码 (≥ 6 位)"
-                                placeholderTextColor: Theme.textMuted
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                placeholderTextColor: Theme.muted
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: newPasswordField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: newPasswordField.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
                         }
@@ -1310,10 +1310,10 @@ Item {
                             spacing: 10
                             Label {
                                 text: "确认密码:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 80
                             }
                             TextField {
@@ -1322,14 +1322,14 @@ Item {
                                 Layout.preferredHeight: 32
                                 echoMode: TextInput.Password
                                 placeholderText: "请再次输入新设管理密码"
-                                placeholderTextColor: Theme.textMuted
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                placeholderTextColor: Theme.muted
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: confirmPasswordField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: confirmPasswordField.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
                         }
@@ -1381,10 +1381,10 @@ Item {
                             Label {
                                 Layout.fillWidth: true
                                 text: pwdCol.parent.message
-                                color: pwdCol.parent.messageIsError ? Theme.ngLight : Theme.okLight
-                                font.family: Theme.fontFamily
+                                color: pwdCol.parent.messageIsError ? Theme.danger : Theme.ok
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 elide: Text.ElideRight
                             }
                         }
@@ -1394,10 +1394,10 @@ Item {
                             spacing: 10
                             Label {
                                 text: "维护口令:"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: Theme.weightMedium
+                                font.weight: Theme.fontMedium
                                 Layout.preferredWidth: 80
                             }
                             TextField {
@@ -1408,14 +1408,14 @@ Item {
                                 placeholderText: pwdCol.parent.maintenanceSet
                                                  ? "已设置；输入新口令并填写上方当前密码可更换 (≥ 6 位)"
                                                  : "未设置；用于忘记设置密码时授权重置 (≥ 6 位，需填写上方当前密码)"
-                                placeholderTextColor: Theme.textMuted
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
+                                placeholderTextColor: Theme.muted
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontBody
                                 background: Rectangle {
-                                    color: Theme.bgInput
-                                    radius: Theme.radiusSm
-                                    border.color: maintenancePasswordField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                                    color: Theme.fieldFill
+                                    radius: Theme.radiusMicro
+                                    border.color: maintenancePasswordField.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                                 }
                             }
                             ActionButton {

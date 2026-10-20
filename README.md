@@ -211,6 +211,8 @@ cmake --install build/Release      # 输出到 install/CarrierVision_linux_<版�
 - 程序异常退出后再次启动，或日常检查发现损坏时，启动前会自动检查数据库；损坏时把原库改名为 `dataAgc.db.corrupt-时间` 保留，并从最近一份可用备份恢复（备份之后写入的数据会丢失）。
 
 ### 4. 故障诊断与自动重启
+- 运行日志统一写入 `logs/carrier_YYYY-MM-DD.log`（含 FTP、TCP 与入库日志，可在「日志查询」页检索）。FTP 的连接、断开、拒绝与异常为 INFO / WARN 级别；逐条 FTP 命令与应答为 DEBUG 级别，排查客户端上传问题时将 `log/level` 设为 `debug` 并重启；
+- 旧版本在程序目录单独写的 `ftp.log`、`ftp.log.1`，升级后首次启动时移入 `logs/ftp_legacy_时间.log`，按日志保留天数清理；
 - 程序崩溃时，Linux 在 `logs/crash.log` 记录调用栈，Windows 在 `logs/` 下生成 `crash_时间.dmp`；
 - FTP / TCP 服务因端口占用等原因启动失败后，每 30 秒自动重试；
 - 自动重启：Linux 使用发布包中的 `carriervision.service`（systemd 用户服务，文件内有安装说明）；Windows 使用 `CarrierVision_watchdog.bat` 启动，异常退出后 5 秒自动重启。

@@ -7,9 +7,9 @@ Rectangle {
     id: numberPicker
     width: parent ? parent.width : 76
     height: parent ? parent.height : 36
-    color: Theme.bgInput
-    radius: Theme.radiusMd
-    border.color: popup.visible ? Theme.borderHighlight : Theme.borderMedium
+    color: Theme.fieldFill
+    radius: Theme.radiusSmall
+    border.color: popup.visible ? Theme.selectedBorder : Theme.border
     border.width: 1
 
     Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
@@ -43,10 +43,10 @@ Rectangle {
 
         Text {
             text: labelText
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: true
-            color: Theme.textSecondary
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontCaption
+            font.weight: Theme.fontMedium
+            color: Theme.textSoft
             visible: labelText !== ""
             Layout.preferredWidth: visible ? implicitWidth : 0
         }
@@ -54,18 +54,18 @@ Rectangle {
         Text {
             id: displayText
             text: valueText
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSizeBody
-            font.bold: true
-            color: _selected === 0 ? Theme.textSecondary : Theme.primaryLight
+            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+            font.pixelSize: Theme.fontBody
+            font.weight: Theme.fontMedium
+            color: _selected === 0 ? Theme.textSoft : Theme.accent
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
         }
 
-        Text {
-            text: "▾"
-            font.pixelSize: 11
-            color: Theme.textMuted
+        AppIcon {
+            name: "icon_arrow_down"
+            size: 14
+            color: Theme.muted
         }
     }
 
@@ -90,9 +90,9 @@ Rectangle {
         z: 100
 
         background: Rectangle {
-            color: Theme.bgPopup
-            radius: Theme.radiusMd
-            border.color: Theme.borderMedium
+            color: Theme.surfaceFloating
+            radius: Theme.radiusSmall
+            border.color: Theme.border
             border.width: 1
         }
 
@@ -107,21 +107,21 @@ Rectangle {
                 Layout.fillWidth: visible
                 Layout.preferredHeight: visible ? 30 : 0
                 color: {
-                    if (_selected === 0) return Theme.primary
-                    if (allMouse.containsMouse) return Theme.bgCardActive
+                    if (_selected === 0) return Theme.accent
+                    if (allMouse.containsMouse) return Theme.pressed
                     return "transparent"
                 }
-                radius: Theme.radiusSm
-                border.color: _selected === 0 ? Theme.primary : Theme.borderSubtle
+                radius: Theme.radiusMicro
+                border.color: _selected === 0 ? Theme.accent : Theme.borderMuted
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "全部架号"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
-                    font.bold: true
-                    color: _selected === 0 ? "#ffffff" : Theme.textSecondary
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Theme.fontMedium
+                    color: _selected === 0 ? Theme.textOnAccent : Theme.textSoft
                 }
 
                 MouseArea {
@@ -155,21 +155,21 @@ Rectangle {
                             Layout.fillHeight: true
                             property int numValue: colRepeater.startValue + model.index
                             color: {
-                                if (numValue === _selected) return Theme.primary
-                                if (numMouse.containsMouse) return Theme.bgCardActive
-                                return Theme.bgCard
+                                if (numValue === _selected) return Theme.accent
+                                if (numMouse.containsMouse) return Theme.pressed
+                                return Theme.surface
                             }
-                            radius: Theme.radiusSm
-                            border.color: numValue === _selected ? Theme.primary : Theme.borderSubtle
+                            radius: Theme.radiusMicro
+                            border.color: numValue === _selected ? Theme.accent : Theme.borderMuted
                             border.width: 1
 
                             Text {
                                 anchors.centerIn: parent
                                 text: numValue
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: numValue === _selected
-                                color: numValue === _selected ? "#ffffff" : Theme.textPrimary
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (numValue === _selected) ? Theme.fontMedium : Theme.fontRegular
+                                color: numValue === _selected ? Theme.textOnAccent : Theme.text
                             }
 
                             MouseArea {

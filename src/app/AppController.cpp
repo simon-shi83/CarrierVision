@@ -20,6 +20,7 @@
 #include <QHostAddress>
 #include <QCoreApplication>
 #include <QDirIterator>
+#include <QElapsedTimer>
 
 #include <algorithm>
 #include <utility>
@@ -73,8 +74,37 @@ static QSqlDatabase getThreadDatabase()
 
 constexpr int kMaxPageSize = 200;
 
-// 同一载具相邻两批数据的最大间隔：超过则视为重新检测，首页 12 宫格整屏刷新
-constexpr qint64 kSameCarrierMergeSecs = 120;
+// 旧版本在程序目录单独写 ftp.log / ftp.log.1；现已并入主日志。
+// 启动时把残留文件移入 logs/（不删除内容），之后随日志保留天数清理
+const QString kLegacyFtpLogPrefix = QStringLiteral("ftp_legacy_");
+
+void migrateLegacyFtpLogs()
+{
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    const QDir logDir(AppLogger::getLogDirectory());
+    for (const QString &name : {QStringLiteral("ftp.log"), QStringLiteral("ftp.log.1")}) {
+        const QFileInfo legacy(appDir.filePath(name));
+        if (!legacy.isFile()) continue;
+        const QString suffix = name.endsWith(QLatin1String(".1")) ? QStringLiteral(".1.log") : QStringLiteral(".log");
+        const QString target = logDir.filePath(kLegacyFtpLogPrefix
+                                               + legacy.lastModified().toString(QStringLiteral("yyyyMMdd_HHmmss")) + suffix);
+        if (QFile::exists(target) || !QFile::rename(legacy.absoluteFilePath(), target)) {
+            LOG_WARN("旧 FTP 日志移入日志目录失败，保留原文件: {} -> {}", legacy.absoluteFilePath().toStdString(), target.toStdString());
+            continue;
+        }
+        LOG_INFO("FTP 日志已并入主日志，旧文件已移入日志目录: {} -> {}", legacy.absoluteFilePath().toStdString(), target.toStdString());
+    }
+}
+
+void removeExpiredLegacyFtpLogs(int keepDays)
+{
+    const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
+    const QDir logDir(AppLogger::getLogDirectory());
+    for (const QFileInfo &file : logDir.entryInfoList({kLegacyFtpLogPrefix + QStringLiteral("*.log")}, QDir::Files)) {
+        if (file.lastModified() < cutoff && QFile::remove(file.absoluteFilePath()))
+            LOG_INFO("已自动删除超期的旧 FTP 日志: {}", file.absoluteFilePath().toStdString());
+    }
+}
 
 bool isSafeArchiveRoot(const QString &path)
 {
@@ -229,15 +259,7 @@ void AppController::startMaintenance(bool emergency)
                 setStatusMessage(QStringLiteral("清理未完成: %1").arg(result.error));
                 return;
             }
-            // FTP 轮转日志与主线程日志写入共用文件，留在主线程处理
-            if (!m_ftpLogPath.isEmpty()) {
-                const QString rotatedLog = m_ftpLogPath + QStringLiteral(".1");
-                QFileInfo fi(rotatedLog);
-                if (fi.exists() && fi.lastModified() < QDateTime::currentDateTime().addDays(-request.logKeepDays)) {
-                    QFile::remove(rotatedLog);
-                    LOG_INFO("已自动删除超期 FTP 轮转日志: {}", rotatedLog.toStdString());
-                }
-            }
+            removeExpiredLegacyFtpLogs(request.logKeepDays);
             LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 剩余空间 {:.1f}%",
                      request.emergency ? "紧急" : "", result.records, result.files, result.orphans,
                      result.skippedUnsafe, result.freePercent);
@@ -591,12 +613,6 @@ AppController::AppController(QObject *parent)
         if (m_activeLogRequest == m_logGeneration) emit logQueryFinished(m_activeLogRequest, m_logWatcher.result());
         else startLogQuery();
     });
-    m_ftpLogThrottleTimer.setSingleShot(true);
-    m_ftpLogThrottleTimer.setInterval(150);
-    connect(&m_ftpLogThrottleTimer, &QTimer::timeout, this, [this]() {
-        if (m_ftpLogFile.isOpen()) m_ftpLogFile.flush();
-        emit ftpLogChanged();
-    });
 
     const QDateTime now = QDateTime::currentDateTime();
     m_defaultSearchStart = AgcUtils::formatDateTime(now.addDays(-1));
@@ -640,10 +656,8 @@ AppController::AppController(QObject *parent)
     connect(&m_storageTimer, &QTimer::timeout, this, &AppController::checkStorage);
     m_storageTimer.start(60'000);
 
-    // prepare ftp log path
-    m_ftpLogPath = QCoreApplication::applicationDirPath() + QDir::separator() + QStringLiteral("ftp.log");
-    // try loading existing ftp log file
-    loadFtpLogs();
+    // FTP 日志已并入主日志，旧版本留在程序目录的 ftp.log 移入 logs/ 按日志保留天数清理
+    migrateLegacyFtpLogs();
 
     AppLogger::setLogCallback([this](const QString &/*level*/, const QString &/*message*/, const QString &/*time*/) {
         QMetaObject::invokeMethod(this, [this]() {
@@ -661,28 +675,9 @@ AppController::AppController(QObject *parent)
     });
     connect(m_ftpService, &FtpIngestService::imageStored, this, &AppController::onFtpImageStored);
     connect(m_ftpService, &FtpIngestService::ingestFailed, this, &AppController::setStatusMessage);
-    connect(m_ftpService, &FtpIngestService::logMessage, this, [this](const QString &message) {
-        const QString boundedMessage = message.left(2048);
-
-        // 去除 FtpServer 内部前缀中重复的时间戳与 [FTP] 标识，使系统日志格式保持工整统一
-        QString cleanMessage = boundedMessage;
-        static const QRegularExpression prefixRx(QStringLiteral(R"(^\d{4}-\d{2}-\d{2}T[^\s]+\s+\[FTP\]\s+)"));
-        cleanMessage.remove(prefixRx);
-
-        const bool isCritical = cleanMessage.contains(QStringLiteral("异常")) ||
-                               cleanMessage.contains(QStringLiteral("失败")) ||
-                               cleanMessage.contains(QStringLiteral("failed")) ||
-                               cleanMessage.contains(QStringLiteral("error"));
-
-        if (isCritical) {
-            LOG_WARN("[FTP] {}", cleanMessage.toStdString());
-            setStatusMessage(cleanMessage);
-        } else {
-            // 详细协议交互（如 CMD/RSP、服务内部状态、目录与文件事件等）记录为 DEBUG，避免与应用层关键里程碑日志重复
-            LOG_DEBUG("[FTP] {}", cleanMessage.toStdString());
-        }
-
-        appendFtpLog(boundedMessage);
+    // FTP 日志由 FtpServer 直接写入主日志，这里只把异常提示到状态栏
+    connect(m_ftpService, &FtpIngestService::warningRaised, this, [this](const QString &message) {
+        setStatusMessage(message.left(2048));
     });
     // 上传校验、提交与未决上传恢复均在 FTP 线程执行
     ftpPushRoot();
@@ -715,38 +710,6 @@ AppController::AppController(QObject *parent)
     setStatusMessage(
         QStringLiteral("源目录 %1，归档目录 %2")
             .arg(m_sourceDirectory, m_archiveDirectory));
-}
-
-QString AppController::ftpLog() const
-{
-    QStringList lines;
-    lines.reserve(m_ftpLogLines.size());
-    for (const QVariant &line : m_ftpLogLines) lines << line.toString();
-    return lines.join(QLatin1Char('\n'));
-}
-
-// FTP 协议日志：内存保留最近 2000 行；ftp.log 常驻打开，由节流定时器统一刷盘，超过 5 MB 轮转为 ftp.log.1
-void AppController::appendFtpLog(const QString &message)
-{
-    const QString entry = QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + QLatin1Char(' ') + message;
-    m_ftpLogLines.append(entry);
-    while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
-
-    if (!m_ftpLogPath.isEmpty()) {
-        if (m_ftpLogFile.isOpen() && m_ftpLogFile.size() >= 5 * 1024 * 1024) {
-            m_ftpLogFile.close();
-            const QString oldPath = m_ftpLogPath + QStringLiteral(".1");
-            QFile::remove(oldPath);
-            QFile::rename(m_ftpLogPath, oldPath);
-        }
-        if (!m_ftpLogFile.isOpen()) {
-            m_ftpLogFile.setFileName(m_ftpLogPath);
-            if (!m_ftpLogFile.open(QIODevice::Append | QIODevice::Text))
-                LOG_WARN("无法打开 FTP 日志文件: {}", m_ftpLogPath.toStdString());
-        }
-        if (m_ftpLogFile.isOpen()) m_ftpLogFile.write((entry + QLatin1Char('\n')).toUtf8());
-    }
-    if (!m_ftpLogThrottleTimer.isActive()) m_ftpLogThrottleTimer.start();
 }
 
 QVariantList AppController::weeklyReports()
@@ -820,6 +783,35 @@ int AppController::requestStats(const QString &kind, const QVariantList &args)
     return requestId;
 }
 
+int AppController::requestRoundImages()
+{
+    const int requestId = ++m_roundImagesRequestSeq;
+    const QString archiveDir = m_archiveDirectory;
+    const QString sourceDir = m_sourceDirectory;
+    (void)QtConcurrent::run(&m_searchPool, [this, requestId, archiveDir, sourceDir]() {
+        QElapsedTimer timer;
+        timer.start();
+        const QVariantList racks = SearchService::latestRoundImages(getThreadDatabase(), archiveDir, sourceDir);
+        int rackCount = 0;
+        int imageCount = 0;
+        int missingCount = 0;
+        for (const QVariant &value : racks) {
+            const QVariantMap rack = value.toMap();
+            const int cameras = rack.value(QStringLiteral("cameraCount")).toInt();
+            const int images = rack.value(QStringLiteral("imageCount")).toInt();
+            if (cameras > 0) ++rackCount;
+            imageCount += images;
+            missingCount += cameras - images;
+        }
+        LOG_INFO("热力图像：本轮汇总完成，有记录的架={}，可显示图像={}，有记录缺图像={}，耗时={}ms",
+                 rackCount, imageCount, missingCount, timer.elapsed());
+        QMetaObject::invokeMethod(this, [this, requestId, racks]() {
+            emit roundImagesReady(requestId, racks);
+        }, Qt::QueuedConnection);
+    });
+    return requestId;
+}
+
 QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheelNumber) const
 {
     QVariantMap image;
@@ -888,47 +880,9 @@ void AppController::openReportFile(const QString &fileName)
     QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
-void AppController::loadFtpLogs()
-{
-    m_ftpLogLines.clear();
-    QFile f(m_ftpLogPath);
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        constexpr qint64 maxLogRead = 5 * 1024 * 1024;
-        if (f.size() > maxLogRead) {
-            f.seek(f.size() - maxLogRead);
-            f.readLine(); // 丢弃被截断的首行。
-        }
-        QTextStream ts(&f);
-        while (!ts.atEnd()) {
-            QString line = ts.readLine();
-            if (!line.isEmpty()) {
-                m_ftpLogLines.append(line);
-                while (m_ftpLogLines.size() > 2000) m_ftpLogLines.removeFirst();
-            }
-        }
-        f.close();
-    }
-    LOG_DEBUG("loadFtpLogs: 已加载 {} 行 FTP 日志", m_ftpLogLines.size());
-    emit ftpLogChanged();
-}
-
-void AppController::clearFtpLogs()
-{
-    m_ftpLogLines.clear();
-    m_ftpLogFile.close();
-    QFile f(m_ftpLogPath);
-    if (f.exists()) f.remove();
-    emit ftpLogChanged();
-}
-
 void AppController::debugLog(const QString &text)
 {
     LOG_DEBUG("QML调试信息: {}", text.toStdString());
-}
-
-QVariantList AppController::ftpLogLines() const
-{
-    return m_ftpLogLines;
 }
 
 
@@ -1371,10 +1325,8 @@ void AppController::startFtpServer()
     if (ftpListen(m_ftpPort, root)) {
         const QString msg = QStringLiteral("FTP 服务器已启动：端口 %1，目录 %2").arg(m_ftpPort).arg(root);
         setStatusMessage(msg);
-        LOG_INFO("FTP 服务器已成功启动: 监听端口={}, 根目录={}, 用户数={}", m_ftpPort, root.toStdString(), m_ftpUsers.size());
-        QStringList accounts;
-        for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) accounts << it.key();
-        appendFtpLog(QStringLiteral("FTP START: 端口 %1，根目录 %2，账户 %3").arg(m_ftpPort).arg(root, accounts.join(',')));
+        LOG_INFO("FTP 服务器已成功启动: 监听端口={}, 根目录={}, 账户={}", m_ftpPort, root.toStdString(),
+                 QStringList(m_ftpUsers.keys()).join(QLatin1Char(',')).toStdString());
     } else {
         const QString msg = QStringLiteral("无法启动 FTP 服务器（端口可能被占用）：%1").arg(m_ftpPort);
         setStatusMessage(msg);
@@ -1588,7 +1540,7 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
             const ImageItem previous = m_currentImagesModel.itemAt(i);
             if (previous.carrierId == batch.carrierId && !previous.wheelsInfo.isEmpty()
                 && previous.receivedAt.isValid()
-                && qAbs(previous.receivedAt.secsTo(batch.timestamp)) <= kSameCarrierMergeSecs) {
+                && qAbs(previous.receivedAt.secsTo(batch.timestamp)) <= IngestCoordinator::kSameCarrierMergeSecs) {
                 cards[i] = previous;
                 ++keptCards;
             }
@@ -1602,6 +1554,7 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
     m_currentSerialsRaw = QStringLiteral("载具 #%1 (轮数=%2)").arg(batch.carrierId).arg(totalWheels);
     m_currentCopiedCount = totalWheels;
     emit currentBatchChanged();
+    emit recordImagesChanged();
     LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片: 轮数={}, 已关联图片的轮={}, 待图片到达的轮={}, 保留同载具前批卡片={}",
              batch.carrierId, batch.wheels.size(), consumed.size(), batch.wheels.size() - consumed.size(), keptCards);
     setStatusMessage(QStringLiteral("载具 #%1 测量数据已接收，共 %2 轮").arg(batch.carrierId).arg(batch.wheels.size()));
@@ -1653,6 +1606,8 @@ void AppController::onFtpImageStored(const QString &filePath, const QString &req
         m_pendingImages.add(requestedName, absolutePath, now);
         m_pendingImages.prune(now);
     }
+
+    if (linkedRows > 0) emit recordImagesChanged();
 
     LOG_INFO("[FTP] 图像文件入库归档: {}{}, 关联卡片={}, 关联记录={}, 待关联缓存={}",
              file.fileName().toStdString(),

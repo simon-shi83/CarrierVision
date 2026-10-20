@@ -89,10 +89,10 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusLg
-        color: Theme.bgCard
+        radius: Theme.radiusMedium
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -108,15 +108,15 @@ Item {
                     width: 4
                     height: 18
                     radius: 2
-                    color: Theme.primary
+                    color: Theme.borderStrong
                 }
 
                 Label {
                     text: "16 轮位 × 50 架 全景遥测热力矩阵"
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeH2
-                    font.bold: true
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontTitle
+                    font.weight: Theme.fontMedium
                 }
 
                 // 状态图例
@@ -127,19 +127,19 @@ Item {
                     RowLayout {
                         spacing: 4
                         Rectangle { width: 8; height: 8; radius: 4; color: Theme.ok }
-                        Label { text: "OK 正常"; color: Theme.okLight; font.pixelSize: Theme.fontSizeSmall }
+                        Label { text: "OK 正常"; color: Theme.ok; font.pixelSize: Theme.fontCaption }
                     }
 
                     RowLayout {
                         spacing: 4
-                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.ng }
-                        Label { text: "NG 异常"; color: Theme.ngLight; font.pixelSize: Theme.fontSizeSmall }
+                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.danger }
+                        Label { text: "NG 异常"; color: Theme.danger; font.pixelSize: Theme.fontCaption }
                     }
 
                     RowLayout {
                         spacing: 4
-                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.textMuted }
-                        Label { text: "无记录"; color: Theme.textMuted; font.pixelSize: Theme.fontSizeSmall }
+                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.muted }
+                        Label { text: "无记录"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                     }
                 }
 
@@ -156,17 +156,17 @@ Item {
                     Layout.preferredHeight: 24
                     implicitWidth: updateLabel.implicitWidth + 16
                     radius: Theme.radiusPill
-                    color: Theme.bgCardElevated
-                    border.color: Theme.borderSubtle
+                    color: Theme.surfaceAlt
+                    border.color: Theme.borderMuted
                     border.width: 1
 
                     Label {
                         id: updateLabel
                         anchors.centerIn: parent
                         text: lastUpdated === "" ? "数据加载中..." : "同步时间: " + lastUpdated
-                        color: Theme.textSecondary
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.textSoft
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }
@@ -176,10 +176,10 @@ Item {
                 id: tableViewport
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: Theme.bgInput
-                radius: Theme.radiusMd
+                color: Theme.fieldFill
+                radius: Theme.radiusSmall
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
                 clip: true
 
                 Item {
@@ -200,8 +200,8 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         height: tableContainer.headerHeight
-                        color: Theme.bgCardActive
-                        border.color: Theme.borderSubtle
+                        color: Theme.pressed
+                        border.color: Theme.borderMuted
                         border.width: 1
                         z: 10
 
@@ -213,17 +213,17 @@ Item {
                             Rectangle {
                                 width: tableContainer.wheelHeaderWidth
                                 height: parent.height
-                                color: Theme.bgCardActive
-                                border.color: Theme.borderSubtle
+                                color: Theme.pressed
+                                border.color: Theme.borderMuted
                                 border.width: 1
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: "轮位 / 架号"
-                                    color: Theme.primaryLight
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.text
+                                    font.family: Theme.fontSans
+                                    font.weight: Theme.fontMedium
+                                    font.pixelSize: Theme.fontCaption
                                 }
 
                                 MouseArea {
@@ -247,18 +247,18 @@ Item {
 
                                     width: tableContainer.colWidth
                                     height: parent.height
-                                    color: isColHovered ? Theme.bgCardActive : (index % 2 === 0 ? Theme.bgCardElevated : Theme.bgCard)
-                                    border.color: isColHovered ? Theme.primary : Theme.borderSubtle
+                                    color: isColHovered ? Theme.pressed : (index % 2 === 0 ? Theme.surfaceAlt : Theme.surface)
+                                    border.color: isColHovered ? Theme.borderStrong : Theme.borderMuted
                                     border.width: isColHovered ? 2 : 1
                                     z: isColHovered ? 2 : 0
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: rackHeaderCol.rackNumber
-                                        color: rackHeaderCol.isColHovered ? Theme.primaryLight : Theme.textSecondary
-                                        font.family: Theme.fontMono
-                                        font.bold: rackHeaderCol.isColHovered
-                                        font.pixelSize: Math.max(9, Math.min(Theme.fontSizeSmall, Math.floor(tableContainer.colWidth * 0.38)))
+                                        color: rackHeaderCol.isColHovered ? Theme.text : Theme.textSoft
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.weight: (rackHeaderCol.isColHovered) ? Theme.fontMedium : Theme.fontRegular
+                                        font.pixelSize: Math.max(9, Math.min(Theme.fontCaption, Math.floor(tableContainer.colWidth * 0.38)))
                                     }
 
                                     ToolTip.visible: colHeaderMouse.containsMouse
@@ -309,7 +309,7 @@ Item {
 
                                     width: bodyContainer.width
                                     height: tableContainer.rowHeight
-                                    color: isRowHovered ? Theme.bgCardActive : (index % 2 === 0 ? "transparent" : (Theme.isDark ? "#06ffffff" : "#04000000"))
+                                    color: isRowHovered ? Theme.pressed : (index % 2 === 0 ? "transparent" : Theme.subtleFill)
 
                                     Row {
                                         anchors.fill: parent
@@ -321,9 +321,9 @@ Item {
                                             width: tableContainer.wheelHeaderWidth
                                             height: parent.height
                                             color: wheelRowItem.isRowHovered
-                                                ? Theme.bgCardActive
-                                                : (wheelRowItem.isDrive ? Theme.driveWheelBg : Theme.walkWheelBg)
-                                            border.color: wheelRowItem.isRowHovered ? Theme.primary : Theme.borderSubtle
+                                                ? Theme.pressed
+                                                : (wheelRowItem.isDrive ? Theme.driveWheelSoft : Theme.walkWheelSoft)
+                                            border.color: wheelRowItem.isRowHovered ? Theme.borderStrong : Theme.borderMuted
                                             border.width: wheelRowItem.isRowHovered ? 2 : 1
                                             z: wheelRowItem.isRowHovered ? 2 : 0
 
@@ -341,11 +341,11 @@ Item {
                                                 anchors.horizontalCenterOffset: 2
                                                 text: wheelRowItem.wheelLabel
                                                 color: wheelRowItem.isRowHovered
-                                                    ? Theme.primaryLight
+                                                    ? Theme.accent
                                                     : (wheelRowItem.isDrive ? Theme.driveWheel : Theme.walkWheel)
-                                                font.family: Theme.fontFamily
-                                                font.bold: true
-                                                font.pixelSize: Theme.fontSizeSmall
+                                                font.family: Theme.fontSans
+                                                font.weight: Theme.fontMedium
+                                                font.pixelSize: Theme.fontCaption
                                             }
 
                                             MouseArea {
@@ -377,14 +377,14 @@ Item {
                                                 width: tableContainer.colWidth
                                                 height: parent.height
                                                 color: isCellHovered
-                                                    ? Theme.bgCardActive
+                                                    ? Theme.pressed
                                                     : (!cellState
-                                                        ? (isCrosshair ? Theme.bgCardElevated : "transparent")
-                                                        : (cellState.result === 1 ? Theme.okBg : Theme.ngBg))
+                                                        ? (isCrosshair ? Theme.surfaceAlt : "transparent")
+                                                        : (cellState.result === 1 ? Theme.okSoft : Theme.dangerSoft))
 
                                                 border.color: isCellHovered
-                                                    ? Theme.primary
-                                                    : (isCrosshair ? Theme.borderHover : Theme.borderSubtle)
+                                                    ? Theme.accent
+                                                    : (isCrosshair ? Theme.borderStrong : Theme.borderMuted)
                                                 border.width: isCellHovered ? 2 : 1
                                                 z: isCellHovered ? 3 : (isCrosshair ? 1 : 0)
 
@@ -395,9 +395,9 @@ Item {
                                                     height: isCellHovered ? 9 : 7
                                                     radius: width / 2
                                                     visible: cellRect.cellState !== undefined
-                                                    color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.ok : Theme.ng
+                                                    color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.ok : Theme.danger
                                                     border.width: 1
-                                                    border.color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.okBorder : Theme.ngBorder
+                                                    border.color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.okBorder : Theme.dangerBorder
 
                                                     Behavior on width { NumberAnimation { duration: Theme.animFast } }
                                                     Behavior on height { NumberAnimation { duration: Theme.animFast } }
@@ -416,7 +416,7 @@ Item {
                                                                     + " ╎ " + cellRect.wheelLabel
                                                                     + "\n判定: " + (cellRect.cellState.result === 1 ? "OK 正常" : "NG 异常")
                                                                     + "\n检测时间: " + cellRect.cellState.time
-                                                                    + "\n💡 单击直接查看检测原图")
+                                                                    + "\n单击直接查看检测原图")
                                                               : "暂无检测记录"
 
                                                 MouseArea {
@@ -456,8 +456,8 @@ Item {
                                 id: summaryRowItem
                                 width: bodyContainer.width
                                 height: tableContainer.rowHeight
-                                color: Theme.bgCardActive
-                                border.color: Theme.borderSubtle
+                                color: Theme.pressed
+                                border.color: Theme.borderMuted
                                 border.width: 1
 
                                 Row {
@@ -468,17 +468,17 @@ Item {
                                     Rectangle {
                                         width: tableContainer.wheelHeaderWidth
                                         height: parent.height
-                                        color: Theme.bgCardActive
-                                        border.color: Theme.borderSubtle
+                                        color: Theme.pressed
+                                        border.color: Theme.borderMuted
                                         border.width: 1
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "采集总计"
-                                            color: Theme.textPrimary
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            font.bold: true
+                                            color: Theme.text
+                                            font.family: Theme.fontSans
+                                            font.pixelSize: Theme.fontCaption
+                                            font.weight: Theme.fontMedium
                                         }
                                     }
 
@@ -494,18 +494,18 @@ Item {
 
                                             width: tableContainer.colWidth
                                             height: parent.height
-                                            color: isColHovered ? Theme.bgCardElevated : Theme.bgCard
-                                            border.color: isColHovered ? Theme.primary : Theme.borderSubtle
+                                            color: isColHovered ? Theme.surfaceAlt : Theme.surface
+                                            border.color: isColHovered ? Theme.borderStrong : Theme.borderMuted
                                             border.width: isColHovered ? 2 : 1
                                             z: isColHovered ? 2 : 0
 
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: summaryCell.count
-                                                color: summaryCell.count > 0 ? Theme.primaryLight : Theme.textMuted
-                                                font.family: Theme.fontMono
-                                                font.pixelSize: Math.max(9, Math.min(Theme.fontSizeSmall, Math.floor(tableContainer.colWidth * 0.38)))
-                                                font.bold: summaryCell.count > 0
+                                                color: summaryCell.count > 0 ? Theme.accent : Theme.muted
+                                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                                font.pixelSize: Math.max(9, Math.min(Theme.fontCaption, Math.floor(tableContainer.colWidth * 0.38)))
+                                                font.weight: (summaryCell.count > 0) ? Theme.fontMedium : Theme.fontRegular
                                             }
 
                                             ToolTip.visible: summaryCellMouse.containsMouse
@@ -547,10 +547,10 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            radius: Theme.radiusLg
-            color: Theme.bgPopup
+            radius: Theme.radiusMedium
+            color: Theme.surfaceFloating
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
         }
 
         header: Rectangle {
@@ -567,15 +567,15 @@ Item {
                     width: 4
                     height: 18
                     radius: 2
-                    color: Theme.primary
+                    color: Theme.borderStrong
                 }
 
                 Label {
                     text: "Carrier 点检工位 3D 数字孪生与架轮立体几何视窗"
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontH2
-                    font.weight: Theme.weightBold
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontTitle
+                    font.weight: Theme.fontBold
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
                 }
@@ -584,20 +584,20 @@ Item {
                 Rectangle {
                     width: 30
                     height: 30
-                    radius: Theme.radiusSm
-                    color: closeBtnMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    radius: Theme.radiusMicro
+                    color: closeBtnMouse.containsMouse ? Theme.pressed : "transparent"
                     border.width: 1
-                    border.color: closeBtnMouse.containsMouse ? Theme.borderMedium : "transparent"
+                    border.color: closeBtnMouse.containsMouse ? Theme.border : "transparent"
                     Layout.alignment: Qt.AlignVCenter
 
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
                     Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
 
-                    Text {
+                    AppIcon {
                         anchors.centerIn: parent
-                        text: "✕"
-                        font.pixelSize: 13
-                        color: closeBtnMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                        name: "icon_close"
+                        size: 16
+                        color: closeBtnMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {
@@ -615,15 +615,15 @@ Item {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 1
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
         }
 
         contentItem: Rectangle {
-            color: Theme.bgInput
-            radius: Theme.radiusMd
+            color: Theme.fieldFill
+            radius: Theme.radiusSmall
             border.width: 1
-            border.color: Theme.borderSubtle
+            border.color: Theme.borderMuted
             clip: true
 
             DesignShow {

@@ -4,10 +4,10 @@ import QtQuick.Layouts 1.15
 
 Rectangle {
     id: root
-    color: Theme.bgCard
-    border.color: Theme.borderMedium
+    color: Theme.surface
+    border.color: Theme.border
     border.width: 1
-    radius: Theme.radiusMd
+    radius: Theme.radiusSmall
 
     property var model
     readonly property int count: model ? model.count : 0
@@ -83,9 +83,9 @@ Rectangle {
                 Layout.preferredHeight: Math.floor((imageGrid.height - (root.rowsPerPage - 1) * imageGrid.rowSpacing) / root.rowsPerPage)
                 visible: itemData !== null && itemData !== undefined
 
-                color: itemMouse.containsMouse ? Theme.bgCardActive : Theme.bgInput
-                radius: Theme.radiusMd
-                border.color: itemMouse.containsMouse ? Theme.primary : Theme.borderSubtle
+                color: itemMouse.containsMouse ? Theme.pressed : Theme.fieldFill
+                radius: Theme.radiusSmall
+                border.color: itemMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
                 border.width: itemMouse.containsMouse ? 2 : 1
 
                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -117,8 +117,8 @@ Rectangle {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: Theme.radiusSm
-                        color: Theme.bgCardElevated
+                        radius: Theme.radiusMicro
+                        color: Theme.surfaceAlt
                         clip: true
 
                         Image {
@@ -134,14 +134,14 @@ Rectangle {
 
                             Rectangle {
                                 anchors.fill: parent
-                                color: Theme.bgInput
+                                color: Theme.fieldFill
                                 z: -1
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: "加载中..."
-                                    color: Theme.textMuted
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.muted
+                                    font.pixelSize: Theme.fontCaption
                                 }
                             }
                         }
@@ -152,10 +152,10 @@ Rectangle {
                             anchors.top: parent.top
                             anchors.margins: 5
                             height: 20
-                            radius: Theme.radiusSm
-                            color: Theme.isDark ? "#cc0f172a" : "#e6ffffff"
+                            radius: Theme.radiusMicro
+                            color: Theme.overlayFill
                             border.width: 1
-                            border.color: Theme.borderSubtle
+                            border.color: Theme.borderMuted
                             implicitWidth: rackSlotTxt.implicitWidth + 10
                             visible: itemData && itemData.rack !== undefined && itemData.slot !== undefined
 
@@ -163,10 +163,10 @@ Rectangle {
                                 id: rackSlotTxt
                                 anchors.centerIn: parent
                                 text: (itemData && itemData.rack !== undefined && itemData.slot !== undefined) ? ("架 #" + itemData.rack + " ╎ 轮 " + itemData.slot) : ""
-                                color: Theme.textSecondary
-                                font.family: Theme.fontMono
-                                font.bold: true
-                                font.pixelSize: Theme.fontSizeTiny
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.weight: Theme.fontMedium
+                                font.pixelSize: Theme.fontMicro
                             }
                         }
 
@@ -179,18 +179,18 @@ Rectangle {
                             radius: Theme.radiusPill
                             implicitWidth: resTxt.implicitWidth + 12
                             visible: itemData && itemData.result !== undefined
-                            color: itemData && itemData.result === 1 ? Theme.okBg : Theme.ngBg
+                            color: itemData && itemData.result === 1 ? Theme.okSoft : Theme.dangerSoft
                             border.width: 1
-                            border.color: itemData && itemData.result === 1 ? Theme.okBorder : Theme.ngBorder
+                            border.color: itemData && itemData.result === 1 ? Theme.okBorder : Theme.dangerBorder
 
                             Text {
                                 id: resTxt
                                 anchors.centerIn: parent
                                 text: (itemData && itemData.result !== undefined) ? (itemData.result === 1 ? "OK 正常" : "NG 异常") : ""
-                                color: itemData && itemData.result === 1 ? Theme.okLight : Theme.ngLight
-                                font.family: Theme.fontFamily
-                                font.bold: true
-                                font.pixelSize: Theme.fontSizeTiny
+                                color: itemData && itemData.result === 1 ? Theme.ok : Theme.danger
+                                font.family: Theme.fontSans
+                                font.weight: Theme.fontMedium
+                                font.pixelSize: Theme.fontMicro
                             }
                         }
                     }
@@ -199,19 +199,19 @@ Rectangle {
                         Layout.fillWidth: true
                         text: (itemData && itemData.fileName) ? itemData.fileName : ""
                         font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.bold: true
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Theme.fontMedium
                         elide: Text.ElideMiddle
                         horizontalAlignment: Text.AlignHCenter
-                        color: Theme.textPrimary
+                        color: Theme.text
                     }
 
                     Text {
                         Layout.fillWidth: true
                         text: (itemData && itemData.receivedAtText) ? itemData.receivedAtText : ""
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeTiny
-                        color: Theme.textSecondary
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
+                        color: Theme.textSoft
                         horizontalAlignment: Text.AlignHCenter
                         elide: Text.ElideRight
                     }
@@ -241,18 +241,19 @@ Rectangle {
 
         ColumnLayout {
             spacing: 6
-            Text {
+            AppIcon {
                 Layout.alignment: Qt.AlignHCenter
-                text: "📷"
-                font.pixelSize: 36
                 opacity: 0.4
+                name: "icon_image"
+                size: 40
+                color: Theme.disabled
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: "暂无图像记录"
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-                color: Theme.textMuted
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontBody
+                color: Theme.muted
             }
         }
     }
@@ -263,8 +264,8 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: 12
         radius: Theme.radiusPill
-        color: Theme.bgCardActive
-        border.color: Theme.borderMedium
+        color: Theme.pressed
+        border.color: Theme.border
         border.width: 1
         visible: root.enableInternalPaging && root.count > 0
         implicitWidth: pageLabel.implicitWidth + 20
@@ -274,10 +275,10 @@ Rectangle {
             id: pageLabel
             anchors.centerIn: parent
             text: "第 " + String(root.currentPage + 1) + " / " + String(root.totalPages) + " 页"
-            color: Theme.textPrimary
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: true
+            color: Theme.text
+            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+            font.pixelSize: Theme.fontCaption
+            font.weight: Theme.fontMedium
         }
     }
 }

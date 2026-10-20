@@ -52,8 +52,6 @@ class AppController : public QObject
     Q_PROPERTY(QVariantList ftpAccounts READ ftpAccounts NOTIFY ftpSettingsChanged)
     Q_PROPERTY(QVariantList slotMapping READ slotMapping NOTIFY mappingChanged)
     Q_PROPERTY(QVariantList gearSumResult READ gearSumResult NOTIFY gearSumResultChanged)
-    Q_PROPERTY(QString ftpLog READ ftpLog NOTIFY ftpLogChanged)
-    Q_PROPERTY(QVariantList ftpLogLines READ ftpLogLines NOTIFY ftpLogChanged)
     Q_PROPERTY(QVariantMap latestWarnOrError READ latestWarnOrError NOTIFY latestWarnOrErrorChanged)
     // {level: ok|warn|rejectUploads|rejectData, path, freeBytes, totalBytes, freePercent}
     Q_PROPERTY(QVariantMap storageStatus READ storageStatus NOTIFY storageStatusChanged)
@@ -120,6 +118,8 @@ public:
     Q_INVOKABLE QVariantList rackWheelMonitorStatus() const;
 	Q_INVOKABLE QVariantList rackPhotoCounts() const;
     Q_INVOKABLE QVariantMap latestRackWheelMonitorImage(int rackNumber, int wheelNumber) const;
+    // 热力图像：后台查询 50 架最近一轮的 12 相机图像，结果经 roundImagesReady 返回
+    Q_INVOKABLE int requestRoundImages();
 	Q_INVOKABLE QVariantMap homepageCurrentDetection() const;
     Q_INVOKABLE QVariantList wheelRackResultStats(const QString &startDate, const QString &endDate, int wheelNumber, const QString &resultType);
     Q_INVOKABLE QVariantList rackWheelResultStats(const QString &startDate, const QString &endDate,
@@ -151,10 +151,6 @@ public:
     Q_INVOKABLE bool hasMaintenancePassword() const;
     Q_INVOKABLE bool setMaintenancePassword(const QString &currentSettingsPassword, const QString &newPassword);
     Q_INVOKABLE void activateEnglishInputMethod();
-    Q_INVOKABLE QString ftpLog() const;
-    Q_INVOKABLE QVariantList ftpLogLines() const;
-    Q_INVOKABLE void loadFtpLogs();
-    Q_INVOKABLE void clearFtpLogs();
     Q_INVOKABLE void debugLog(const QString &text);
 
     // 日志查询与统计接口
@@ -193,13 +189,15 @@ signals:
     void ftpSettingsChanged();
     void ftpServerStateChanged();
     void tcpServerStateChanged();
-    void ftpLogChanged();
     void mappingChanged();
     void gearSumResultChanged();
     void genericSearchRequested(const QString &startDate, const QString &endDate, int wheelNumber, const QString &resultType);
     void searchPagedResult(int totalCount);
     void slotUpdated(int index);
     void rackWheelMonitorUpdated();
+    void roundImagesReady(int requestId, const QVariantList &racks);
+    // 新的检测记录入库，或已入库记录关联到了图片
+    void recordImagesChanged();
 
 private:
     void startLogQuery();
@@ -217,7 +215,6 @@ private:
     void setStatusMessage(const QString &message);
     void runScheduledTasks();
     void startMaintenance(bool emergency);
-    void appendFtpLog(const QString &message);
     void checkStorage();
     QStringList storagePaths() const;
     bool processTcpBatch(const QJsonObject &batchData, QString &error);
@@ -256,9 +253,6 @@ private:
     TcpDataReceiver m_tcpReceiver;
     int m_tcpPort = 9000;
 
-    QFile m_ftpLogFile;
-    QVariantList m_ftpLogLines;
-    QString m_ftpLogPath;
 
     ImageListModel m_currentImagesModel;
     ImageListModel m_searchImagesModel;
@@ -269,6 +263,7 @@ private:
     QThreadPool m_searchPool;
     QThreadPool m_statsPool;
     int m_statsRequestSeq = 0;
+    int m_roundImagesRequestSeq = 0;
     int m_gearSumGeneration = 0;
     QThreadPool m_maintenancePool;
     bool m_cleanupRunning = false;
@@ -287,7 +282,6 @@ private:
     QTimer m_serviceRetryTimer;
     bool m_ftpStoppedByUser = false;
     bool m_tcpStoppedByUser = false;
-    QTimer m_ftpLogThrottleTimer;
     std::atomic<int> m_searchGeneration{0};
     std::atomic<int> m_alertSearchGeneration{0};
 };

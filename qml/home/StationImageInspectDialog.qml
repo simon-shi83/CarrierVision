@@ -58,7 +58,7 @@ Dialog {
 
     // 模态背景遮罩
     Overlay.modal: Rectangle {
-        color: Theme.bgOverlay
+        color: Theme.dialogOverlay
         Behavior on opacity {
             NumberAnimation {
                 duration: Theme.animNormal
@@ -68,8 +68,8 @@ Dialog {
 
     // 对话框主体背景
     background: Rectangle {
-        color: Theme.bgCard
-        radius: Theme.radiusXl
+        color: Theme.surface
+        radius: Theme.radiusLarge
         border.color: Theme.borderStrong
         border.width: 1
         clip: true
@@ -253,14 +253,14 @@ Dialog {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 64
-            color: Theme.bgCardElevated
-            radius: Theme.radiusXl
+            color: Theme.surfaceAlt
+            radius: Theme.radiusLarge
 
             // 修复圆角遮挡
             Rectangle {
                 anchors.bottom: parent.bottom
                 width: parent.width
-                height: Theme.radiusXl
+                height: Theme.radiusLarge
                 color: parent.color
             }
 
@@ -268,7 +268,7 @@ Dialog {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
 
             RowLayout {
@@ -281,16 +281,16 @@ Dialog {
                 Rectangle {
                     Layout.preferredWidth: 38
                     Layout.preferredHeight: 38
-                    radius: Theme.radiusMd
-                    color: Theme.primaryGlow
-                    border.color: Theme.primary
+                    radius: Theme.radiusSmall
+                    color: Theme.activeSubtle
+                    border.color: Theme.accent
                     border.width: 1
 
                     AppIcon {
                         anchors.centerIn: parent
                         name: "icon_camera"
                         size: 20
-                        color: Theme.primaryLight
+                        color: Theme.textSoft
                     }
                 }
 
@@ -304,10 +304,10 @@ Dialog {
 
                         Label {
                             text: inspectDialog.titleText
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH2
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontTitle
+                            font.weight: Theme.fontMedium
                             elide: Label.ElideRight
                         }
 
@@ -317,18 +317,18 @@ Dialog {
                             Layout.preferredHeight: 20
                             implicitWidth: camTagText.implicitWidth + 12
                             radius: Theme.radiusPill
-                            color: Theme.bgCardActive
-                            border.color: Theme.primary
+                            color: Theme.pressed
+                            border.color: Theme.accent
                             border.width: 1
 
                             Text {
                                 id: camTagText
                                 anchors.centerIn: parent
                                 text: "CAM " + (inspectDialog.slotIndex < 9 ? "0" : "") + (inspectDialog.slotIndex + 1)
-                                font.family: Theme.fontMono
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: Theme.primaryLight
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
+                                color: Theme.text
                             }
                         }
 
@@ -338,7 +338,7 @@ Dialog {
                             Layout.preferredHeight: 20
                             implicitWidth: liveTagRow.implicitWidth + 12
                             radius: Theme.radiusPill
-                            color: Theme.okBg
+                            color: Theme.okSoft
                             border.color: Theme.okBorder
                             border.width: 1
 
@@ -371,10 +371,10 @@ Dialog {
 
                                 Label {
                                     text: "实时工位监控中"
-                                    color: Theme.okLight
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
-                                    font.bold: true
+                                    color: Theme.ok
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
+                                    font.weight: Theme.fontMedium
                                 }
                             }
                         }
@@ -382,9 +382,9 @@ Dialog {
 
                     Label {
                         text: inspectDialog.subtitleText.length > 0 ? inspectDialog.subtitleText : "支持鼠标滚轮平滑缩放、按住拖拽平移，点检数据实时更新"
-                        color: Theme.textMuted
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.muted
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontCaption
                         elide: Label.ElideRight
                     }
                 }
@@ -406,9 +406,9 @@ Dialog {
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
                     radius: 17
-                    color: closeBtnMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    color: closeBtnMouse.containsMouse ? Theme.pressed : "transparent"
                     border.width: 1
-                    border.color: closeBtnMouse.containsMouse ? Theme.borderHover : Theme.borderSubtle
+                    border.color: closeBtnMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
 
                     Behavior on color {
                         ColorAnimation {
@@ -420,7 +420,7 @@ Dialog {
                         anchors.centerIn: parent
                         name: "icon_close"
                         size: 16
-                        color: closeBtnMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        color: closeBtnMouse.containsMouse ? Theme.text : Theme.muted
                     }
 
                     MouseArea {
@@ -549,8 +549,8 @@ Dialog {
                     height: 44
                     implicitWidth: dockRow.implicitWidth + 24
                     radius: Theme.radiusPill
-                    color: Theme.bgPopup
-                    border.color: Theme.borderMedium
+                    color: Theme.surfaceFloating
+                    border.color: Theme.border
                     border.width: 1
 
                     RowLayout {
@@ -563,13 +563,13 @@ Dialog {
                             Layout.preferredWidth: 30
                             Layout.preferredHeight: 30
                             radius: 15
-                            color: zoomOutMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                            color: zoomOutMouse.containsMouse ? Theme.pressed : "transparent"
                             Text {
                                 anchors.centerIn: parent
                                 text: "－"
-                                color: Theme.textPrimary
-                                font.bold: true
-                                font.pixelSize: 14
+                                color: Theme.text
+                                font.weight: Theme.fontMedium
+                                font.pixelSize: Theme.fontBody
                             }
                             MouseArea {
                                 id: zoomOutMouse
@@ -585,18 +585,18 @@ Dialog {
                             Layout.preferredHeight: 26
                             implicitWidth: zoomPctText.implicitWidth + 14
                             radius: Theme.radiusPill
-                            color: Theme.bgCardElevated
-                            border.color: Theme.borderSubtle
+                            color: Theme.surfaceAlt
+                            border.color: Theme.borderMuted
                             border.width: 1
 
                             Text {
                                 id: zoomPctText
                                 anchors.centerIn: parent
                                 text: Math.round(inspectDialog.userZoom * 100) + "%"
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
-                                color: Theme.primaryLight
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
+                                color: Theme.text
                             }
                         }
 
@@ -605,13 +605,13 @@ Dialog {
                             Layout.preferredWidth: 30
                             Layout.preferredHeight: 30
                             radius: 15
-                            color: zoomInMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                            color: zoomInMouse.containsMouse ? Theme.pressed : "transparent"
                             Text {
                                 anchors.centerIn: parent
                                 text: "＋"
-                                color: Theme.textPrimary
-                                font.bold: true
-                                font.pixelSize: 14
+                                color: Theme.text
+                                font.weight: Theme.fontMedium
+                                font.pixelSize: Theme.fontBody
                             }
                             MouseArea {
                                 id: zoomInMouse
@@ -626,7 +626,7 @@ Dialog {
                         Rectangle {
                             Layout.preferredWidth: 1
                             Layout.preferredHeight: 18
-                            color: Theme.divider
+                            color: Theme.borderMuted
                         }
 
                         // 1:1 原图查看
@@ -660,7 +660,7 @@ Dialog {
                 id: telemetryDrawer
                 Layout.preferredWidth: (inspectDialog.showSidePanel && inspectDialog.currentItemObject !== null) ? 320 : 0
                 Layout.fillHeight: true
-                color: Theme.bgCardElevated
+                color: Theme.surfaceAlt
                 clip: true
                 visible: Layout.preferredWidth > 0
 
@@ -676,7 +676,7 @@ Dialog {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     width: 1
-                    color: Theme.borderSubtle
+                    color: Theme.borderMuted
                 }
 
                 ColumnLayout {
@@ -693,15 +693,15 @@ Dialog {
                             width: 3
                             height: 14
                             radius: 1.5
-                            color: Theme.primary
+                            color: Theme.borderStrong
                         }
 
                         Label {
                             text: "工位点检遥测指标"
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH3
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Theme.fontMedium
                         }
                     }
 
@@ -709,10 +709,10 @@ Dialog {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 62
-                        radius: Theme.radiusMd
+                        radius: Theme.radiusSmall
                         readonly property bool isPass: inspectDialog.currentItemObject ? (inspectDialog.currentItemObject.result === 1) : true
-                        color: isPass ? Theme.okBg : Theme.ngBg
-                        border.color: isPass ? Theme.okBorder : Theme.ngBorder
+                        color: isPass ? Theme.okSoft : Theme.dangerSoft
+                        border.color: isPass ? Theme.okBorder : Theme.dangerBorder
                         border.width: 1
 
                         RowLayout {
@@ -724,13 +724,13 @@ Dialog {
                                 Layout.preferredWidth: 38
                                 Layout.preferredHeight: 38
                                 radius: 19
-                                color: parent.parent.isPass ? Theme.ok : Theme.ng
+                                color: parent.parent.isPass ? Theme.ok : Theme.danger
 
                                 AppIcon {
                                     anchors.centerIn: parent
                                     name: parent.parent.isPass ? "icon_check_circle" : "icon_close"
                                     size: 20
-                                    color: "#ffffff"
+                                    color: Theme.textOnAccent
                                 }
                             }
 
@@ -740,17 +740,17 @@ Dialog {
 
                                 Text {
                                     text: parent.parent.isPass ? "点检状态: OK 正常" : "点检状态: NG 异常"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeBody
-                                    font.bold: true
-                                    color: parent.parent.isPass ? Theme.okLight : Theme.ngLight
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontBody
+                                    font.weight: Theme.fontMedium
+                                    color: parent.parent.isPass ? Theme.ok : Theme.danger
                                 }
 
                                 Text {
                                     text: parent.parent.isPass ? "符合产线高精公差规范" : "存在偏差或缺陷，请核验"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
-                                    color: Theme.textMuted
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
+                                    color: Theme.muted
                                 }
                             }
                         }
@@ -760,9 +760,9 @@ Dialog {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: Theme.radiusMd
-                        color: Theme.bgCard
-                        border.color: Theme.borderSubtle
+                        radius: Theme.radiusSmall
+                        color: Theme.surface
+                        border.color: Theme.borderMuted
                         border.width: 1
 
                         ColumnLayout {
@@ -772,22 +772,22 @@ Dialog {
 
                             Label {
                                 text: "位移与几何遥测"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
 
                             MetricRow {
                                 labelName: "载具编号 (Carrier)"
                                 metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.carrierId !== undefined && inspectDialog.currentItemObject.carrierId > 0 ? inspectDialog.currentItemObject.carrierId : inspectDialog.currentItemObject.rack) : "-"
-                                valColor: Theme.primaryLight
+                                valColor: Theme.accent
                             }
 
                             MetricRow {
                                 labelName: "工位相机 (Camera)"
                                 metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.cameraId !== undefined && inspectDialog.currentItemObject.cameraId > 0 ? inspectDialog.currentItemObject.cameraId : (inspectDialog.slotIndex + 1)) : "-"
-                                valColor: Theme.primaryLight
+                                valColor: Theme.accent
                             }
 
                             MetricRow {
@@ -798,7 +798,7 @@ Dialog {
                             Rectangle {
                                 Layout.fillWidth: true
                                 height: 1
-                                color: Theme.divider
+                                color: Theme.borderMuted
                             }
 
                             MetricRow {
@@ -822,9 +822,9 @@ Dialog {
                             Label {
                                 visible: inspectDialog.currentItemObject && inspectDialog.currentItemObject.wheelsInfo && inspectDialog.currentItemObject.wheelsInfo.length > 0
                                 text: inspectDialog.currentItemObject ? inspectDialog.currentItemObject.wheelsInfo : ""
-                                color: Theme.primaryLight
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeTiny
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontMicro
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
                             }
@@ -840,18 +840,18 @@ Dialog {
 
                                 Label {
                                     text: "文件归档信息"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
-                                    font.bold: true
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
+                                    font.weight: Theme.fontMedium
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
                                     text: inspectDialog.currentItemObject ? inspectDialog.currentItemObject.fileName : ""
                                     font.family: Theme.fontMono
-                                    font.pixelSize: 10
-                                    color: Theme.textSecondary
+                                    font.pixelSize: Theme.fontMicro
+                                    color: Theme.textSoft
                                     elide: Text.ElideMiddle
                                 }
                             }
@@ -867,22 +867,22 @@ Dialog {
         property string labelName: ""
         property string metricValue: ""
         property string unitName: ""
-        property color valColor: Theme.textPrimary
+        property color valColor: Theme.text
         Layout.fillWidth: true
 
         Text {
             text: labelName
-            color: Theme.textMuted
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.muted
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontCaption
             Layout.fillWidth: true
         }
         Text {
             text: metricValue + (unitName.length > 0 ? (" " + unitName) : "")
             color: valColor
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: true
+            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+            font.pixelSize: Theme.fontCaption
+            font.weight: Theme.fontMedium
         }
     }
 }

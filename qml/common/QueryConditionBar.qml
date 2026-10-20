@@ -5,9 +5,9 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     height: 52
-    color: Theme.bgCard
-    radius: Theme.radiusMd
-    border.color: Theme.borderMedium
+    color: Theme.surface
+    radius: Theme.radiusSmall
+    border.color: Theme.border
     border.width: 1
 
     // ===== 对外暴露的属性 =====
@@ -62,10 +62,10 @@ Rectangle {
             spacing: 6
             Label {
                 text: "日期范围"
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontCaption
                 Layout.alignment: Qt.AlignVCenter
             }
             DatePicker {
@@ -76,9 +76,9 @@ Rectangle {
             }
             Label {
                 text: "~"
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSizeBody
-                font.bold: true
+                color: Theme.muted
+                font.pixelSize: Theme.fontBody
+                font.weight: Theme.fontMedium
                 Layout.alignment: Qt.AlignVCenter
             }
             DatePicker {
@@ -93,7 +93,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: 22
-            color: Theme.divider
+            color: Theme.borderMuted
             Layout.alignment: Qt.AlignVCenter
         }
 
@@ -102,10 +102,10 @@ Rectangle {
             spacing: 6
             Label { 
                 text: "架号" 
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary 
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft 
+                font.pixelSize: Theme.fontCaption
                 Layout.alignment: Qt.AlignVCenter 
             }
             NumPicker {
@@ -121,7 +121,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: 22
-            color: Theme.divider
+            color: Theme.borderMuted
             Layout.alignment: Qt.AlignVCenter
         }
 
@@ -130,10 +130,10 @@ Rectangle {
             spacing: 6
             Label { 
                 text: "轮号" 
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary 
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft 
+                font.pixelSize: Theme.fontCaption
                 Layout.alignment: Qt.AlignVCenter 
             }
             WheelSelector {
@@ -150,10 +150,10 @@ Rectangle {
             spacing: 6
             Label {
                 text: "判定"
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontCaption
                 Layout.alignment: Qt.AlignVCenter
             }
             ComboBox {
@@ -163,21 +163,21 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 model: root.resultList
                 currentIndex: 0
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontBody
 
                 background: Rectangle {
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
-                    border.color: resultCombo.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
+                    border.color: resultCombo.activeFocus ? Theme.selectedBorder : Theme.border
                     border.width: 1
                 }
                 contentItem: Text {
                     text: resultCombo.currentText
-                    color: resultCombo.currentText === "OK" ? Theme.ok : (resultCombo.currentText === "NG" ? Theme.ng : Theme.textPrimary)
-                    font.bold: true
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
+                    color: resultCombo.currentText === "OK" ? Theme.ok : (resultCombo.currentText === "NG" ? Theme.danger : Theme.text)
+                    font.weight: Theme.fontMedium
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontBody
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -187,9 +187,9 @@ Rectangle {
                     implicitHeight: contentItem.implicitHeight + 8
                     padding: 4
                     background: Rectangle {
-                        color: Theme.bgPopup
-                        radius: Theme.radiusMd
-                        border.color: Theme.borderMedium
+                        color: Theme.surfaceFloating
+                        radius: Theme.radiusSmall
+                        border.color: Theme.border
                         border.width: 1
                     }
                     contentItem: ListView {
@@ -204,14 +204,14 @@ Rectangle {
                     height: 30
                     contentItem: Text {
                         text: modelData
-                        color: modelData === "OK" ? Theme.ok : (modelData === "NG" ? Theme.ng : Theme.textPrimary)
-                        font.bold: true
+                        color: modelData === "OK" ? Theme.ok : (modelData === "NG" ? Theme.danger : Theme.text)
+                        font.weight: Theme.fontMedium
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                     background: Rectangle {
-                        radius: Theme.radiusSm
-                        color: highlighted ? Theme.bgCardActive : "transparent"
+                        radius: Theme.radiusMicro
+                        color: highlighted ? Theme.pressed : "transparent"
                     }
                 }
             }

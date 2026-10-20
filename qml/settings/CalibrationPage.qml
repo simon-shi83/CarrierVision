@@ -134,10 +134,10 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusLg
-        color: Theme.bgCard
+        radius: Theme.radiusMedium
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -148,10 +148,10 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 46
-                color: Theme.bgCardElevated
-                radius: Theme.radiusMd
+                color: Theme.surfaceAlt
+                radius: Theme.radiusSmall
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -159,21 +159,21 @@ Item {
                     anchors.rightMargin: 12
                     spacing: 10
 
-                    Rectangle { width: 3; height: 16; radius: 1.5; color: Theme.primary }
+                    Rectangle { width: 3; height: 16; radius: 1.5; color: Theme.borderStrong }
 
                     Label {
                         text: "架轮基准间距标定"
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.bold: true
-                        font.pixelSize: Theme.fontSizeH3
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.weight: Theme.fontMedium
+                        font.pixelSize: Theme.fontBody
                     }
 
                     Label {
                         text: "架号"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.textSoft
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
                     }
 
                     NumPicker {
@@ -232,18 +232,18 @@ Item {
                             Layout.preferredHeight: 30
                             implicitWidth: pageBadge.implicitWidth + 16
                             radius: Theme.radiusPill
-                            color: Theme.bgCardActive
-                            border.color: Theme.borderMedium
+                            color: Theme.pressed
+                            border.color: Theme.border
                             border.width: 1
 
                             Text {
                                 id: pageBadge
                                 anchors.centerIn: parent
                                 text: root.currentPage + " / " + Math.max(1, root.totalPages)
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                         }
 
@@ -278,9 +278,9 @@ Item {
 
                     Label {
                         text: root.statusText
-                        color: Theme.primaryLight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
                         elide: Text.ElideRight
                         Layout.maximumWidth: 320
                     }
@@ -291,10 +291,10 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 120
-                color: Theme.bgInput
-                radius: Theme.radiusMd
+                color: Theme.fieldFill
+                radius: Theme.radiusSmall
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -309,14 +309,14 @@ Item {
                         rowSpacing: 4
 
                         // Row 0: Header
-                        Label { text: "参数 / 轮位"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.textSecondary; font.bold: true; font.pixelSize: Theme.fontSizeSmall }
+                        Label { text: "参数 / 轮位"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
                         Repeater {
                             model: 8
-                            Label { text: "轮 " + (index + 1); horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; color: Theme.driveWheel; font.bold: true; font.pixelSize: Theme.fontSizeSmall }
+                            Label { text: "轮 " + (index + 1); horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; color: Theme.driveWheel; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
                         }
 
                         // Row 1: Standard norm input
-                        Label { text: "标准基准"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.primaryLight; font.bold: true; font.pixelSize: Theme.fontSizeSmall }
+                        Label { text: "标准基准"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.accent; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
                         Repeater {
                             model: 8
                             delegate: TextField {
@@ -325,16 +325,16 @@ Item {
                                 Layout.preferredHeight: 32
                                 text: root.normDistanceValues[index]
                                 horizontalAlignment: TextInput.AlignHCenter
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeBody
-                                font.bold: true
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
                                 selectByMouse: true
                                 background: Rectangle {
-                                    radius: Theme.radiusSm
-                                    color: Theme.bgCardElevated
+                                    radius: Theme.radiusMicro
+                                    color: Theme.surfaceAlt
                                     border.width: 1
-                                    border.color: parent.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                                    border.color: parent.activeFocus ? Theme.selectedBorder : Theme.border
                                 }
                                 onEditingFinished: {
                                     var values = root.normDistanceValues.slice()
@@ -345,7 +345,7 @@ Item {
                         }
 
                         // Row 2: Database measured distance
-                        Label { text: "当前实测"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.textMuted; font.pixelSize: Theme.fontSizeSmall }
+                        Label { text: "当前实测"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                         Repeater {
                             model: 8
                             delegate: Rectangle {
@@ -353,10 +353,10 @@ Item {
                                 required property int index
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                radius: Theme.radiusSm
-                                color: measuredMouse.containsMouse ? Theme.bgCardActive : Theme.bgCard
+                                radius: Theme.radiusMicro
+                                color: measuredMouse.containsMouse ? Theme.pressed : Theme.surface
                                 border.width: 1
-                                border.color: measuredMouse.containsMouse ? Theme.primary : Theme.borderSubtle
+                                border.color: measuredMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
 
                                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
                                 Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
@@ -371,24 +371,24 @@ Item {
                                         Layout.fillWidth: true
                                         text: root.databaseDistanceValues[measuredBox.index]
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeBody
-                                        font.bold: true
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontBody
+                                        font.weight: Theme.fontMedium
                                     }
 
                                     Rectangle {
                                         Layout.preferredWidth: 18
                                         Layout.preferredHeight: 18
                                         radius: 9
-                                        color: measuredMouse.containsMouse ? Theme.primaryGlow : "transparent"
+                                        color: measuredMouse.containsMouse ? Theme.hover : "transparent"
                                         visible: Number(root.databaseDistanceValues[measuredBox.index]) > 0
 
                                         AppIcon {
                                             anchors.centerIn: parent
                                             name: "icon_arrow_down"
                                             size: 11
-                                            color: measuredMouse.containsMouse ? Theme.primaryLight : Theme.textMuted
+                                            color: measuredMouse.containsMouse ? Theme.text : Theme.muted
                                         }
                                     }
                                 }
@@ -440,10 +440,10 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.minimumHeight: 140
-                        radius: Theme.radiusMd
-                        color: Theme.bgInput
+                        radius: Theme.radiusSmall
+                        color: Theme.fieldFill
                         border.width: 1
-                        border.color: Theme.borderSubtle
+                        border.color: Theme.borderMuted
                         clip: true
 
                         ColumnLayout {
@@ -457,24 +457,24 @@ Item {
                                 Label {
                                     text: "轮位 #" + (index + 1)
                                     color: Theme.driveWheel
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.family: Theme.fontSans
+                                    font.weight: Theme.fontMedium
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Item { Layout.fillWidth: true }
                                 Label {
                                     text: imageData.receivedAtText || ""
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontMicro
                                 }
                             }
 
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                color: Theme.bgInput
-                                radius: Theme.radiusSm
+                                color: Theme.fieldFill
+                                radius: Theme.radiusMicro
                                 clip: true
 
                                 Image {
@@ -517,15 +517,15 @@ Item {
                                         Layout.alignment: Qt.AlignHCenter
                                         name: "icon_camera"
                                         size: 26
-                                        color: Theme.textMuted
+                                        color: Theme.muted
                                         opacity: 0.3
                                     }
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: "暂无有效图像"
-                                        color: Theme.textMuted
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeTiny
+                                        color: Theme.muted
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontMicro
                                     }
                                 }
                             }
@@ -533,9 +533,9 @@ Item {
                             Label {
                                 Layout.fillWidth: true
                                 text: imageName === "" ? "未找到该轮图片记录" : imageName
-                                color: imageName === "" ? Theme.textMuted : Theme.textSecondary
+                                color: imageName === "" ? Theme.muted : Theme.textSoft
                                 font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeTiny
+                                font.pixelSize: Theme.fontMicro
                                 horizontalAlignment: Text.AlignHCenter
                                 elide: Text.ElideMiddle
                             }

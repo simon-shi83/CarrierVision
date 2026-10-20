@@ -17,6 +17,7 @@
 #include "network/FtpIngestService.h"
 #include "network/TcpDataReceiver.h"
 #include "common/AppLogger.h"
+#include "app/ThumbnailCache.h"
 
 class ReleaseBoundaryTests : public QObject {
     Q_OBJECT
@@ -773,6 +774,47 @@ private slots:
         active.write(huge);
         QTRY_COMPARE(receiver.clientCount(), 0);
         receiver.stop();
+    }
+
+    void thumbnailCacheBoundsSizeAndMemory() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        const QString color = dir.filePath("large.jpg");
+        QImage large(2000, 1000, QImage::Format_RGB32); large.fill(Qt::darkCyan);
+        QVERIFY(large.save(color, "JPG"));
+        const QString gray = dir.filePath("gray.png");
+        QImage grayImage(1200, 900, QImage::Format_Grayscale8); grayImage.fill(128);
+        QVERIFY(grayImage.save(gray, "PNG"));
+
+        QCOMPARE(ThumbnailCache::edgeFor(QSize()), ThumbnailCache::kDefaultEdge);
+        QCOMPARE(ThumbnailCache::edgeFor(QSize(200, 150)), 320);
+        QCOMPARE(ThumbnailCache::edgeFor(QSize(5000, 100)), 640);
+
+        // 解码直接得到缩略图尺寸；灰度图保持单通道
+        const QImage thumb = ThumbnailCache::decode(color, 320);
+        QCOMPARE(thumb.size(), QSize(320, 160));
+        const QImage grayThumb = ThumbnailCache::decode(gray, 320);
+        QCOMPARE(grayThumb.size(), QSize(320, 240));
+        QCOMPARE(grayThumb.format(), QImage::Format_Grayscale8);
+        QString error;
+        QVERIFY(ThumbnailCache::decode(dir.filePath("missing.png"), 320, &error).isNull());
+        QVERIFY(!error.isEmpty());
+
+        // 缓存命中不重复占用；超过上限时淘汰旧缩略图
+        ThumbnailCache cache(300 * 1024); // 一张 320x160 RGB32 缩略图 200KB
+        QVERIFY(!cache.thumbnail(color, 320).isNull());
+        QVERIFY(!cache.thumbnail(color, 320).isNull());
+        QCOMPARE(cache.count(), 1);
+        QVERIFY(!cache.thumbnail(color, 480).isNull());
+        QVERIFY(cache.usedBytes() <= cache.maxBytes());
+        QCOMPARE(cache.count(), 1);
+
+        // 文件被覆盖后按新内容重新生成
+        QTest::qWait(20);
+        QImage replaced(1000, 1000, QImage::Format_RGB32); replaced.fill(Qt::red);
+        QVERIFY(replaced.save(color, "JPG"));
+        QCOMPARE(cache.thumbnail(color, 320).size(), QSize(320, 320));
+        cache.clear();
+        QCOMPARE(cache.count(), 0);
     }
 };
 QTEST_GUILESS_MAIN(ReleaseBoundaryTests)

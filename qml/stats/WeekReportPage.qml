@@ -9,10 +9,10 @@ Page {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusLg
-        color: Theme.bgCard
+        radius: Theme.radiusMedium
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -23,14 +23,14 @@ Page {
                 Layout.fillWidth: true
                 spacing: 8
 
-                Rectangle { width: 4; height: 18; radius: 2; color: Theme.primary }
+                Rectangle { width: 4; height: 18; radius: 2; color: Theme.borderStrong }
 
                 Label {
                     text: "统计周报历史归档一览"
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeH2
-                    font.bold: true
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontTitle
+                    font.weight: Theme.fontMedium
                 }
 
                 Item { Layout.fillWidth: true }
@@ -39,20 +39,20 @@ Page {
                     Layout.preferredHeight: 22
                     implicitWidth: reportHintRow.implicitWidth + 14
                     radius: Theme.radiusPill
-                    color: Theme.bgCardElevated
-                    border.color: Theme.borderSubtle
+                    color: Theme.surfaceAlt
+                    border.color: Theme.borderMuted
                     border.width: 1
 
                     RowLayout {
                         id: reportHintRow
                         anchors.centerIn: parent
                         spacing: 4
-                        AppIcon { name: "icon_file_text"; size: 11; color: Theme.textMuted }
+                        AppIcon { name: "icon_file_text"; size: 11; color: Theme.muted }
                         Text {
                             text: "支持轻触或双击文件直接调取打开"
-                            color: Theme.textMuted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeTiny
+                            color: Theme.muted
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontMicro
                         }
                     }
                 }
@@ -62,9 +62,9 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 height: 38
-                color: Theme.bgCardElevated
-                radius: Theme.radiusMd
-                border.color: Theme.borderSubtle
+                color: Theme.surfaceAlt
+                radius: Theme.radiusSmall
+                border.color: Theme.borderMuted
                 border.width: 1
 
                 RowLayout {
@@ -72,9 +72,9 @@ Page {
                     anchors.leftMargin: 16
                     anchors.rightMargin: 16
                     spacing: 12
-                    Text { text: "生成归档时间"; font.family: Theme.fontFamily; font.bold: true; color: Theme.textSecondary; Layout.preferredWidth: 200 }
-                    Text { text: "驱动轮周报报表文件"; font.family: Theme.fontFamily; font.bold: true; color: Theme.driveWheel; Layout.fillWidth: true }
-                    Text { text: "走行轮周报报表文件"; font.family: Theme.fontFamily; font.bold: true; color: Theme.walkWheel; Layout.fillWidth: true }
+                    Text { text: "生成归档时间"; font.family: Theme.fontSans; font.weight: Theme.fontMedium; color: Theme.textSoft; Layout.preferredWidth: 200 }
+                    Text { text: "驱动轮周报报表文件"; font.family: Theme.fontSans; font.weight: Theme.fontMedium; color: Theme.driveWheel; Layout.fillWidth: true }
+                    Text { text: "走行轮周报报表文件"; font.family: Theme.fontSans; font.weight: Theme.fontMedium; color: Theme.walkWheel; Layout.fillWidth: true }
                 }
             }
 
@@ -90,10 +90,10 @@ Page {
                 delegate: Rectangle {
                     width: listView.width
                     height: 48
-                    radius: Theme.radiusMd
-                    color: itemMouse.containsMouse ? Theme.bgCardActive : ((index % 2 === 0) ? Theme.bgInput : "transparent")
+                    radius: Theme.radiusSmall
+                    color: itemMouse.containsMouse ? Theme.pressed : ((index % 2 === 0) ? Theme.fieldFill : "transparent")
                     border.width: 1
-                    border.color: itemMouse.containsMouse ? Theme.borderMedium : "transparent"
+                    border.color: itemMouse.containsMouse ? Theme.border : "transparent"
 
                     MouseArea {
                         id: itemMouse
@@ -109,9 +109,9 @@ Page {
 
                         Text {
                             text: model.createtime
-                            font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSizeBody
-                            color: Theme.textPrimary
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontBody
+                            color: Theme.text
                             Layout.preferredWidth: 200
                         }
 
@@ -119,9 +119,9 @@ Page {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 32
-                            radius: Theme.radiusSm
-                            color: driverMouse.containsMouse ? Theme.driveWheelBg : Theme.bgCardElevated
-                            border.color: driverMouse.containsMouse ? Theme.driveWheel : Theme.borderSubtle
+                            radius: Theme.radiusMicro
+                            color: driverMouse.containsMouse ? Theme.driveWheelSoft : Theme.surfaceAlt
+                            border.color: driverMouse.containsMouse ? Theme.driveWheel : Theme.borderMuted
                             border.width: 1
 
                             RowLayout {
@@ -133,15 +133,15 @@ Page {
                                 AppIcon {
                                     name: "icon_file_text"
                                     size: 14
-                                    color: driverMouse.containsMouse ? Theme.driveWheel : Theme.textMuted
+                                    color: driverMouse.containsMouse ? Theme.driveWheel : Theme.muted
                                 }
 
                                 Text {
                                     id: driversFileText
                                     text: model.drivers_filename
-                                    color: driverMouse.containsMouse ? Theme.driveWheel : Theme.textSecondary
+                                    color: driverMouse.containsMouse ? Theme.driveWheel : Theme.textSoft
                                     font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.pixelSize: Theme.fontCaption
                                     elide: Text.ElideMiddle
                                     Layout.fillWidth: true
                                 }
@@ -149,9 +149,9 @@ Page {
                                 Text {
                                     text: "打开"
                                     color: Theme.driveWheel
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
-                                    font.bold: true
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
+                                    font.weight: Theme.fontMedium
                                     visible: driverMouse.containsMouse
                                 }
                             }
@@ -176,9 +176,9 @@ Page {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 32
-                            radius: Theme.radiusSm
-                            color: deformMouse.containsMouse ? Theme.walkWheelBg : Theme.bgCardElevated
-                            border.color: deformMouse.containsMouse ? Theme.walkWheel : Theme.borderSubtle
+                            radius: Theme.radiusMicro
+                            color: deformMouse.containsMouse ? Theme.walkWheelSoft : Theme.surfaceAlt
+                            border.color: deformMouse.containsMouse ? Theme.walkWheel : Theme.borderMuted
                             border.width: 1
 
                             RowLayout {
@@ -190,15 +190,15 @@ Page {
                                 AppIcon {
                                     name: "icon_file_text"
                                     size: 14
-                                    color: deformMouse.containsMouse ? Theme.walkWheel : Theme.textMuted
+                                    color: deformMouse.containsMouse ? Theme.walkWheel : Theme.muted
                                 }
 
                                 Text {
                                     id: deformedFileText
                                     text: model.deformed_filename
-                                    color: deformMouse.containsMouse ? Theme.walkWheel : Theme.textSecondary
+                                    color: deformMouse.containsMouse ? Theme.walkWheel : Theme.textSoft
                                     font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.pixelSize: Theme.fontCaption
                                     elide: Text.ElideMiddle
                                     Layout.fillWidth: true
                                 }
@@ -206,9 +206,9 @@ Page {
                                 Text {
                                     text: "打开"
                                     color: Theme.walkWheel
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
-                                    font.bold: true
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
+                                    font.weight: Theme.fontMedium
                                     visible: deformMouse.containsMouse
                                 }
                             }
@@ -241,15 +241,15 @@ Page {
                             Layout.alignment: Qt.AlignHCenter
                             name: "icon_file_text"
                             size: 36
-                            color: Theme.textMuted
+                            color: Theme.muted
                             opacity: 0.35
                         }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: "暂无周报归档记录"
-                            color: Theme.textMuted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.muted
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
                 }

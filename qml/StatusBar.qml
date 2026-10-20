@@ -8,7 +8,7 @@ Rectangle {
     id: statusBar
     width: parent ? parent.width : 800
     height: 32
-    color: Theme.bgStatusBar
+    color: Theme.surface
     border.width: 0
 
     // ==================== 顶部发光微边框与层次 ====================
@@ -17,16 +17,16 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         height: 1
-        color: Theme.borderSubtle
+        color: Theme.borderMuted
     }
 
     // ==================== 对外属性 (保持 100% 架构向下兼容) ====================
     property var statusItems: []
 
     // 默认样式
-    property color backgroundColor: Theme.bgStatusBar
-    property color borderColor: Theme.borderSubtle
-    property color textColor: Theme.textSecondary
+    property color backgroundColor: Theme.surface
+    property color borderColor: Theme.borderMuted
+    property color textColor: Theme.textSoft
     property int defaultItemWidth: 0
 
     // 动态运行期覆盖状态消息
@@ -59,10 +59,10 @@ Rectangle {
 
     readonly property color systemStatusColor: {
         if (statusItemObj && statusItemObj.text !== undefined && String(statusItemObj.text).indexOf("加载") >= 0) {
-            return Theme.warning;
+            return Theme.warn;
         }
         if (!statusBar.tcpRunning || !statusBar.ftpRunning) {
-            return Theme.warning;
+            return Theme.warn;
         }
         if (statusItemObj && statusItemObj.textColor !== undefined) {
             return statusItemObj.textColor;
@@ -131,35 +131,32 @@ Rectangle {
 
     readonly property color operationalMessageColor: {
         if (operationalMessageLevel === "FATAL" || operationalMessageLevel === "CRITICAL" || operationalMessageLevel === "ERROR") {
-            return Theme.ngLight;
+            return Theme.danger;
         }
         if (operationalMessageLevel === "WARN") {
-            return Theme.warningLight;
+            return Theme.warn;
         }
-        return Theme.textSecondary;
+        return Theme.textSoft;
     }
 
     readonly property color operationalIconColor: {
         if (operationalMessageLevel === "FATAL" || operationalMessageLevel === "CRITICAL" || operationalMessageLevel === "ERROR") {
-            return Theme.ng;
+            return Theme.danger;
         }
         if (operationalMessageLevel === "WARN") {
-            return Theme.warning;
+            return Theme.warn;
         }
-        return Theme.textMuted;
+        return Theme.muted;
     }
 
-    readonly property string operationalIconText: {
-        if (operationalMessageLevel === "FATAL" || operationalMessageLevel === "CRITICAL") {
-            return "⛔";
-        }
-        if (operationalMessageLevel === "ERROR") {
-            return "✖";
+    readonly property string operationalIconName: {
+        if (operationalMessageLevel === "FATAL" || operationalMessageLevel === "CRITICAL" || operationalMessageLevel === "ERROR") {
+            return "icon_error";
         }
         if (operationalMessageLevel === "WARN") {
-            return "⚠";
+            return "icon_warning";
         }
-        return "◈";
+        return "icon_info";
     }
 
     // 硬件与服务遥测数据
@@ -261,32 +258,32 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 24
             color: {
-                if (messageMouse.containsMouse) return Theme.bgCardElevated;
+                if (messageMouse.containsMouse) return Theme.surfaceAlt;
                 if (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL") {
-                    return Qt.rgba(239/255, 68/255, 68/255, 0.16);
+                    return Theme.dangerSoft;
                 }
                 if (statusBar.operationalMessageLevel === "ERROR") {
-                    return Qt.rgba(239/255, 68/255, 68/255, 0.12);
+                    return Theme.dangerSoft;
                 }
                 if (statusBar.operationalMessageLevel === "WARN") {
-                    return Qt.rgba(245/255, 158/255, 11/255, 0.12);
+                    return Theme.warnSoft;
                 }
                 return "transparent";
             }
             border.width: (statusBar.operationalMessageLevel !== "INFO") ? 1 : 0
             border.color: {
                 if (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL") {
-                    return Qt.rgba(239/255, 68/255, 68/255, 0.45);
+                    return Theme.dangerBorder;
                 }
                 if (statusBar.operationalMessageLevel === "ERROR") {
-                    return Qt.rgba(239/255, 68/255, 68/255, 0.35);
+                    return Theme.dangerBorder;
                 }
                 if (statusBar.operationalMessageLevel === "WARN") {
-                    return Qt.rgba(245/255, 158/255, 11/255, 0.35);
+                    return Theme.warnBorder;
                 }
                 return "transparent";
             }
-            radius: Theme.radiusSm
+            radius: Theme.radiusMicro
 
             Behavior on color {
                 ColorAnimation {
@@ -301,22 +298,21 @@ Rectangle {
                 spacing: 6
 
                 // 极简微引导标 / 状态告警标
-                Text {
-                    text: statusBar.copiedFeedback ? "✓" : statusBar.operationalIconText
-                    color: statusBar.copiedFeedback ? Theme.okLight : statusBar.operationalIconColor
-                    font.pixelSize: (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL" || statusBar.operationalMessageLevel === "WARN") ? 12 : 11
-                    font.family: Theme.fontMono
+                AppIcon {
                     Layout.alignment: Qt.AlignVCenter
+                    name: statusBar.copiedFeedback ? "icon_check" : statusBar.operationalIconName
+                    size: 14
+                    color: statusBar.copiedFeedback ? Theme.ok : statusBar.operationalIconColor
                 }
 
                 Text {
                     id: messageLabel
                     Layout.fillWidth: true
                     text: statusBar.copiedFeedback ? "已复制状态信息到剪贴板" : statusBar.operationalMessageText
-                    color: statusBar.copiedFeedback ? Theme.okLight : statusBar.operationalMessageColor
-                    font.family: Theme.fontFamily
+                    color: statusBar.copiedFeedback ? Theme.ok : statusBar.operationalMessageColor
+                    font.family: Theme.fontSans
                     font.pixelSize: Theme.fontCaption
-                    font.weight: (statusBar.copiedFeedback || statusBar.operationalMessageLevel !== "INFO") ? Theme.weightMedium : Theme.weightNormal
+                    font.weight: (statusBar.copiedFeedback || statusBar.operationalMessageLevel !== "INFO") ? Theme.fontMedium : Theme.fontRegular
                     elide: Text.ElideRight
                     Layout.alignment: Qt.AlignVCenter
 
@@ -334,15 +330,15 @@ Rectangle {
                     Layout.preferredWidth: 18
                     Layout.preferredHeight: 18
                     Layout.alignment: Qt.AlignVCenter
-                    color: dismissMouse.containsMouse ? Qt.rgba(255/255, 255/255, 255/255, 0.15) : "transparent"
+                    color: dismissMouse.containsMouse ? Theme.hover : "transparent"
                     radius: 9
                     z: 10
 
-                    Text {
+                    AppIcon {
                         anchors.centerIn: parent
-                        text: "✕"
-                        font.pixelSize: 10
-                        color: dismissMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        name: "icon_close"
+                        size: 12
+                        color: dismissMouse.containsMouse ? Theme.text : Theme.muted
                     }
 
                     MouseArea {
@@ -387,59 +383,59 @@ Rectangle {
                 visible: messageMouse.containsMouse && !dismissMouse.containsMouse
                 delay: 350
                 background: Rectangle {
-                    color: Theme.bgPopup
+                    color: Theme.surfaceFloating
                     border.color: {
                         if (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL" || statusBar.operationalMessageLevel === "ERROR") {
-                            return Theme.ng;
+                            return Theme.danger;
                         }
                         if (statusBar.operationalMessageLevel === "WARN") {
-                            return Theme.warning;
+                            return Theme.warn;
                         }
-                        return Theme.borderMedium;
+                        return Theme.border;
                     }
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMicro
                 }
                 contentItem: ColumnLayout {
                     spacing: 3
                     Text {
                         text: {
                             if (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL") {
-                                return "🚨 致命故障 (FATAL / CRITICAL):";
+                                return "致命故障 (FATAL / CRITICAL):";
                             }
                             if (statusBar.operationalMessageLevel === "ERROR") {
-                                return "✖ 系统严重错误 (ERROR):";
+                                return "系统严重错误 (ERROR):";
                             }
                             if (statusBar.operationalMessageLevel === "WARN") {
-                                return "⚠ 系统运行警告 (WARN):";
+                                return "系统运行警告 (WARN):";
                             }
                             return "最新系统事件 / 操作日志:";
                         }
                         color: {
                             if (statusBar.operationalMessageLevel === "FATAL" || statusBar.operationalMessageLevel === "CRITICAL" || statusBar.operationalMessageLevel === "ERROR") {
-                                return Theme.ngLight;
+                                return Theme.danger;
                             }
                             if (statusBar.operationalMessageLevel === "WARN") {
-                                return Theme.warningLight;
+                                return Theme.warn;
                             }
-                            return Theme.textMuted;
+                            return Theme.muted;
                         }
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 11
-                        font.weight: Theme.weightBold
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Theme.fontBold
                     }
                     Text {
                         text: statusBar.operationalMessageText
-                        color: Theme.textPrimary
+                        color: Theme.text
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontCaption
                         wrapMode: Text.Wrap
                         Layout.maximumWidth: 500
                     }
                     Text {
-                        text: "💡 点击可一键复制该条信息至剪贴板"
-                        color: Theme.primaryLight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 10
+                        text: "点击可一键复制该条信息至剪贴板"
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontMicro
                     }
                 }
             }
@@ -472,16 +468,16 @@ Rectangle {
                 Rectangle {
                     width: 1
                     height: 12
-                    color: Theme.divider
+                    color: Theme.borderMuted
                 }
 
                 Rectangle {
                     Layout.preferredHeight: 22
                     implicitWidth: customRow.implicitWidth + 14
-                    radius: Theme.radiusSm
-                    color: customMouse.containsMouse ? Theme.bgCardActive : Theme.bgCardElevated
+                    radius: Theme.radiusMicro
+                    color: customMouse.containsMouse ? Theme.pressed : Theme.surfaceAlt
                     border.width: 1
-                    border.color: customMouse.containsMouse ? Theme.borderHover : Theme.borderSubtle
+                    border.color: customMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
 
                     RowLayout {
                         id: customRow
@@ -490,15 +486,15 @@ Rectangle {
 
                         Text {
                             text: modelData.data.iconText || ""
-                            color: modelData.data.textColor || Theme.textSecondary
+                            color: modelData.data.textColor || Theme.textSoft
                             font.pixelSize: Theme.fontCaption
                             visible: text.length > 0
                         }
 
                         Text {
                             text: modelData.data.text || ""
-                            color: modelData.data.textColor || Theme.textSecondary
-                            font.family: Theme.fontFamily
+                            color: modelData.data.textColor || Theme.textSoft
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
                         }
                     }
@@ -518,7 +514,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: 12
-            color: Theme.divider
+            color: Theme.borderMuted
         }
 
         // ---------------------------------------------------------------------
@@ -536,14 +532,14 @@ Rectangle {
                 radius: Theme.radiusPill
                 color: {
                     if (tcpPillMouse.containsMouse)
-                        return Theme.bgCardActive;
-                    return statusBar.tcpRunning ? (Theme.isDark ? "#1210b981" : "#ecfdf5") : (Theme.isDark ? "#18f59e0b" : "#fffbeb");
+                        return Theme.pressed;
+                    return statusBar.tcpRunning ? Theme.okSoft : Theme.warnSoft;
                 }
                 border.width: 1
                 border.color: {
                     if (tcpPillMouse.containsMouse)
-                        return Theme.borderHover;
-                    return statusBar.tcpRunning ? Theme.okBorder : Theme.warningBorder;
+                        return Theme.borderStrong;
+                    return statusBar.tcpRunning ? Theme.okBorder : Theme.warnBorder;
                 }
 
                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -558,15 +554,15 @@ Rectangle {
                         width: 6
                         height: 6
                         radius: 3
-                        color: statusBar.tcpRunning ? Theme.ok : Theme.warning
+                        color: statusBar.tcpRunning ? Theme.ok : Theme.warn
                     }
 
                     Text {
                         text: "TCP :" + statusBar.tcpPort + (statusBar.tcpClientCount > 0 ? (" (" + statusBar.tcpClientCount + "连)") : "")
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
-                        font.weight: Theme.weightBold
-                        color: statusBar.tcpRunning ? Theme.okLight : Theme.warningLight
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Theme.fontBold
+                        color: statusBar.tcpRunning ? Theme.ok : Theme.warn
                     }
                 }
 
@@ -581,30 +577,30 @@ Rectangle {
                     visible: tcpPillMouse.containsMouse
                     delay: 350
                     background: Rectangle {
-                        color: Theme.bgPopup
-                        border.color: Theme.borderMedium
-                        radius: Theme.radiusSm
+                        color: Theme.surfaceFloating
+                        border.color: Theme.border
+                        radius: Theme.radiusMicro
                     }
                     contentItem: ColumnLayout {
                         spacing: 2
                         Text {
                             text: "TCP 数据接收服务 (检测数据流)"
-                            font.family: Theme.fontFamily
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
-                            font.weight: Theme.weightBold
-                            color: Theme.textPrimary
+                            font.weight: Theme.fontBold
+                            color: Theme.text
                         }
                         Text {
-                            text: "服务状态: " + (statusBar.tcpRunning ? "🟢 正常监听中" : "🟠 服务未就绪")
-                            color: statusBar.tcpRunning ? Theme.okLight : Theme.warningLight
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
+                            text: "服务状态: " + (statusBar.tcpRunning ? "正常监听中" : "服务未就绪")
+                            color: statusBar.tcpRunning ? Theme.ok : Theme.warn
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontMicro
                         }
                         Text {
                             text: "监听端口: " + statusBar.tcpPort + " · 活跃客户端: " + statusBar.tcpClientCount
-                            color: Theme.textSecondary
-                            font.family: Theme.fontMono
-                            font.pixelSize: 10
+                            color: Theme.textSoft
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontMicro
                         }
                     }
                 }
@@ -618,14 +614,14 @@ Rectangle {
                 radius: Theme.radiusPill
                 color: {
                     if (ftpPillMouse.containsMouse)
-                        return Theme.bgCardActive;
-                    return statusBar.ftpRunning ? (Theme.isDark ? "#1210b981" : "#ecfdf5") : (Theme.isDark ? "#18f59e0b" : "#fffbeb");
+                        return Theme.pressed;
+                    return statusBar.ftpRunning ? Theme.okSoft : Theme.warnSoft;
                 }
                 border.width: 1
                 border.color: {
                     if (ftpPillMouse.containsMouse)
-                        return Theme.borderHover;
-                    return statusBar.ftpRunning ? Theme.okBorder : Theme.warningBorder;
+                        return Theme.borderStrong;
+                    return statusBar.ftpRunning ? Theme.okBorder : Theme.warnBorder;
                 }
 
                 Behavior on color {
@@ -648,15 +644,15 @@ Rectangle {
                         width: 6
                         height: 6
                         radius: 3
-                        color: statusBar.ftpRunning ? Theme.ok : Theme.warning
+                        color: statusBar.ftpRunning ? Theme.ok : Theme.warn
                     }
 
                     Text {
                         text: "FTP :" + statusBar.ftpPort + (statusBar.ftpClientCount > 0 ? (" (" + statusBar.ftpClientCount + "连)") : "")
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
-                        font.weight: Theme.weightBold
-                        color: statusBar.ftpRunning ? Theme.okLight : Theme.warningLight
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Theme.fontBold
+                        color: statusBar.ftpRunning ? Theme.ok : Theme.warn
                     }
                 }
 
@@ -671,30 +667,30 @@ Rectangle {
                     visible: ftpPillMouse.containsMouse
                     delay: 350
                     background: Rectangle {
-                        color: Theme.bgPopup
-                        border.color: Theme.borderMedium
-                        radius: Theme.radiusSm
+                        color: Theme.surfaceFloating
+                        border.color: Theme.border
+                        radius: Theme.radiusMicro
                     }
                     contentItem: ColumnLayout {
                         spacing: 2
                         Text {
                             text: "FTP 图像上传接收服务"
-                            font.family: Theme.fontFamily
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
-                            font.weight: Theme.weightBold
-                            color: Theme.textPrimary
+                            font.weight: Theme.fontBold
+                            color: Theme.text
                         }
                         Text {
-                            text: "服务状态: " + (statusBar.ftpRunning ? "🟢 正常运行中" : "🟠 服务未就绪")
-                            color: statusBar.ftpRunning ? Theme.okLight : Theme.warningLight
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
+                            text: "服务状态: " + (statusBar.ftpRunning ? "正常运行中" : "服务未就绪")
+                            color: statusBar.ftpRunning ? Theme.ok : Theme.warn
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontMicro
                         }
                         Text {
                             text: "监听端口: " + statusBar.ftpPort + " · 活跃上传客户端: " + statusBar.ftpClientCount
-                            color: Theme.textSecondary
-                            font.family: Theme.fontMono
-                            font.pixelSize: 10
+                            color: Theme.textSoft
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontMicro
                         }
                     }
                 }
@@ -706,9 +702,9 @@ Rectangle {
                 Layout.preferredHeight: 22
                 implicitWidth: batchProgressRow.implicitWidth + 12
                 radius: Theme.radiusPill
-                color: Theme.primaryGlow
+                color: Theme.activeSubtle
                 border.width: 1
-                border.color: Theme.primary
+                border.color: Theme.accent
 
                 RowLayout {
                     id: batchProgressRow
@@ -717,17 +713,17 @@ Rectangle {
 
                     Text {
                         text: "轮 " + statusBar.currentRound
-                        color: Theme.primaryLight
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
-                        font.weight: Theme.weightBold
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Theme.fontBold
                     }
 
                     Text {
                         text: "[" + statusBar.currentCopied + "/" + statusBar.currentExpected + "]"
-                        color: Theme.textPrimary
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
                     }
                 }
             }
@@ -737,7 +733,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: 12
-            color: Theme.divider
+            color: Theme.borderMuted
         }
 
         // ---------------------------------------------------------------------
@@ -748,9 +744,9 @@ Rectangle {
             Layout.preferredHeight: 22
             implicitWidth: dateTimeRow.implicitWidth + 14
             radius: Theme.radiusPill
-            color: dateTimeMouse.containsMouse ? Theme.bgCardActive : Theme.bgCardElevated
+            color: dateTimeMouse.containsMouse ? Theme.pressed : Theme.surfaceAlt
             border.width: 1
-            border.color: dateTimeMouse.containsMouse ? Theme.borderHover : Theme.borderSubtle
+            border.color: dateTimeMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
             Layout.alignment: Qt.AlignVCenter
 
             Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -765,33 +761,33 @@ Rectangle {
                 AppIcon {
                     name: "icon_calendar"
                     size: 12
-                    color: Theme.textMuted
+                    color: Theme.muted
                     Layout.alignment: Qt.AlignVCenter
                 }
 
                 Text {
                     id: statusDateText
                     text: "2026-09-06"
-                    font.family: Theme.fontMono
-                    font.pixelSize: 10
-                    color: Theme.textSecondary
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontMicro
+                    color: Theme.textSoft
                     Layout.alignment: Qt.AlignVCenter
                 }
 
                 Rectangle {
                     width: 1
                     height: 10
-                    color: Theme.divider
+                    color: Theme.borderMuted
                     Layout.alignment: Qt.AlignVCenter
                 }
 
                 Text {
                     id: statusTimeText
                     text: "00:00:00"
-                    font.family: Theme.fontMono
-                    font.pixelSize: 10
-                    font.weight: Theme.weightBold
-                    color: Theme.primaryLight
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontMicro
+                    font.weight: Theme.fontBold
+                    color: Theme.text
                     Layout.alignment: Qt.AlignVCenter
                 }
             }
@@ -807,24 +803,24 @@ Rectangle {
                 visible: dateTimeMouse.containsMouse
                 delay: 350
                 background: Rectangle {
-                    color: Theme.bgPopup
-                    border.color: Theme.borderMedium
-                    radius: Theme.radiusSm
+                    color: Theme.surfaceFloating
+                    border.color: Theme.border
+                    radius: Theme.radiusMicro
                 }
                 contentItem: ColumnLayout {
                     spacing: 2
                     Text {
                         text: "工控机系统时间 (本地标准时间)"
-                        font.family: Theme.fontFamily
+                        font.family: Theme.fontSans
                         font.pixelSize: Theme.fontCaption
-                        font.weight: Theme.weightBold
-                        color: Theme.textPrimary
+                        font.weight: Theme.fontBold
+                        color: Theme.text
                     }
                     Text {
                         text: "当前日期: " + statusDateText.text + " " + statusTimeText.text
-                        color: Theme.primaryLight
-                        font.family: Theme.fontMono
-                        font.pixelSize: 10
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontMicro
                     }
                 }
             }

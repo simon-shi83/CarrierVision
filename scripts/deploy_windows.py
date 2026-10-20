@@ -130,7 +130,7 @@ def deploy_windows(install_dir_str, qt_dir_str, source_dir_str):
     for item in list(install_path.iterdir()):
         if not item.is_dir():
             continue
-        if item.name.lower() in {"lib", "plugins", "qml", "data", "bin", "translations"}:
+        if item.name.lower() in {"lib", "plugins", "qml", "data", "bin", "translations", "fonts"}:
             continue
         is_plugin = item.name.lower() in known_plugin_names or any(item.glob("*.dll"))
         if is_plugin:

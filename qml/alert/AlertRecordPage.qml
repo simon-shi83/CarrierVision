@@ -93,10 +93,10 @@ Page {
             Rectangle {
                 Layout.preferredWidth: root.width * 0.58
                 Layout.fillHeight: true
-                radius: Theme.radiusLg
-                color: Theme.bgCard
+                radius: Theme.radiusMedium
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderMedium
+                border.color: Theme.border
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -137,9 +137,9 @@ Page {
                     Rectangle {
                         Layout.fillWidth: true
                         height: 38
-                        color: Theme.bgCardElevated
-                        radius: Theme.radiusMd
-                        border.color: Theme.borderSubtle
+                        color: Theme.surfaceAlt
+                        radius: Theme.radiusSmall
+                        border.color: Theme.borderMuted
                         border.width: 1
 
                         RowLayout {
@@ -150,65 +150,65 @@ Page {
 
                             Text {
                                 text: "时间 / 文件名"
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                                 Layout.fillWidth: true
                             }
                             Text {
                                 text: "载具"
                                 Layout.preferredWidth: 44
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                             Text {
                                 text: "轮号"
                                 Layout.preferredWidth: 44
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                             Text {
                                 text: "实测间距"
                                 Layout.preferredWidth: 60
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                             Text {
                                 text: "基准距离"
                                 Layout.preferredWidth: 60
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                             Text {
                                 text: "下偏差"
                                 Layout.preferredWidth: 54
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                             Text {
                                 text: "判定"
                                 Layout.preferredWidth: 48
                                 horizontalAlignment: Text.AlignHCenter
-                                color: Theme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: true
+                                color: Theme.textSoft
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                             }
                         }
                     }
@@ -226,14 +226,14 @@ Page {
                             id: itemRect
                             height: 64
                             width: list.width
-                            radius: Theme.radiusMd
+                            radius: Theme.radiusSmall
                             property bool selected: index === list.currentIndex
                             property bool hovered: mouseArea.containsMouse
 
-                            color: selected ? Theme.bgCardActive : (hovered ? Theme.bgCardElevated : ((index % 2 === 0) ? Theme.bgInput : "transparent"))
+                            color: selected ? Theme.pressed : (hovered ? Theme.surfaceAlt : ((index % 2 === 0) ? Theme.fieldFill : "transparent"))
 
                             border.width: 1
-                            border.color: selected ? Theme.primary : (hovered ? Theme.borderMedium : "transparent")
+                            border.color: selected ? Theme.accent : (hovered ? Theme.border : "transparent")
 
                             Behavior on color {
                                 ColorAnimation {
@@ -258,17 +258,17 @@ Page {
                                     spacing: 2
                                     Text {
                                         text: receivedAtText
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeBody
-                                        font.bold: true
-                                        color: selected ? Theme.primaryLight : Theme.textPrimary
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontBody
+                                        font.weight: Theme.fontMedium
+                                        color: selected ? Theme.accent : Theme.text
                                     }
                                     Text {
                                         text: fileName
                                         elide: Text.ElideMiddle
-                                        color: Theme.textSecondary
+                                        color: Theme.textSoft
                                         font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.pixelSize: Theme.fontMicro
                                     }
                                 }
 
@@ -276,59 +276,59 @@ Page {
                                     text: String(itemRect.carrierId !== undefined && itemRect.carrierId > 0 ? carrierId : rack)
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeBody
+                                    color: Theme.text
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontBody
                                 }
                                 Text {
-                                    text: String(itemRect.wheelId !== undefined ? wheelId : slot)
+                                    text: String(wheelId)
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeBody
+                                    color: Theme.text
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontBody
                                 }
                                 Text {
                                     text: (distance !== undefined ? Number(distance).toFixed(2) : "0.00")
                                     Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Text {
                                     text: (dist_norm !== undefined ? Number(dist_norm).toFixed(2) : "0.00")
                                     Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Text {
                                     text: (model && model.lowerTolerance !== undefined ? Number(model.lowerTolerance).toFixed(2) : "0.00")
                                     Layout.preferredWidth: 54
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
 
                                 // 结果判定药丸
                                 Rectangle {
                                     Layout.preferredWidth: 48
                                     Layout.preferredHeight: 24
-                                    radius: Theme.radiusSm
-                                    color: result === 1 ? Theme.okBg : Theme.ngBg
-                                    border.color: result === 1 ? Theme.okBorder : Theme.ngBorder
+                                    radius: Theme.radiusMicro
+                                    color: result === 1 ? Theme.okSoft : Theme.dangerSoft
+                                    border.color: result === 1 ? Theme.okBorder : Theme.dangerBorder
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: result === 1 ? "OK" : "NG"
-                                        color: result === 1 ? Theme.okLight : Theme.ngLight
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
+                                        color: result === 1 ? Theme.ok : Theme.danger
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.fontMedium
                                     }
                                 }
                             }
@@ -367,10 +367,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: Theme.radiusLg
-                color: Theme.bgCard
+                radius: Theme.radiusMedium
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderMedium
+                border.color: Theme.border
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -383,14 +383,14 @@ Page {
                             width: 3
                             height: 14
                             radius: 1.5
-                            color: Theme.primary
+                            color: Theme.borderStrong
                         }
                         Label {
                             text: "点检原图精准检验视窗"
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH3
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Theme.fontMedium
                         }
                         Item {
                             Layout.fillWidth: true
@@ -404,7 +404,7 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.slot + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                         }
@@ -415,9 +415,9 @@ Page {
                         id: previewBox
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: Theme.bgInput
-                        radius: Theme.radiusMd
-                        border.color: Theme.borderSubtle
+                        color: Theme.fieldFill
+                        radius: Theme.radiusSmall
+                        border.color: Theme.borderMuted
                         border.width: 1
                         clip: true
 
@@ -450,15 +450,15 @@ Page {
                                     Layout.alignment: Qt.AlignHCenter
                                     name: "icon_camera"
                                     size: 34
-                                    color: Theme.textMuted
+                                    color: Theme.muted
                                     opacity: 0.35
                                 }
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    color: Theme.textMuted
+                                    color: Theme.muted
                                     text: "请从左侧列表选择记录进行预览"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
                                 }
                             }
                         }
@@ -469,13 +469,13 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.slot + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                             onDoubleClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.slot + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                         }
@@ -485,9 +485,9 @@ Page {
                     Label {
                         Layout.fillWidth: true
                         text: (root.searchModelEpoch >= 0 && root.currentSelectedItem()) ? ("文件路径: " + (root.currentSelectedItem().filePath || "")) : "未选择项目"
-                        color: Theme.textMuted
+                        color: Theme.muted
                         font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeTiny
+                        font.pixelSize: Theme.fontMicro
                         elide: Text.ElideMiddle
                     }
                 }

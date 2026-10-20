@@ -476,6 +476,84 @@ private slots:
         QVERIFY(!throttle.recordFailure(QStringLiteral("3.3.3.3"), t0.addSecs(700)));
         QVERIFY(!throttle.isBanned(QStringLiteral("3.3.3.3"), t0.addSecs(700)));
     }
+
+    void latestRoundImagesGroupsTwoTriggersPerRack()
+    {
+        QTemporaryDir imageDir;
+        QVERIFY(imageDir.isValid());
+        const QString connectionName = QStringLiteral("TestRoundImagesDb");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+            db.setDatabaseName(QStringLiteral(":memory:"));
+            QVERIFY(db.open());
+            QVERIFY(DBSchema::ensureAllTables(db));
+
+            QSqlQuery insert(db);
+            insert.prepare(QStringLiteral(
+                "INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,distance,imagename) "
+                "VALUES(:time,:rack,:cam,:wheel,:result,:distance,:image)"));
+            auto add = [&](const QString &time, int rack, int cam, int wheel, int result, const QString &image,
+                           bool createFile) {
+                if (createFile) {
+                    QFile file(QDir(imageDir.path()).filePath(image));
+                    if (!file.exists() && (!file.open(QIODevice::WriteOnly) || file.write("x") != 1)) return false;
+                }
+                insert.bindValue(QStringLiteral(":time"), time);
+                insert.bindValue(QStringLiteral(":rack"), rack);
+                insert.bindValue(QStringLiteral(":cam"), cam);
+                insert.bindValue(QStringLiteral(":wheel"), wheel);
+                insert.bindValue(QStringLiteral(":result"), result);
+                insert.bindValue(QStringLiteral(":distance"), 120.0 + wheel);
+                insert.bindValue(QStringLiteral(":image"), image);
+                return insert.exec();
+            };
+
+            // 上一轮：12 个相机齐全，均不应出现在本轮
+            for (int cam = 1; cam <= 12; ++cam)
+                QVERIFY(add(QStringLiteral("2026-09-04 09:50:00"), 3, cam, cam, 1,
+                            QStringLiteral("old_cam%1.png").arg(cam), true));
+            // 本轮第一次触发：相机 1~6；相机 2 一张图覆盖轮 3（OK）和轮 4（NG）
+            for (int cam = 1; cam <= 6; ++cam)
+                QVERIFY(add(QStringLiteral("2026-09-04 10:00:00"), 3, cam, cam, 1,
+                            QStringLiteral("r3_cam%1.png").arg(cam), true));
+            QVERIFY(add(QStringLiteral("2026-09-04 10:00:00"), 3, 2, 12, 0, QStringLiteral("r3_cam2.png"), false));
+            // 本轮第二次触发：相机 7~11，相机 7 的图片尚未到达，相机 12 未上报
+            QVERIFY(add(QStringLiteral("2026-09-04 10:01:00"), 3, 7, 7, 1, QStringLiteral("r3_cam7.png"), false));
+            for (int cam = 8; cam <= 11; ++cam)
+                QVERIFY(add(QStringLiteral("2026-09-04 10:01:00"), 3, cam, cam, 1,
+                            QStringLiteral("r3_cam%1.png").arg(cam), true));
+
+            const QVariantList racks = SearchService::latestRoundImages(db, imageDir.path(), imageDir.path());
+            QCOMPARE(racks.size(), 50);
+
+            const QVariantMap rack3 = racks.at(2).toMap();
+            QCOMPARE(rack3.value("rack").toInt(), 3);
+            QCOMPARE(rack3.value("time").toString(), QStringLiteral("2026-09-04 10:01:00"));
+            QCOMPARE(rack3.value("cameraCount").toInt(), 11);
+            QCOMPARE(rack3.value("imageCount").toInt(), 10);
+            QCOMPARE(rack3.value("ngCount").toInt(), 1);
+            QCOMPARE(rack3.value("status").toString(), QStringLiteral("ng"));
+
+            const QVariantList images = rack3.value("images").toList();
+            QCOMPARE(images.size(), 12);
+            const QVariantMap cam2 = images.at(1).toMap();
+            QCOMPARE(cam2.value("cameraId").toInt(), 2);
+            QCOMPARE(cam2.value("result").toInt(), 0);
+            QCOMPARE(cam2.value("wheels").toStringList().size(), 2);
+            QVERIFY(cam2.value("hasImage").toBool());
+            QCOMPARE(cam2.value("time").toString(), QStringLiteral("2026-09-04 10:00:00"));
+            QVERIFY(images.at(6).toMap().value("hasRecord").toBool());
+            QVERIFY(!images.at(6).toMap().value("hasImage").toBool());
+            QVERIFY(!images.at(11).toMap().value("hasRecord").toBool());
+            QCOMPARE(images.at(0).toMap().value("fileName").toString(), QStringLiteral("r3_cam1.png"));
+
+            const QVariantMap rack5 = racks.at(4).toMap();
+            QCOMPARE(rack5.value("status").toString(), QStringLiteral("none"));
+            QCOMPARE(rack5.value("images").toList().size(), 12);
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connectionName);
+    }
 };
 
 QTEST_GUILESS_MAIN(CoreBoundaryTests)

@@ -97,9 +97,9 @@ Page {
             Rectangle {
                 Layout.preferredHeight: 52
                 implicitWidth: wheelTypeSwitchRow.implicitWidth + 12
-                radius: Theme.radiusMd
-                color: Theme.bgCard
-                border.color: Theme.borderMedium
+                radius: Theme.radiusSmall
+                color: Theme.surface
+                border.color: Theme.border
                 border.width: 1
 
                 Row {
@@ -111,8 +111,8 @@ Page {
                     Rectangle {
                         width: 96
                         height: 38
-                        radius: Theme.radiusSm
-                        color: !root.isWalkWheel ? Theme.driveWheelBg : (btnDriveMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: !root.isWalkWheel ? Theme.driveWheelSoft : (btnDriveMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
                         border.color: !root.isWalkWheel ? Theme.driveWheel : "transparent"
 
@@ -125,10 +125,10 @@ Page {
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
                             Text {
                                 text: "驱动轮 (1~8)"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: !root.isWalkWheel
-                                color: !root.isWalkWheel ? Theme.driveWheel : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (!root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
+                                color: !root.isWalkWheel ? Theme.driveWheel : Theme.textSoft
                             }
                         }
 
@@ -150,8 +150,8 @@ Page {
                     Rectangle {
                         width: 96
                         height: 38
-                        radius: Theme.radiusSm
-                        color: root.isWalkWheel ? Theme.walkWheelBg : (btnWalkMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: root.isWalkWheel ? Theme.walkWheelSoft : (btnWalkMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
                         border.color: root.isWalkWheel ? Theme.walkWheel : "transparent"
 
@@ -164,10 +164,10 @@ Page {
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
                             Text {
                                 text: "走行轮 (1~8)"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: root.isWalkWheel
-                                color: root.isWalkWheel ? Theme.walkWheel : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
+                                color: root.isWalkWheel ? Theme.walkWheel : Theme.textSoft
                             }
                         }
 
@@ -192,10 +192,10 @@ Page {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radiusLg
-            color: Theme.bgCard
+            radius: Theme.radiusMedium
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
 
             ColumnLayout {
                 anchors.fill: parent
@@ -216,10 +216,10 @@ Page {
 
                     Label {
                         text: root.wheelTypeName + " (轮 1 ~ 8) 合格与异常对比直方图"
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeH2
-                        font.bold: true
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontTitle
+                        font.weight: Theme.fontMedium
                     }
 
                     Item { Layout.fillWidth: true }
@@ -229,31 +229,31 @@ Page {
                         RowLayout {
                             spacing: 6
                             Rectangle { width: 12; height: 12; radius: 3; color: Theme.ok }
-                            Label { text: "OK 正常"; color: Theme.okLight; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
+                            Label { text: "OK 正常"; color: Theme.ok; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 12; height: 12; radius: 3; color: Theme.ng }
-                            Label { text: "NG 异常"; color: Theme.ngLight; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
+                            Rectangle { width: 12; height: 12; radius: 3; color: Theme.danger }
+                            Label { text: "NG 异常"; color: Theme.danger; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                         Rectangle {
                             Layout.preferredHeight: 22
                             implicitWidth: chartHintRow.implicitWidth + 14
                             radius: Theme.radiusPill
-                            color: Theme.bgCardElevated
-                            border.color: Theme.borderSubtle
+                            color: Theme.surfaceAlt
+                            border.color: Theme.borderMuted
                             border.width: 1
 
                             RowLayout {
                                 id: chartHintRow
                                 anchors.centerIn: parent
                                 spacing: 4
-                                AppIcon { name: "icon_chart_bar"; size: 11; color: Theme.textMuted }
+                                AppIcon { name: "icon_chart_bar"; size: 11; color: Theme.muted }
                                 Text {
                                     text: "轻触直方柱下钻架号明细"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
                                 }
                             }
                         }
@@ -264,10 +264,10 @@ Page {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
                     border.width: 1
-                    border.color: Theme.borderSubtle
+                    border.color: Theme.borderMuted
                     clip: true
 
                     Item {
@@ -334,7 +334,7 @@ Page {
                                 Rectangle {
                                     width: chartArea.width
                                     height: 1
-                                    color: Theme.borderSubtle
+                                    color: Theme.borderMuted
                                     opacity: 0.5
                                 }
                             }
@@ -364,8 +364,8 @@ Page {
                                         anchors.bottom: parent.bottom
                                         anchors.bottomMargin: 30
                                         anchors.left: parent.left
-                                        radius: Theme.radiusSm
-                                        color: okMouse.containsMouse ? Theme.okLight : Theme.ok
+                                        radius: Theme.radiusMicro
+                                        color: okMouse.containsMouse ? Theme.ok : Theme.ok
                                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                                         MouseArea {
@@ -386,8 +386,8 @@ Page {
                                         anchors.bottom: parent.bottom
                                         anchors.bottomMargin: 30
                                         anchors.right: parent.right
-                                        radius: Theme.radiusSm
-                                        color: ngMouse.containsMouse ? Theme.ngLight : Theme.ng
+                                        radius: Theme.radiusMicro
+                                        color: ngMouse.containsMouse ? Theme.danger : Theme.danger
                                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                                         MouseArea {
@@ -403,10 +403,10 @@ Page {
                                     // OK 数值标签
                                     Text {
                                         text: String(chartArea.okCounts[index])
-                                        color: Theme.okLight
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
+                                        color: Theme.ok
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.fontMedium
                                         anchors.horizontalCenter: okBar.horizontalCenter
                                         anchors.bottom: okBar.top
                                         anchors.bottomMargin: 4
@@ -416,10 +416,10 @@ Page {
                                     // NG 数值标签
                                     Text {
                                         text: String(chartArea.ngCounts[index])
-                                        color: Theme.ngLight
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
+                                        color: Theme.danger
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.fontMedium
                                         anchors.horizontalCenter: ngBar.horizontalCenter
                                         anchors.bottom: ngBar.top
                                         anchors.bottomMargin: 4
@@ -433,16 +433,16 @@ Page {
                                         width: 54
                                         height: 22
                                         radius: Theme.radiusPill
-                                        color: Theme.bgCardElevated
-                                        border.color: Theme.borderSubtle
+                                        color: Theme.surfaceAlt
+                                        border.color: Theme.borderMuted
                                         border.width: 1
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "轮 " + (index + 1)
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeTiny
-                                            font.bold: true
+                                            font.family: Theme.fontSans
+                                            font.pixelSize: Theme.fontMicro
+                                            font.weight: Theme.fontMedium
                                             color: root.currentThemeColor
                                         }
                                     }
@@ -466,10 +466,10 @@ Page {
         title: root.wheelTypeName + " #" + root.detailWheel + " ╎ " + root.detailResult + " 判定 ╎ 50 架数据下钻明细"
 
         background: Rectangle {
-            radius: Theme.radiusLg
-            color: Theme.bgPopup
+            radius: Theme.radiusMedium
+            color: Theme.surfaceFloating
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
         }
 
         contentItem: DriveWheelRackDetail {
@@ -481,8 +481,8 @@ Page {
 
         footer: Rectangle {
             implicitHeight: 52
-            color: Theme.bgCardElevated
-            radius: Theme.radiusLg
+            color: Theme.surfaceAlt
+            radius: Theme.radiusMedium
             RowLayout {
                 anchors.fill: parent
                 anchors.rightMargin: 16

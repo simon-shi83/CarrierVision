@@ -7,9 +7,9 @@ Rectangle {
     id: root
     width: parent ? parent.width : 140
     height: parent ? parent.height : 34
-    color: Theme.bgInput
-    radius: Theme.radiusMd
-    border.color: calendarPopup.visible ? Theme.borderHighlight : (inputMouse.containsMouse ? Theme.borderHover : Theme.borderMedium)
+    color: Theme.fieldFill
+    radius: Theme.radiusSmall
+    border.color: calendarPopup.visible ? Theme.selectedBorder : (inputMouse.containsMouse ? Theme.borderStrong : Theme.border)
     border.width: 1
 
     Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
@@ -107,17 +107,17 @@ Rectangle {
         AppIcon {
             name: "icon_calendar"
             size: 14
-            color: calendarPopup.visible ? Theme.primaryLight : (inputMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary)
+            color: calendarPopup.visible ? Theme.accent : (inputMouse.containsMouse ? Theme.text : Theme.textSoft)
             Layout.alignment: Qt.AlignVCenter
         }
 
         Text {
             id: labelTextItem
             text: root.labelText
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: true
-            color: Theme.textSecondary
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontCaption
+            font.weight: Theme.fontMedium
+            color: Theme.textSoft
             visible: root.labelText !== ""
             Layout.alignment: Qt.AlignVCenter
         }
@@ -125,20 +125,20 @@ Rectangle {
         Text {
             id: dateDisplayText
             text: root.dateString.length > 0 ? root.dateString : "选择日期"
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSizeBody
-            font.bold: true
-            color: root.dateString.length > 0 ? Theme.textPrimary : Theme.textMuted
+            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+            font.pixelSize: Theme.fontBody
+            font.weight: Theme.fontMedium
+            color: root.dateString.length > 0 ? Theme.text : Theme.muted
             Layout.fillWidth: true
             horizontalAlignment: root.labelText === "" ? Text.AlignHCenter : Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
         }
 
-        Text {
-            text: "▾"
-            font.pixelSize: 10
-            color: calendarPopup.visible ? Theme.primaryLight : Theme.textMuted
+        AppIcon {
             Layout.alignment: Qt.AlignVCenter
+            name: "icon_arrow_down"
+            size: 12
+            color: calendarPopup.visible ? Theme.accent : Theme.muted
         }
     }
 
@@ -170,10 +170,10 @@ Rectangle {
         z: 999
 
         background: Rectangle {
-            radius: Theme.radiusLg
-            color: Theme.bgPopup
+            radius: Theme.radiusMedium
+            color: Theme.surfaceFloating
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
 
             // 柔和投影层
             Rectangle {
@@ -181,7 +181,7 @@ Rectangle {
                 radius: parent.radius
                 color: "transparent"
                 border.width: 1
-                border.color: Theme.borderHighlight
+                border.color: Theme.selectedBorder
                 opacity: 0.15
             }
         }
@@ -206,17 +206,17 @@ Rectangle {
                     delegate: Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 24
-                        radius: Theme.radiusSm
-                        color: presetMouse.containsMouse ? Theme.bgCardActive : Theme.bgCardElevated
-                        border.color: presetMouse.containsMouse ? Theme.borderHover : Theme.borderSubtle
+                        radius: Theme.radiusMicro
+                        color: presetMouse.containsMouse ? Theme.pressed : Theme.surfaceAlt
+                        border.color: presetMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
                         border.width: 1
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.label
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            color: presetMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                            color: presetMouse.containsMouse ? Theme.text : Theme.textSoft
                         }
 
                         MouseArea {
@@ -233,7 +233,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Theme.divider
+                color: Theme.borderMuted
             }
 
             // 2. 年月导航栏
@@ -244,15 +244,15 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 26
                     Layout.preferredHeight: 26
-                    radius: Theme.radiusSm
-                    color: prevMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    radius: Theme.radiusMicro
+                    color: prevMouse.containsMouse ? Theme.pressed : "transparent"
 
                     Text {
                         anchors.centerIn: parent
                         text: "‹"
-                        font.pixelSize: 18
-                        font.bold: true
-                        color: prevMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                        font.pixelSize: Theme.fontTitle
+                        font.weight: Theme.fontMedium
+                        color: prevMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {
@@ -268,10 +268,10 @@ Rectangle {
 
                 Text {
                     text: root.viewYear + " 年 " + String(root.viewMonth + 1).padStart(2, '0') + " 月"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeH3
-                    font.bold: true
-                    color: Theme.textPrimary
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Theme.fontMedium
+                    color: Theme.text
                 }
 
                 Item { Layout.fillWidth: true }
@@ -279,15 +279,15 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 26
                     Layout.preferredHeight: 26
-                    radius: Theme.radiusSm
-                    color: nextMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    radius: Theme.radiusMicro
+                    color: nextMouse.containsMouse ? Theme.pressed : "transparent"
 
                     Text {
                         anchors.centerIn: parent
                         text: "›"
-                        font.pixelSize: 18
-                        font.bold: true
-                        color: nextMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                        font.pixelSize: Theme.fontTitle
+                        font.weight: Theme.fontMedium
+                        color: nextMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {
@@ -314,10 +314,10 @@ Rectangle {
                         Text {
                             anchors.centerIn: parent
                             text: modelData
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeTiny
-                            font.bold: true
-                            color: (index >= 5) ? Theme.walkWheel : Theme.textMuted
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontMicro
+                            font.weight: Theme.fontMedium
+                            color: (index >= 5) ? Theme.walkWheel : Theme.muted
                         }
                     }
                 }
@@ -345,7 +345,7 @@ Rectangle {
                         id: dayCell
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: Theme.radiusSm
+                        radius: Theme.radiusMicro
 
                         readonly property int cellIndex: index
                         readonly property bool isPrevMonth: cellIndex < daysGrid.firstDayWeekday
@@ -378,21 +378,21 @@ Rectangle {
                         readonly property bool isToday: root.formatDate(cellDate) === root.formatDate(new Date())
 
                         color: isSelected 
-                            ? Theme.primary 
-                            : (dayMouse.containsMouse ? Theme.bgCardActive : "transparent")
+                            ? Theme.accent 
+                            : (dayMouse.containsMouse ? Theme.pressed : "transparent")
 
                         border.width: isToday && !isSelected ? 1 : 0
-                        border.color: Theme.primaryLight
+                        border.color: Theme.accent
 
                         Text {
                             anchors.centerIn: parent
                             text: dayCell.dayNumber
-                            font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSizeSmall
-                            font.bold: dayCell.isSelected || dayCell.isToday
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontCaption
+                            font.weight: (dayCell.isSelected || dayCell.isToday) ? Theme.fontMedium : Theme.fontRegular
                             color: dayCell.isSelected 
-                                ? "#ffffff" 
-                                : (!dayCell.isCurrentMonth ? Theme.textDisabled : Theme.textPrimary)
+                                ? Theme.textOnAccent 
+                                : (!dayCell.isCurrentMonth ? Theme.disabled : Theme.text)
                         }
 
                         MouseArea {

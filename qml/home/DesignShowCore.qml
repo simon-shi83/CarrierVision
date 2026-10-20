@@ -90,49 +90,50 @@ Page {
     // 驱动轮数据列表 (3D 视图中白色轮组，对应点检驱动轮 1 ~ 8)
     readonly property var driveWheelList: [
         // 左侧工位
-        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: "驱动轮 #1 (前外侧)", color: "#38bdf8", quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: "驱动轮 #2 (后外侧)", color: "#38bdf8", quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: "驱动轮 #5 (前内侧)", color: "#38bdf8", quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: "驱动轮 #6 (后内侧)", color: "#38bdf8", quadrant: "后内", rail: "内轨" },
+        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: "驱动轮 #1 (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: "驱动轮 #2 (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: "驱动轮 #5 (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: "驱动轮 #6 (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: "驱动轮 #3 (前外侧)", color: "#38bdf8", quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: "驱动轮 #4 (后外侧)", color: "#38bdf8", quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: "驱动轮 #7 (前内侧)", color: "#38bdf8", quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: "驱动轮 #8 (后内侧)", color: "#38bdf8", quadrant: "后内", rail: "内轨" }
+        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: "驱动轮 #3 (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: "驱动轮 #4 (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: "驱动轮 #7 (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: "驱动轮 #8 (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" }
     ]
 
     // 走行轮数据列表 (3D 视图中灰色轮组，对应 wheelId 9 ~ 16)
     readonly property var walkWheelList: [
         // 左侧工位
-        { name: "走行轮1", node: ww1, station: "左侧工位", desc: "走行轮 #1 (wheelId 9/前外侧)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
-        { name: "走行轮2", node: ww2, station: "左侧工位", desc: "走行轮 #2 (wheelId 10/后外侧)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
-        { name: "走行轮5", node: ww5, station: "左侧工位", desc: "走行轮 #5 (wheelId 13/前内侧)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
-        { name: "走行轮6", node: ww6, station: "左侧工位", desc: "走行轮 #6 (wheelId 14/后内侧)", color: "#fb923c", quadrant: "后内", rail: "内轨" },
+        { name: "走行轮1", node: ww1, station: "左侧工位", desc: "走行轮 #1 (wheelId 9/前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮2", node: ww2, station: "左侧工位", desc: "走行轮 #2 (wheelId 10/后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮5", node: ww5, station: "左侧工位", desc: "走行轮 #5 (wheelId 13/前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮6", node: ww6, station: "左侧工位", desc: "走行轮 #6 (wheelId 14/后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "走行轮3", node: ww3, station: "右侧工位", desc: "走行轮 #3 (wheelId 11/前外侧)", color: "#fb923c", quadrant: "前外", rail: "外轨" },
-        { name: "走行轮4", node: ww4, station: "右侧工位", desc: "走行轮 #4 (wheelId 12/后外侧)", color: "#fb923c", quadrant: "后外", rail: "外轨" },
-        { name: "走行轮7", node: ww7, station: "右侧工位", desc: "走行轮 #7 (wheelId 15/前内侧)", color: "#fb923c", quadrant: "前内", rail: "内轨" },
-        { name: "走行轮8", node: ww8, station: "右侧工位", desc: "走行轮 #8 (wheelId 16/后内侧)", color: "#fb923c", quadrant: "后内", rail: "内轨" }
+        { name: "走行轮3", node: ww3, station: "右侧工位", desc: "走行轮 #3 (wheelId 11/前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮4", node: ww4, station: "右侧工位", desc: "走行轮 #4 (wheelId 12/后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮7", node: ww7, station: "右侧工位", desc: "走行轮 #7 (wheelId 15/前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮8", node: ww8, station: "右侧工位", desc: "走行轮 #8 (wheelId 16/后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" }
     ]
 
-    // 风格色彩方案 (黑/白 双主题体系)
+    // 风格色彩方案 (黑/白 双主题体系)。界面色（文字、强调、卡片、分割线）与 Theme 同值；
+    // 场景底色与灯光为三维视图专用。场景明暗可独立于界面主题切换，所以集中定义在这里
     readonly property var styleThemes: [
         {
             name: "极夜黑",
             isDark: true,
-            containerBg: "#070b12",
-            bgTop: "#0b121e",
-            bgMid: "#121d30",
-            bgBottom: "#070a11",
+            containerBg: "#08090c",
+            bgTop: "#0b0d11",
+            bgMid: "#13161c",
+            bgBottom: "#08090c",
             spotlight: "#1e3557",
-            grid: "#1e3a5f",
-            accent: "#00a3ff",
-            bracket: "#38bdf8",
-            cardBg: "#cc090e17",
-            cardBorder: "#2638bdf8",
-            dividerColor: "#334155",
-            textPrimary: "#f8fafc",
-            textSecondary: "#94a3b8",
+            grid: "#1f2a38",
+            accent: "#4cc9e6",
+            bracket: "#4cc9e6",
+            cardBg: "#e613161c",
+            cardBorder: "#2c3442",
+            dividerColor: "#222834",
+            textPrimary: "#eef1f5",
+            textSecondary: "#b8c1cd",
             lightKey: "#ffffff",
             lightKeyBrightness: 1.2,
             lightFill: "#94b8db",
@@ -148,19 +149,19 @@ Page {
         {
             name: "工业白",
             isDark: false,
-            containerBg: "#f1f5f9",
+            containerBg: "#f1f4f8",
             bgTop: "#f8fafc",
-            bgMid: "#edf2f7",
+            bgMid: "#edf1f6",
             bgBottom: "#e2e8f0",
             spotlight: "#ffffff",
             grid: "#cbd5e1",
-            accent: "#0284c7",
+            accent: "#0369a1",
             bracket: "#94a3b8",
-            cardBg: "#eef8fafc",
+            cardBg: "#eeffffff",
             cardBorder: "#cbd5e1",
-            dividerColor: "#cbd5e1",
+            dividerColor: "#e2e8f0",
             textPrimary: "#0f172a",
-            textSecondary: "#475569",
+            textSecondary: "#334155",
             lightKey: "#ffffff",
             lightKeyBrightness: 1.35,
             lightFill: "#dbeafe",
@@ -196,10 +197,10 @@ Page {
     // 主容器卡片
     Rectangle {
         anchors.fill: parent
-        radius: root.showHeader ? Theme.radiusLg : Theme.radiusMd
-        color: Theme.bgCard
+        radius: root.showHeader ? Theme.radiusMedium : Theme.radiusSmall
+        color: Theme.surface
         border.width: root.showHeader ? 1 : 0
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -212,10 +213,10 @@ Page {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 visible: root.showHeader
-                radius: Theme.radiusMd
-                color: Theme.bgCardElevated
+                radius: Theme.radiusSmall
+                color: Theme.surfaceAlt
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -223,14 +224,14 @@ Page {
                     anchors.rightMargin: 16
                     spacing: 10
 
-                    Rectangle { width: 4; height: 16; radius: 2; color: Theme.primary }
+                    Rectangle { width: 4; height: 16; radius: 2; color: Theme.borderStrong }
 
                     Label {
                         Layout.fillWidth: true
                         text: root.descriptionText || "Carrier 点检工位立体几何模型交互展示 · 高精度数字孪生渲染"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeBody
+                        color: Theme.textSoft
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontBody
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -241,7 +242,7 @@ Page {
                 id: modelContainer
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: root.showHeader ? Theme.radiusMd : 0
+                radius: root.showHeader ? Theme.radiusSmall : 0
                 clip: true
                 color: root.curTheme.containerBg
 
@@ -693,7 +694,7 @@ Page {
                         var vw = Math.max(modelView.width, 300)
                         var vh = Math.max(modelView.height, 200)
 
-                        // ================= 1. 相机标签初算 (品红: 12 台相机，外围环绕) =================
+                        // ================= 1. 相机标签初算 (紫色: 12 台相机，外围环绕) =================
                         if (root.showCameraLabels) {
                             var camOffsets = [
                                 // 左工位 6 台相机: 侧前(1)、侧后(2)、斜俯(10)、正交顶(9)、轮面(6)、轮缘(5)
@@ -894,14 +895,14 @@ Page {
                             z: isHit ? 100 : 1
                             Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                            // 1. 3D 定位品红点 (Pinpoint)
+                            // 1. 3D 定位紫色点 (Pinpoint)
                             Rectangle {
                                 x: camTagItem.tagX - 3.5
                                 y: camTagItem.tagY - 3.5
                                 width: 7
                                 height: 7
                                 radius: 3.5
-                                color: camTagItem.isHit ? "#f43f5e" : "#e11d48"
+                                color: Theme.cameraMarker
                                 border.width: 1
                                 border.color: camTagItem.isHit ? "#ffffff" : (root.curTheme.isDark ? "#fca5a5" : "#ffffff")
 
@@ -930,8 +931,8 @@ Page {
                                 width: 1
                                 height: Math.max(1, Math.abs(camTagItem.tagY - camTagItem.badgeCenterY))
                                 color: camTagItem.isHit ?
-                                           (root.curTheme.isDark ? "#fb7185" : "#e11d48") :
-                                           (root.curTheme.isDark ? "#4de11d48" : "#94a3b8")
+                                           Theme.cameraMarker :
+                                           Theme.cameraMarkerSoft
                                 Behavior on color { ColorAnimation { duration: 160 } }
                             }
                             Rectangle {
@@ -941,8 +942,8 @@ Page {
                                 height: 1
                                 visible: Math.abs(camTagItem.badgeCenterX - camTagItem.tagX) > 2
                                 color: camTagItem.isHit ?
-                                           (root.curTheme.isDark ? "#fb7185" : "#e11d48") :
-                                           (root.curTheme.isDark ? "#4de11d48" : "#94a3b8")
+                                           Theme.cameraMarker :
+                                           Theme.cameraMarkerSoft
                                 Behavior on color { ColorAnimation { duration: 160 } }
                             }
 
@@ -962,7 +963,7 @@ Page {
                                            (camTagItem.isHit ? "#fff1f2" : "#eef8fafc")
                                 border.width: camTagItem.isHit ? 2 : 1
                                 border.color: root.curTheme.isDark ?
-                                                  (camTagItem.isHit ? "#fb7185" : "#33e11d48") :
+                                                  (camTagItem.isHit ? Theme.cameraMarker : Theme.cameraMarkerSoft) :
                                                   (camTagItem.isHit ? "#fda4af" : "#cbd5e1")
 
                                 Behavior on color { ColorAnimation { duration: 160 } }
@@ -975,7 +976,7 @@ Page {
 
                                     Rectangle {
                                         width: 5; height: 5; radius: 2.5
-                                        color: camTagItem.isHit ? "#f43f5e" : "#e11d48"
+                                        color: Theme.cameraMarker
                                         Behavior on color { ColorAnimation { duration: 160 } }
                                     }
 
@@ -984,9 +985,9 @@ Page {
                                         color: root.curTheme.isDark ?
                                                    (camTagItem.isHit ? "#ffffff" : "#cbd5e1") :
                                                    (camTagItem.isHit ? "#be123c" : "#475569")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeTiny
-                                        font.bold: true
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontMicro
+                                        font.weight: Theme.fontMedium
                                         Behavior on color { ColorAnimation { duration: 160 } }
                                     }
                                 }
@@ -1139,9 +1140,9 @@ Page {
                                         color: root.curTheme.isDark ?
                                                    (dwTagItem.isHit ? "#ffffff" : "#cbd5e1") :
                                                    (dwTagItem.isHit ? "#1d4ed8" : "#475569")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeTiny
-                                        font.bold: true
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontMicro
+                                        font.weight: Theme.fontMedium
                                         Behavior on color { ColorAnimation { duration: 160 } }
                                     }
 
@@ -1157,9 +1158,9 @@ Page {
                                             anchors.centerIn: parent
                                             text: modelData.quadrant || ""
                                             color: root.curTheme.isDark ? "#93c5fd" : "#0369a1"
-                                            font.family: Theme.fontFamily
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontMicro
-                                            font.weight: Theme.weightMedium
+                                            font.weight: Theme.fontMedium
                                         }
                                     }
                                 }
@@ -1312,9 +1313,9 @@ Page {
                                         color: root.curTheme.isDark ?
                                                    (wwTagItem.isHit ? "#ffffff" : "#cbd5e1") :
                                                    (wwTagItem.isHit ? "#b45309" : "#475569")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeTiny
-                                        font.bold: true
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontMicro
+                                        font.weight: Theme.fontMedium
                                         Behavior on color { ColorAnimation { duration: 160 } }
                                     }
 
@@ -1330,9 +1331,9 @@ Page {
                                             anchors.centerIn: parent
                                             text: modelData.quadrant || ""
                                             color: root.curTheme.isDark ? "#fdba74" : "#c2410c"
-                                            font.family: Theme.fontFamily
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontMicro
-                                            font.weight: Theme.weightMedium
+                                            font.weight: Theme.fontMedium
                                         }
                                     }
                                 }
@@ -1386,9 +1387,9 @@ Page {
                         Label {
                             text: "3D TWIN"
                             color: root.curTheme.accent
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            font.bold: true
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                            font.weight: Theme.fontMedium
                         }
 
                         Rectangle { width: 1; height: 10; color: root.curTheme.dividerColor }
@@ -1396,8 +1397,8 @@ Page {
                         Label {
                             text: Math.round(modelPivot.pitch) + "° / " + Math.round(modelPivot.yaw) + "°"
                             color: root.curTheme.textSecondary
-                            font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
 
@@ -1434,23 +1435,24 @@ Page {
                             implicitWidth: 58
                             implicitHeight: 24
                             radius: Theme.radiusPill
-                            color: autoRotateTimer.running ? (root.curTheme.isDark ? "#330284c7" : "#1f0284c7") : (cruiseMouse.containsMouse ? (root.curTheme.isDark ? "#20ffffff" : "#15000000") : "transparent")
+                            color: autoRotateTimer.running ? (root.curTheme.isDark ? "#330284c7" : "#1f0284c7") : (cruiseMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent")
                             border.width: autoRotateTimer.running ? 1 : 0
                             border.color: root.curTheme.accent
 
                             RowLayout {
                                 anchors.centerIn: parent
                                 spacing: 3
-                                Text {
-                                    text: autoRotateTimer.running ? "⏸" : "🔄"
-                                    font.pixelSize: 10
+                                AppIcon {
+                                    name: autoRotateTimer.running ? "icon_pause" : "icon_refresh"
+                                    size: 13
+                                    color: autoRotateTimer.running ? root.curTheme.accent : root.curTheme.textSecondary
                                 }
                                 Text {
                                     text: "巡航"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
                                     color: autoRotateTimer.running ? root.curTheme.accent : root.curTheme.textSecondary
-                                    font.bold: autoRotateTimer.running
+                                    font.weight: (autoRotateTimer.running) ? Theme.fontMedium : Theme.fontRegular
                                 }
                             }
 
@@ -1473,20 +1475,20 @@ Page {
                             implicitWidth: 62
                             implicitHeight: 24
                             radius: Theme.radiusPill
-                            color: (viewPopup.visible || viewMouse.containsMouse) ? (root.curTheme.isDark ? "#20ffffff" : "#15000000") : "transparent"
+                            color: (viewPopup.visible || viewMouse.containsMouse) ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                             border.width: viewPopup.visible ? 1 : 0
                             border.color: root.curTheme.accent
 
                             RowLayout {
                                 anchors.centerIn: parent
                                 spacing: 3
-                                Text { text: "📐"; font.pixelSize: 10 }
+                                AppIcon { name: "icon_ruler"; size: 13; color: viewPopup.visible ? root.curTheme.accent : root.curTheme.textSecondary }
                                 Text {
                                     text: "视角 ▾"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
                                     color: viewPopup.visible ? root.curTheme.accent : root.curTheme.textPrimary
-                                    font.bold: viewPopup.visible
+                                    font.weight: (viewPopup.visible) ? Theme.fontMedium : Theme.fontRegular
                                 }
                             }
 
@@ -1513,7 +1515,7 @@ Page {
                                 modal: false
                                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
                                 background: Rectangle {
-                                    radius: Theme.radiusMd
+                                    radius: Theme.radiusSmall
                                     color: root.curTheme.cardBg
                                     border.color: root.curTheme.cardBorder
                                     border.width: 1
@@ -1524,18 +1526,18 @@ Page {
 
                                     Repeater {
                                         model: [
-                                            { name: "俯视鸟瞰 (顶梁)", icon: "⬇️", pitch: 88, yaw: 0, z: 600 },
-                                            { name: "轴测视角 (全览)", icon: "📐", pitch: 22, yaw: 25, z: 600 },
-                                            { name: "工位特写 (相机)", icon: "🎯", pitch: 14, yaw: 30, z: 350 },
-                                            { name: "正视立面 (正面)", icon: "👁️", pitch: 0, yaw: 0, z: 600 },
-                                            { name: "侧视截面 (侧面)", icon: "➡️", pitch: 0, yaw: 90, z: 600 }
+                                            { name: "俯视鸟瞰 (顶梁)", pitch: 88, yaw: 0, z: 600 },
+                                            { name: "轴测视角 (全览)", pitch: 22, yaw: 25, z: 600 },
+                                            { name: "工位特写 (相机)", pitch: 14, yaw: 30, z: 350 },
+                                            { name: "正视立面 (正面)", pitch: 0, yaw: 0, z: 600 },
+                                            { name: "侧视截面 (侧面)", pitch: 0, yaw: 90, z: 600 }
                                         ]
 
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 28
                                             radius: 4
-                                            color: itemMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                            color: itemMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
 
                                             RowLayout {
                                                 anchors.fill: parent
@@ -1543,17 +1545,13 @@ Page {
                                                 anchors.rightMargin: 8
                                                 spacing: 6
 
-                                                Text {
-                                                    text: modelData.icon
-                                                    font.pixelSize: 11
-                                                }
 
                                                 Label {
                                                     Layout.fillWidth: true
                                                     text: modelData.name
-                                                    color: itemMouse.containsMouse ? root.curTheme.accent : root.curTheme.textPrimary
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: Theme.fontSizeSmall
+                                                    color: itemMouse.containsMouse ? root.curTheme.textPrimary : root.curTheme.textPrimary
+                                                    font.family: Theme.fontSans
+                                                    font.pixelSize: Theme.fontCaption
                                                 }
                                             }
 
@@ -1581,22 +1579,22 @@ Page {
                             implicitWidth: 62
                             implicitHeight: 24
                             radius: Theme.radiusPill
-                            color: (labelPopup.visible || labelMouse.containsMouse) ? (root.curTheme.isDark ? "#20ffffff" : "#15000000") : "transparent"
+                            color: (labelPopup.visible || labelMouse.containsMouse) ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                             border.width: labelPopup.visible ? 1 : 0
                             border.color: root.curTheme.accent
 
                             RowLayout {
                                 anchors.centerIn: parent
                                 spacing: 3
-                                Text { text: "🏷️"; font.pixelSize: 10 }
+                                AppIcon { name: "icon_tag"; size: 13; color: root.curTheme.textSecondary }
                                 Text {
                                     text: "标签 ▾"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
                                     color: (root.showCameraLabels || root.showDriveWheelLabels || root.showWalkWheelLabels) ?
                                                (labelPopup.visible ? root.curTheme.accent : root.curTheme.textPrimary) :
                                                root.curTheme.textSecondary
-                                    font.bold: labelPopup.visible
+                                    font.weight: (labelPopup.visible) ? Theme.fontMedium : Theme.fontRegular
                                 }
                             }
 
@@ -1623,7 +1621,7 @@ Page {
                                 modal: false
                                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
                                 background: Rectangle {
-                                    radius: Theme.radiusMd
+                                    radius: Theme.radiusSmall
                                     color: root.curTheme.cardBg
                                     border.color: root.curTheme.cardBorder
                                     border.width: 1
@@ -1637,7 +1635,7 @@ Page {
                                         Layout.fillWidth: true
                                         implicitHeight: 28
                                         radius: 4
-                                        color: camRowMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                        color: camRowMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
 
                                         RowLayout {
                                             anchors.fill: parent
@@ -1645,21 +1643,21 @@ Page {
                                             anchors.rightMargin: 8
                                             spacing: 6
 
-                                            Text {
-                                                text: root.showCameraLabels ? "☑" : "☐"
-                                                font.pixelSize: 12
-                                                color: root.showCameraLabels ? "#ef4444" : root.curTheme.textSecondary
+                                            AppIcon {
+                                                name: root.showCameraLabels ? "icon_check_square" : "icon_square"
+                                                size: 14
+                                                color: root.showCameraLabels ? Theme.cameraMarker : root.curTheme.textSecondary
                                             }
 
-                                            Text { text: "📷"; font.pixelSize: 11 }
+                                            Rectangle { width: 8; height: 8; radius: 4; color: Theme.cameraMarker }
 
                                             Label {
                                                 Layout.fillWidth: true
                                                 text: "相机标签 (12台)"
-                                                color: root.showCameraLabels ? (root.curTheme.isDark ? "#f87171" : "#dc2626") : root.curTheme.textPrimary
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.bold: root.showCameraLabels
+                                                color: root.showCameraLabels ? Theme.cameraMarker : root.curTheme.textPrimary
+                                                font.family: Theme.fontSans
+                                                font.pixelSize: Theme.fontCaption
+                                                font.weight: (root.showCameraLabels) ? Theme.fontMedium : Theme.fontRegular
                                             }
                                         }
 
@@ -1681,7 +1679,7 @@ Page {
                                         Layout.fillWidth: true
                                         implicitHeight: 28
                                         radius: 4
-                                        color: dwRowMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                        color: dwRowMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
 
                                         RowLayout {
                                             anchors.fill: parent
@@ -1689,21 +1687,21 @@ Page {
                                             anchors.rightMargin: 8
                                             spacing: 6
 
-                                            Text {
-                                                text: root.showDriveWheelLabels ? "☑" : "☐"
-                                                font.pixelSize: 12
+                                            AppIcon {
+                                                name: root.showDriveWheelLabels ? "icon_check_square" : "icon_square"
+                                                size: 14
                                                 color: root.showDriveWheelLabels ? root.curTheme.accent : root.curTheme.textSecondary
                                             }
 
-                                            Text { text: "⚙"; font.pixelSize: 11 }
+                                            Rectangle { width: 8; height: 8; radius: 4; color: Theme.driveWheel }
 
                                             Label {
                                                 Layout.fillWidth: true
                                                 text: "驱动轮 (8处)"
                                                 color: root.showDriveWheelLabels ? root.curTheme.accent : root.curTheme.textPrimary
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.bold: root.showDriveWheelLabels
+                                                font.family: Theme.fontSans
+                                                font.pixelSize: Theme.fontCaption
+                                                font.weight: (root.showDriveWheelLabels) ? Theme.fontMedium : Theme.fontRegular
                                             }
                                         }
 
@@ -1725,7 +1723,7 @@ Page {
                                         Layout.fillWidth: true
                                         implicitHeight: 28
                                         radius: 4
-                                        color: wwRowMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                        color: wwRowMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
 
                                         RowLayout {
                                             anchors.fill: parent
@@ -1733,21 +1731,21 @@ Page {
                                             anchors.rightMargin: 8
                                             spacing: 6
 
-                                            Text {
-                                                text: root.showWalkWheelLabels ? "☑" : "☐"
-                                                font.pixelSize: 12
-                                                color: root.showWalkWheelLabels ? "#ea580c" : root.curTheme.textSecondary
+                                            AppIcon {
+                                                name: root.showWalkWheelLabels ? "icon_check_square" : "icon_square"
+                                                size: 14
+                                                color: root.showWalkWheelLabels ? Theme.walkWheel : root.curTheme.textSecondary
                                             }
 
-                                            Text { text: "⭕"; font.pixelSize: 11 }
+                                            Rectangle { width: 8; height: 8; radius: 4; color: Theme.walkWheel }
 
                                             Label {
                                                 Layout.fillWidth: true
                                                 text: "走行轮 (8处)"
                                                 color: root.showWalkWheelLabels ? (root.curTheme.isDark ? "#fb923c" : "#ea580c") : root.curTheme.textPrimary
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.bold: root.showWalkWheelLabels
+                                                font.family: Theme.fontSans
+                                                font.pixelSize: Theme.fontCaption
+                                                font.weight: (root.showWalkWheelLabels) ? Theme.fontMedium : Theme.fontRegular
                                             }
                                         }
 
@@ -1782,12 +1780,12 @@ Page {
                                             Layout.fillWidth: true
                                             implicitHeight: 22
                                             radius: 3
-                                            color: allShowMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                            color: allShowMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "全显"
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeTiny
+                                                font.family: Theme.fontSans
+                                                font.pixelSize: Theme.fontMicro
                                                 color: root.curTheme.accent
                                             }
                                             MouseArea {
@@ -1808,12 +1806,12 @@ Page {
                                             Layout.fillWidth: true
                                             implicitHeight: 22
                                             radius: 3
-                                            color: allHideMouse.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#12000000") : "transparent"
+                                            color: allHideMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "全隐"
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeTiny
+                                                font.family: Theme.fontSans
+                                                font.pixelSize: Theme.fontMicro
                                                 color: root.curTheme.textSecondary
                                             }
                                             MouseArea {
@@ -1855,12 +1853,12 @@ Page {
                                     Rectangle {
                                         anchors.fill: parent
                                         radius: Theme.radiusPill
-                                        color: zoomInArea.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#18000000") : "transparent"
+                                        color: zoomInArea.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                                     }
                                     Text {
                                         anchors.centerIn: parent
                                         text: "＋"
-                                        font.pixelSize: 12
+                                        font.pixelSize: Theme.fontCaption
                                         color: root.curTheme.textPrimary
                                     }
                                     MouseArea {
@@ -1891,12 +1889,12 @@ Page {
                                     Rectangle {
                                         anchors.fill: parent
                                         radius: Theme.radiusPill
-                                        color: zoomOutArea.containsMouse ? (root.curTheme.isDark ? "#25ffffff" : "#18000000") : "transparent"
+                                        color: zoomOutArea.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
                                     }
                                     Text {
                                         anchors.centerIn: parent
                                         text: "－"
-                                        font.pixelSize: 12
+                                        font.pixelSize: Theme.fontCaption
                                         color: root.curTheme.textPrimary
                                     }
                                     MouseArea {
@@ -1923,11 +1921,12 @@ Page {
                             implicitWidth: 26
                             implicitHeight: 24
                             radius: Theme.radiusPill
-                            color: themeMouse.containsMouse ? (root.curTheme.isDark ? "#20ffffff" : "#15000000") : "transparent"
-                            Text {
+                            color: themeMouse.containsMouse ? (root.curTheme.isDark ? Theme.hoverOnDark : Theme.hoverOnLight) : "transparent"
+                            AppIcon {
                                 anchors.centerIn: parent
-                                text: root.curTheme.isDark ? "🌙" : "☀️"
-                                font.pixelSize: 11
+                                name: root.curTheme.isDark ? "icon_moon" : "icon_sun"
+                                size: 14
+                                color: root.curTheme.textSecondary
                             }
                             MouseArea {
                                 id: themeMouse
@@ -1955,14 +1954,14 @@ Page {
                                 spacing: 2
                                 Text {
                                     text: "↺"
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.fontMicro
                                     color: "#ffffff"
                                 }
                                 Text {
                                     text: "复位"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                     color: "#ffffff"
                                 }
                             }
@@ -2072,13 +2071,13 @@ Page {
                         // 相机
                         RowLayout {
                             spacing: 5
-                            Rectangle { width: 9; height: 9; radius: 2; color: "#e11d48" }
+                            Rectangle { width: 9; height: 9; radius: 2; color: Theme.cameraMarker }
                             Label {
-                                text: "12MP工业相机 (品红标)"
+                                text: "12MP工业相机 (紫标)"
                                 color: root.curTheme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
-                                font.bold: true
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
+                                font.weight: Theme.fontMedium
                             }
                         }
 
@@ -2089,9 +2088,9 @@ Page {
                             Label {
                                 text: "驱动轮1~8 (蓝轮/蓝标)"
                                 color: root.curTheme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
-                                font.bold: true
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
+                                font.weight: Theme.fontMedium
                             }
                         }
 
@@ -2102,9 +2101,9 @@ Page {
                             Label {
                                 text: "走行轮1~8 (灰轮/琥珀标)"
                                 color: root.curTheme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
-                                font.bold: true
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
+                                font.weight: Theme.fontMedium
                             }
                         }
 
@@ -2115,8 +2114,8 @@ Page {
                             Label {
                                 text: "条形/面阵光源 (自发光白)"
                                 color: root.curTheme.textSecondary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
                             }
                         }
                     }
@@ -2137,10 +2136,10 @@ Page {
                     Label {
                         id: hintLabel
                         anchors.centerIn: parent
-                        text: "🖱 左键旋转 ╎ 右键/中键拖动平移 ╎ 滚轮缩放 ╎ 顶部预设"
+                        text: "左键旋转 ╎ 右键/中键拖动平移 ╎ 滚轮缩放 ╎ 顶部预设"
                         color: root.curTheme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeTiny
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontMicro
                     }
                 }
             }

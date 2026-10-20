@@ -66,10 +66,10 @@ Rectangle {
 
     signal activate(url sourceUrl, string titleText, string subtitleText, int slotIndex)
 
-    radius: Theme.radiusMd
-    color: mouseArea.containsMouse ? Theme.bgCardActive : Theme.bgCard
+    radius: Theme.radiusSmall
+    color: mouseArea.containsMouse ? Theme.pressed : Theme.surface
     border.width: 1
-    border.color: mouseArea.containsMouse ? Theme.borderHover : Theme.borderMedium
+    border.color: mouseArea.containsMouse ? Theme.borderStrong : Theme.border
     clip: true
 
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -90,18 +90,18 @@ Rectangle {
                 Layout.preferredHeight: 20
                 implicitWidth: camText.implicitWidth + 12
                 radius: Theme.radiusPill
-                color: !cardRoot.hasImage ? Theme.bgCardElevated : (cardRoot.result === 0 ? Theme.ngBg : Theme.primaryGlow)
-                border.color: !cardRoot.hasImage ? Theme.borderSubtle : (cardRoot.result === 0 ? Theme.ng : Theme.primary)
+                color: !cardRoot.hasImage ? Theme.surfaceAlt : (cardRoot.result === 0 ? Theme.dangerSoft : Theme.activeSubtle)
+                border.color: !cardRoot.hasImage ? Theme.borderMuted : (cardRoot.result === 0 ? Theme.danger : Theme.accent)
                 border.width: 1
 
                 Text {
                     id: camText
                     anchors.centerIn: parent
                     text: "CAM " + (cardRoot.slotIndex < 9 ? "0" : "") + (cardRoot.slotIndex + 1) + (cardRoot.hasImage && cardRoot.result === 0 ? " [NG]" : "")
-                    font.family: Theme.fontMono
-                    font.pixelSize: 10
-                    font.bold: true
-                    color: !cardRoot.hasImage ? Theme.textMuted : (cardRoot.result === 0 ? Theme.ngLight : Theme.primaryLight)
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontMicro
+                    font.weight: Theme.fontMedium
+                    color: !cardRoot.hasImage ? Theme.muted : (cardRoot.result === 0 ? Theme.danger : Theme.accent)
                 }
             }
 
@@ -109,9 +109,9 @@ Rectangle {
 
             Label {
                 text: cardRoot.receivedAtText
-                color: Theme.textMuted
-                font.family: Theme.fontMono
-                font.pixelSize: 10
+                color: Theme.muted
+                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                font.pixelSize: Theme.fontMicro
                 elide: Label.ElideRight
             }
         }
@@ -121,10 +121,10 @@ Rectangle {
             id: previewFrame
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radiusSm
-            color: Theme.bgInput
+            radius: Theme.radiusMicro
+            color: Theme.fieldFill
             border.width: 1
-            border.color: Theme.borderSubtle
+            border.color: Theme.borderMuted
             clip: true
 
             property bool showingA: true
@@ -249,16 +249,16 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         name: "icon_camera"
                         size: 28
-                        color: Theme.textMuted
+                        color: Theme.muted
                         opacity: 0.35
                     }
 
                     Label {
                         Layout.alignment: Qt.AlignHCenter
                         text: "等待图像传输"
-                        color: Theme.textMuted
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.muted
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }
@@ -267,9 +267,9 @@ Rectangle {
             Rectangle {
                 id: hoverOverlay
                 anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, 0.45)
+                color: Theme.imageScrim
                 visible: mouseArea.containsMouse && cardRoot.hasImage
-                radius: Theme.radiusSm
+                radius: Theme.radiusMicro
 
                 Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
 
@@ -278,8 +278,8 @@ Rectangle {
                     height: 28
                     implicitWidth: hoverRow.implicitWidth + 16
                     radius: Theme.radiusPill
-                    color: Theme.bgCardElevated
-                    border.color: Theme.primary
+                    color: Theme.surfaceAlt
+                    border.color: Theme.accent
                     border.width: 1
 
                     RowLayout {
@@ -290,15 +290,15 @@ Rectangle {
                         AppIcon {
                             name: "icon_eye"
                             size: 14
-                            color: Theme.primaryLight
+                            color: Theme.textSoft
                         }
 
                         Text {
                             text: "全景检验"
-                            color: Theme.primaryLight
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                            font.weight: Theme.fontMedium
                         }
                     }
                 }
@@ -311,10 +311,10 @@ Rectangle {
             Layout.leftMargin: 4
             Layout.rightMargin: 4
             text: cardRoot.serial.length > 0 ? cardRoot.serial : (cardRoot.fileName.length > 0 ? cardRoot.fileName : "待采集")
-            color: cardRoot.serial.length > 0 ? Theme.primaryLight : Theme.textSecondary
+            color: cardRoot.serial.length > 0 ? Theme.accent : Theme.textSoft
             font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: true
+            font.pixelSize: Theme.fontCaption
+            font.weight: Theme.fontMedium
             elide: Label.ElideMiddle
         }
 
@@ -324,10 +324,10 @@ Rectangle {
             Layout.rightMargin: 4
             visible: cardRoot.wheelsInfo.length > 0
             text: cardRoot.wheelsInfo
-            color: cardRoot.result === 0 ? Theme.ngLight : Theme.okLight
-            font.family: Theme.fontMono
-            font.pixelSize: 10
-            font.bold: true
+            color: cardRoot.result === 0 ? Theme.danger : Theme.ok
+            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+            font.pixelSize: Theme.fontMicro
+            font.weight: Theme.fontMedium
             elide: Label.ElideRight
         }
     }

@@ -12,14 +12,12 @@ Item {
         {
             title: "异常记录",
             iconName: "icon_file_text",
-            iconText: "📑",
             pageSource: "AlertRecordPage.qml",
             enabled: true
         },
         {
             title: "报警统计",
             iconName: "icon_chart_bar",
-            iconText: "📊",
             pageSource: "AlertStatsPage.qml",
             enabled: true
         }
@@ -41,15 +39,15 @@ Item {
             id: navMenu
             Layout.preferredWidth: 88
             Layout.fillHeight: true
-            color: Theme.bgNav
-            radius: Theme.radiusMd
+            color: Theme.surface
+            radius: Theme.radiusSmall
 
             Rectangle {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 width: 1
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
 
             property int currentIndex: 0
@@ -79,11 +77,11 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: Theme.radiusMd
-                        color: delegateRoot.isSelected ? Theme.bgCardActive : (delegateRoot.isHovered ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusSmall
+                        color: delegateRoot.isSelected ? Theme.pressed : (delegateRoot.isHovered ? Theme.surfaceAlt : "transparent")
 
                         border.width: 1
-                        border.color: delegateRoot.isSelected ? Theme.primary : (delegateRoot.isHovered ? Theme.borderMedium : "transparent")
+                        border.color: delegateRoot.isSelected ? Theme.accent : (delegateRoot.isHovered ? Theme.border : "transparent")
 
                         Behavior on color {
                             ColorAnimation {
@@ -103,7 +101,7 @@ Item {
                             width: 3
                             height: delegateRoot.isSelected ? parent.height - 18 : 0
                             radius: 2
-                            color: Theme.primaryLight
+                            color: Theme.borderStrong
                             visible: delegateRoot.isSelected
                             Behavior on height {
                                 NumberAnimation {
@@ -121,7 +119,7 @@ Item {
                                 visible: delegateRoot.itemIconName !== ""
                                 name: delegateRoot.itemIconName
                                 size: 18
-                                color: delegateRoot.isSelected ? Theme.primaryLight : (delegateRoot.isHovered ? Theme.textPrimary : Theme.textSecondary)
+                                color: delegateRoot.isSelected ? Theme.accent : (delegateRoot.isHovered ? Theme.text : Theme.textSoft)
                                 Layout.alignment: Qt.AlignHCenter
                                 Behavior on color {
                                     ColorAnimation {
@@ -130,28 +128,15 @@ Item {
                                 }
                             }
 
-                            Text {
-                                visible: delegateRoot.itemIconName === ""
-                                text: (delegateRoot.modelData && delegateRoot.modelData.iconText) ? delegateRoot.modelData.iconText : "●"
-                                font.pixelSize: 18
-                                horizontalAlignment: Text.AlignHCenter
-                                Layout.alignment: Qt.AlignHCenter
-                                color: delegateRoot.isSelected ? Theme.primaryLight : (delegateRoot.isHovered ? Theme.textPrimary : Theme.textSecondary)
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.animFast
-                                    }
-                                }
-                            }
 
                             Text {
                                 text: (delegateRoot.modelData && delegateRoot.modelData.title) ? delegateRoot.modelData.title : ""
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: delegateRoot.isSelected
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (delegateRoot.isSelected) ? Theme.fontMedium : Theme.fontRegular
                                 horizontalAlignment: Text.AlignHCenter
                                 Layout.alignment: Qt.AlignHCenter
-                                color: delegateRoot.isSelected ? Theme.primaryLight : (delegateRoot.isHovered ? Theme.textPrimary : Theme.textSecondary)
+                                color: delegateRoot.isSelected ? Theme.accent : (delegateRoot.isHovered ? Theme.text : Theme.textSoft)
                                 Behavior on color {
                                     ColorAnimation {
                                         duration: Theme.animFast

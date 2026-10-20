@@ -6,9 +6,9 @@ import ".."
 Rectangle {
     id: root
     height: 52
-    color: Theme.bgCard
-    radius: Theme.radiusMd
-    border.color: Theme.borderMedium
+    color: Theme.surface
+    radius: Theme.radiusSmall
+    border.color: Theme.border
     border.width: 1
 
     // 对外属性
@@ -52,10 +52,10 @@ Rectangle {
             spacing: 6
             Label {
                 text: "统计区间"
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontCaption
                 Layout.alignment: Qt.AlignVCenter
             }
             DatePicker {
@@ -66,9 +66,9 @@ Rectangle {
             }
             Label {
                 text: "~"
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSizeBody
-                font.bold: true
+                color: Theme.muted
+                font.pixelSize: Theme.fontBody
+                font.weight: Theme.fontMedium
                 Layout.alignment: Qt.AlignVCenter
             }
             DatePicker {
@@ -133,9 +133,9 @@ Rectangle {
             standardButtons: Dialog.Ok | Dialog.Cancel
 
             background: Rectangle {
-                radius: Theme.radiusLg
-                color: Theme.bgPopup
-                border.color: Theme.borderMedium
+                radius: Theme.radiusMedium
+                color: Theme.surfaceFloating
+                border.color: Theme.border
                 border.width: 1
             }
 
@@ -166,26 +166,26 @@ Rectangle {
                 spacing: 10
                 Label {
                     text: "报表将保存至应用数据目录 (data/)"
-                    color: Theme.textSecondary
-                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.textSoft
+                    font.pixelSize: Theme.fontCaption
                 }
                 RowLayout {
                     spacing: 8
                     Label {
                         text: "文件名:"
-                        color: Theme.textPrimary
-                        font.bold: true
+                        color: Theme.text
+                        font.weight: Theme.fontMedium
                     }
                     TextField {
                         id: fileNameInput
                         Layout.fillWidth: true
                         Layout.preferredHeight: 36
-                        color: Theme.textPrimary
-                        font.family: Theme.fontMono
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         background: Rectangle {
-                            radius: Theme.radiusMd
-                            color: Theme.bgInput
-                            border.color: fileNameInput.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                            radius: Theme.radiusSmall
+                            color: Theme.fieldFill
+                            border.color: fileNameInput.activeFocus ? Theme.selectedBorder : Theme.border
                         }
                     }
                 }

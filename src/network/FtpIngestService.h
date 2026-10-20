@@ -39,7 +39,8 @@ signals:
     void ingestFailed(const QString &error);
     void runningChanged(bool running);
     void clientCountChanged(int count);
-    void logMessage(const QString &message);
+    // FTP 异常，供界面状态栏提示（日志已由 FtpServer 写入）
+    void warningRaised(const QString &message);
 
 private:
     void recoverPendingUploads();

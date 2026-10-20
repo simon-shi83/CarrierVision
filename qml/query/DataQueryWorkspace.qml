@@ -76,9 +76,9 @@ Item {
             Rectangle {
                 Layout.preferredHeight: 52
                 implicitWidth: viewSwitchRow.implicitWidth + 12
-                radius: Theme.radiusMd
-                color: Theme.bgCard
-                border.color: Theme.borderMedium
+                radius: Theme.radiusSmall
+                color: Theme.surface
+                border.color: Theme.border
                 border.width: 1
 
                 Row {
@@ -90,10 +90,10 @@ Item {
                     Rectangle {
                         width: 92
                         height: 38
-                        radius: Theme.radiusSm
-                        color: root.viewMode === 0 ? Theme.bgCardActive : (btnListMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: root.viewMode === 0 ? Theme.pressed : (btnListMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
-                        border.color: root.viewMode === 0 ? Theme.primary : "transparent"
+                        border.color: root.viewMode === 0 ? Theme.accent : "transparent"
 
                         Behavior on color {
                             ColorAnimation {
@@ -111,16 +111,16 @@ Item {
                             spacing: 5
                             Text {
                                 text: "≡"
-                                font.pixelSize: 15
-                                font.bold: true
-                                color: root.viewMode === 0 ? Theme.primaryLight : Theme.textSecondary
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
+                                color: root.viewMode === 0 ? Theme.accent : Theme.textSoft
                             }
                             Text {
                                 text: "数据列表"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: root.viewMode === 0
-                                color: root.viewMode === 0 ? Theme.textPrimary : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (root.viewMode === 0) ? Theme.fontMedium : Theme.fontRegular
+                                color: root.viewMode === 0 ? Theme.text : Theme.textSoft
                             }
                         }
 
@@ -143,10 +143,10 @@ Item {
                     Rectangle {
                         width: 92
                         height: 38
-                        radius: Theme.radiusSm
-                        color: root.viewMode === 1 ? Theme.bgCardActive : (btnGalleryMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: root.viewMode === 1 ? Theme.pressed : (btnGalleryMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
-                        border.color: root.viewMode === 1 ? Theme.primary : "transparent"
+                        border.color: root.viewMode === 1 ? Theme.accent : "transparent"
 
                         Behavior on color {
                             ColorAnimation {
@@ -164,16 +164,16 @@ Item {
                             spacing: 5
                             Text {
                                 text: "⊞"
-                                font.pixelSize: 14
-                                font.bold: true
-                                color: root.viewMode === 1 ? Theme.primaryLight : Theme.textSecondary
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
+                                color: root.viewMode === 1 ? Theme.accent : Theme.textSoft
                             }
                             Text {
                                 text: "图片画廊"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: root.viewMode === 1
-                                color: root.viewMode === 1 ? Theme.textPrimary : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (root.viewMode === 1) ? Theme.fontMedium : Theme.fontRegular
+                                color: root.viewMode === 1 ? Theme.text : Theme.textSoft
                             }
                         }
 
@@ -210,10 +210,10 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: Math.max(500, Math.floor(mainViewStack.width * 0.40))
                     Layout.fillHeight: true
-                    radius: Theme.radiusLg
-                    color: Theme.bgCard
+                    radius: Theme.radiusMedium
+                    color: Theme.surface
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -224,9 +224,9 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             height: 36
-                            color: Theme.bgCardElevated
-                            radius: Theme.radiusMd
-                            border.color: Theme.borderSubtle
+                            color: Theme.surfaceAlt
+                            radius: Theme.radiusSmall
+                            border.color: Theme.borderMuted
                             border.width: 1
 
                             RowLayout {
@@ -237,65 +237,65 @@ Item {
 
                                 Text {
                                     text: "时间 / 文件名"
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                     Layout.fillWidth: true
                                 }
                                 Text {
                                     text: "载具"
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                                 Text {
                                     text: "轮号"
                                     Layout.preferredWidth: 44
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                                 Text {
                                     text: "实测间距"
                                     Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                                 Text {
                                     text: "基准距离"
                                     Layout.preferredWidth: 60
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                                 Text {
                                     text: "下偏差"
                                     Layout.preferredWidth: 54
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                                 Text {
                                     text: "判定"
                                     Layout.preferredWidth: 48
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
                                 }
                             }
                         }
@@ -317,14 +317,14 @@ Item {
                                 id: itemRect
                                 width: list.width
                                 height: 42
-                                radius: Theme.radiusMd
+                                radius: Theme.radiusSmall
                                 readonly property bool isCurrent: list.currentIndex === index
                                 readonly property bool isHovered: mouseArea.containsMouse
 
-                                color: isCurrent ? Theme.bgCardActive : (isHovered ? Theme.bgCardElevated : (index % 2 === 0 ? "transparent" : (Theme.isDark ? "#06ffffff" : "#03000000")))
+                                color: isCurrent ? Theme.pressed : (isHovered ? Theme.surfaceAlt : (index % 2 === 0 ? "transparent" : Theme.subtleFill))
 
                                 border.width: 1
-                                border.color: isCurrent ? Theme.primary : (isHovered ? Theme.borderHover : "transparent")
+                                border.color: isCurrent ? Theme.accent : (isHovered ? Theme.borderStrong : "transparent")
 
                                 Behavior on color {
                                     ColorAnimation {
@@ -348,18 +348,18 @@ Item {
                                         spacing: 2
                                         Text {
                                             text: fileName
-                                            color: itemRect.isCurrent ? Theme.primaryLight : Theme.textPrimary
+                                            color: itemRect.isCurrent ? Theme.accent : Theme.text
                                             font.family: Theme.fontMono
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            font.bold: true
+                                            font.pixelSize: Theme.fontCaption
+                                            font.weight: Theme.fontMedium
                                             elide: Text.ElideMiddle
                                             Layout.fillWidth: true
                                         }
                                         Text {
                                             text: receivedAtText
-                                            color: Theme.textMuted
-                                            font.family: Theme.fontMono
-                                            font.pixelSize: Theme.fontSizeTiny
+                                            color: Theme.muted
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                            font.pixelSize: Theme.fontMicro
                                         }
                                     }
 
@@ -367,59 +367,59 @@ Item {
                                         text: String(itemRect.carrierId !== undefined && itemRect.carrierId > 0 ? carrierId : rack)
                                         Layout.preferredWidth: 44
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textPrimary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeBody
+                                        color: Theme.text
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontBody
                                     }
                                     Text {
-                                        text: String(itemRect.wheelId !== undefined ? wheelId : slot)
+                                        text: String(wheelId)
                                         Layout.preferredWidth: 44
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textPrimary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeBody
+                                        color: Theme.text
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontBody
                                     }
                                     Text {
                                         text: (distance !== undefined ? Number(distance).toFixed(2) : "0.00")
                                         Layout.preferredWidth: 60
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
                                     }
                                     Text {
                                         text: (dist_norm !== undefined ? Number(dist_norm).toFixed(2) : "0.00")
                                         Layout.preferredWidth: 60
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textMuted
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.muted
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
                                     }
                                     Text {
                                         text: (model && model.lowerTolerance !== undefined ? Number(model.lowerTolerance).toFixed(2) : "0.00")
                                         Layout.preferredWidth: 54
                                         horizontalAlignment: Text.AlignHCenter
-                                        color: Theme.textMuted
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.muted
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
                                     }
 
                                     // 结果判定药丸
                                     Rectangle {
                                         Layout.preferredWidth: 48
                                         Layout.preferredHeight: 24
-                                        radius: Theme.radiusSm
-                                        color: result === 1 ? Theme.okBg : Theme.ngBg
-                                        border.color: result === 1 ? Theme.okBorder : Theme.ngBorder
+                                        radius: Theme.radiusMicro
+                                        color: result === 1 ? Theme.okSoft : Theme.dangerSoft
+                                        border.color: result === 1 ? Theme.okBorder : Theme.dangerBorder
                                         border.width: 1
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: result === 1 ? "OK" : "NG"
-                                            color: result === 1 ? Theme.okLight : Theme.ngLight
-                                            font.family: Theme.fontMono
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            font.bold: true
+                                            color: result === 1 ? Theme.ok : Theme.danger
+                                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                            font.pixelSize: Theme.fontCaption
+                                            font.weight: Theme.fontMedium
                                         }
                                     }
                                 }
@@ -459,10 +459,10 @@ Item {
                     id: previewCard
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusLg
-                    color: Theme.bgCard
+                    radius: Theme.radiusMedium
+                    color: Theme.surface
                     border.width: 1
-                    border.color: Theme.borderMedium
+                    border.color: Theme.border
 
                     property real userZoom: 1.0
                     readonly property real minZoom: 0.5
@@ -536,14 +536,14 @@ Item {
                                 width: 3
                                 height: 14
                                 radius: 1.5
-                                color: Theme.primary
+                                color: Theme.borderStrong
                             }
                             Label {
                                 text: "点检原图精准检验视窗"
-                                color: Theme.textPrimary
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeH3
-                                font.bold: true
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
                             }
 
                             // 交互提示胶囊
@@ -552,8 +552,8 @@ Item {
                                 Layout.preferredHeight: 20
                                 implicitWidth: hintRow.implicitWidth + 12
                                 radius: Theme.radiusPill
-                                color: Theme.bgCardActive
-                                border.color: Theme.borderSubtle
+                                color: Theme.pressed
+                                border.color: Theme.borderMuted
                                 border.width: 1
 
                                 RowLayout {
@@ -561,14 +561,10 @@ Item {
                                     anchors.centerIn: parent
                                     spacing: 4
                                     Text {
-                                        text: "🖱"
-                                        font.pixelSize: 10
-                                    }
-                                    Text {
                                         text: "滚轮缩放 ╎ 拖拽平移 ╎ 双击切换"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeTiny
-                                        color: Theme.textMuted
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontMicro
+                                        color: Theme.muted
                                     }
                                 }
                             }
@@ -587,18 +583,18 @@ Item {
                                     Layout.preferredHeight: 24
                                     implicitWidth: zoomPctText.implicitWidth + 16
                                     radius: Theme.radiusPill
-                                    color: zoomResetMouse.containsMouse ? Theme.primaryGlow : Theme.bgInput
-                                    border.color: previewCard.userZoom > 1.05 ? Theme.primary : Theme.borderSubtle
+                                    color: zoomResetMouse.containsMouse ? Theme.hover : Theme.fieldFill
+                                    border.color: previewCard.userZoom > 1.05 ? Theme.accent : Theme.borderMuted
                                     border.width: 1
 
                                     Text {
                                         id: zoomPctText
                                         anchors.centerIn: parent
                                         text: Math.round(previewCard.userZoom * 100) + "%"
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
-                                        color: previewCard.userZoom > 1.05 ? Theme.primaryLight : Theme.textSecondary
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.fontMedium
+                                        color: previewCard.userZoom > 1.05 ? Theme.accent : Theme.textSoft
                                     }
 
                                     MouseArea {
@@ -618,16 +614,16 @@ Item {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
                                     radius: 12
-                                    color: zoomOutBtnMouse.containsMouse ? Theme.bgCardActive : Theme.bgInput
-                                    border.color: Theme.borderSubtle
+                                    color: zoomOutBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
+                                    border.color: Theme.borderMuted
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "－"
-                                        font.bold: true
-                                        font.pixelSize: 13
-                                        color: Theme.textPrimary
+                                        font.weight: Theme.fontMedium
+                                        font.pixelSize: Theme.fontBody
+                                        color: Theme.text
                                     }
                                     MouseArea {
                                         id: zoomOutBtnMouse
@@ -646,16 +642,16 @@ Item {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
                                     radius: 12
-                                    color: zoomInBtnMouse.containsMouse ? Theme.bgCardActive : Theme.bgInput
-                                    border.color: Theme.borderSubtle
+                                    color: zoomInBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
+                                    border.color: Theme.borderMuted
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "＋"
-                                        font.bold: true
-                                        font.pixelSize: 13
-                                        color: Theme.textPrimary
+                                        font.weight: Theme.fontMedium
+                                        font.pixelSize: Theme.fontBody
+                                        color: Theme.text
                                     }
                                     MouseArea {
                                         id: zoomInBtnMouse
@@ -674,15 +670,15 @@ Item {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
                                     radius: 12
-                                    color: resetBtnMouse.containsMouse ? Theme.bgCardActive : Theme.bgInput
-                                    border.color: Theme.borderSubtle
+                                    color: resetBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
+                                    border.color: Theme.borderMuted
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "⟲"
-                                        font.pixelSize: 13
-                                        color: Theme.textPrimary
+                                        font.pixelSize: Theme.fontBody
+                                        color: Theme.text
                                     }
                                     MouseArea {
                                         id: resetBtnMouse
@@ -702,9 +698,9 @@ Item {
                             id: previewBox
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            color: Theme.bgInput
-                            radius: Theme.radiusMd
-                            border.color: Theme.borderSubtle
+                            color: Theme.fieldFill
+                            radius: Theme.radiusSmall
+                            border.color: Theme.borderMuted
                             border.width: 1
                             clip: true
 
@@ -786,15 +782,15 @@ Item {
                                         Layout.alignment: Qt.AlignHCenter
                                         name: "icon_camera"
                                         size: 34
-                                        color: Theme.textMuted
+                                        color: Theme.muted
                                         opacity: 0.35
                                     }
                                     Text {
                                         Layout.alignment: Qt.AlignHCenter
-                                        color: Theme.textMuted
+                                        color: Theme.muted
                                         text: "请从左侧列表选择记录进行预览"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontCaption
                                     }
                                 }
                             }
@@ -804,9 +800,9 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             text: (root.searchModelEpoch >= 0 && root.currentSelectedItem()) ? ("文件路径: " + (root.currentSelectedItem().filePath || "")) : "未选择项目"
-                            color: Theme.textMuted
+                            color: Theme.muted
                             font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSizeTiny
+                            font.pixelSize: Theme.fontMicro
                             elide: Text.ElideMiddle
                         }
                     }

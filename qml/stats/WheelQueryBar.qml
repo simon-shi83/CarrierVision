@@ -7,9 +7,9 @@ import "../common"
 Rectangle {
     id: root
     height: 56
-    color: Theme.bgCard
-    radius: Theme.radiusMd
-    border.color: Theme.borderMedium
+    color: Theme.surface
+    radius: Theme.radiusSmall
+    border.color: Theme.border
     border.width: 1
 
     // 对外属性
@@ -52,17 +52,17 @@ Rectangle {
             spacing: 6
             Label {
                 text: "日期"
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontCaption
             }
             DatePicker {
                 id: startDateField
                 Layout.preferredWidth: 136
                 Layout.preferredHeight: 34
             }
-            Label { text: "~"; color: Theme.textMuted; font.bold: true }
+            Label { text: "~"; color: Theme.muted; font.weight: Theme.fontMedium }
             DatePicker {
                 id: endDateField
                 Layout.preferredWidth: 136
@@ -70,17 +70,17 @@ Rectangle {
             }
         }
 
-        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; color: Theme.divider }
+        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; color: Theme.borderMuted }
 
         // 架号
         RowLayout {
             spacing: 6
             Label {
                 text: "架号"
-                font.family: Theme.fontFamily
-                font.bold: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeSmall
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontCaption
             }
             NumPicker {
                 id: rackField
@@ -90,17 +90,17 @@ Rectangle {
             }
         }
 
-        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; color: Theme.divider }
+        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; color: Theme.borderMuted }
 
         // 轮号多选
         RowLayout {
             spacing: 6
             Label {
                 text: root.wheelLabel
-                font.family: Theme.fontFamily
-                font.bold: true
+                font.family: Theme.fontSans
+                font.weight: Theme.fontMedium
                 color: root.wheelColor
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontCaption
             }
             RowLayout {
                 spacing: 3
@@ -125,17 +125,17 @@ Rectangle {
                         }
                         contentItem: Text {
                             text: parent.text
-                            color: parent.checked ? "#ffffff" : Theme.textSecondary
-                            font.family: Theme.fontMono
-                            font.bold: true
+                            color: parent.checked ? Theme.textOnAccent : Theme.textSoft
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.weight: Theme.fontMedium
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: parent.checked ? root.wheelColor : (parent.hovered ? Theme.bgCardActive : Theme.bgInput)
+                            radius: Theme.radiusMicro
+                            color: parent.checked ? root.wheelColor : (parent.hovered ? Theme.pressed : Theme.fieldFill)
                             border.width: 1
-                            border.color: parent.checked ? root.wheelColor : Theme.borderSubtle
+                            border.color: parent.checked ? root.wheelColor : Theme.borderMuted
                         }
                     }
                 }
@@ -193,9 +193,9 @@ Rectangle {
             standardButtons: Dialog.Ok | Dialog.Cancel
 
             background: Rectangle {
-                radius: Theme.radiusLg
-                color: Theme.bgPopup
-                border.color: Theme.borderMedium
+                radius: Theme.radiusMedium
+                color: Theme.surfaceFloating
+                border.color: Theme.border
                 border.width: 1
             }
 
@@ -228,22 +228,22 @@ Rectangle {
                 spacing: 10
                 Label {
                     text: "将保存到应用数据目录 (data/)"
-                    color: Theme.textSecondary
-                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.textSoft
+                    font.pixelSize: Theme.fontCaption
                 }
                 RowLayout {
                     spacing: 8
-                    Label { text: "文件名:"; color: Theme.textPrimary; font.bold: true }
+                    Label { text: "文件名:"; color: Theme.text; font.weight: Theme.fontMedium }
                     TextField {
                         id: fileNameInput
                         Layout.fillWidth: true
                         Layout.preferredHeight: 36
-                        color: Theme.textPrimary
-                        font.family: Theme.fontMono
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         background: Rectangle {
-                            radius: Theme.radiusMd
-                            color: Theme.bgInput
-                            border.color: fileNameInput.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                            radius: Theme.radiusSmall
+                            color: Theme.fieldFill
+                            border.color: fileNameInput.activeFocus ? Theme.selectedBorder : Theme.border
                         }
                     }
                 }

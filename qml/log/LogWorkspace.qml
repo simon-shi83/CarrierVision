@@ -88,10 +88,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 70
-                radius: Theme.radiusMd
-                color: Theme.bgCard
+                radius: Theme.radiusSmall
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -99,15 +99,15 @@ Page {
                     spacing: 12
 
                     Rectangle {
-                        width: 42; height: 42; radius: Theme.radiusMd
-                        color: Theme.primaryGlow
-                        AppIcon { anchors.centerIn: parent; name: "nav_log"; size: 22; color: Theme.primary }
+                        width: 42; height: 42; radius: Theme.radiusSmall
+                        color: Theme.activeSubtle
+                        AppIcon { anchors.centerIn: parent; name: "nav_log"; size: 22; color: Theme.accent }
                     }
 
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "今日日志总数"; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary; font.family: Theme.fontFamily }
-                        Text { text: String(root.logStats.todayTotal || 0); font.pixelSize: 20; font.bold: true; color: Theme.textPrimary; font.family: Theme.fontMono }
+                        Text { text: "今日日志总数"; font.pixelSize: Theme.fontCaption; color: Theme.textSoft; font.family: Theme.fontSans }
+                        Text { text: String(root.logStats.todayTotal || 0); font.pixelSize: Theme.fontTitle; font.weight: Theme.fontMedium; color: Theme.text; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                     }
                 }
             }
@@ -116,10 +116,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 70
-                radius: Theme.radiusMd
-                color: Theme.bgCard
+                radius: Theme.radiusSmall
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -127,15 +127,15 @@ Page {
                     spacing: 12
 
                     Rectangle {
-                        width: 42; height: 42; radius: Theme.radiusMd
-                        color: Theme.warningBg
-                        AppIcon { anchors.centerIn: parent; name: "nav_alert"; size: 22; color: Theme.warning }
+                        width: 42; height: 42; radius: Theme.radiusSmall
+                        color: Theme.warnSoft
+                        AppIcon { anchors.centerIn: parent; name: "nav_alert"; size: 22; color: Theme.warn }
                     }
 
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "今日系统警告"; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary; font.family: Theme.fontFamily }
-                        Text { text: String(root.logStats.todayWarn || 0); font.pixelSize: 20; font.bold: true; color: Theme.warning; font.family: Theme.fontMono }
+                        Text { text: "今日系统警告"; font.pixelSize: Theme.fontCaption; color: Theme.textSoft; font.family: Theme.fontSans }
+                        Text { text: String(root.logStats.todayWarn || 0); font.pixelSize: Theme.fontTitle; font.weight: Theme.fontMedium; color: Theme.warn; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                     }
                 }
             }
@@ -144,10 +144,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 70
-                radius: Theme.radiusMd
-                color: Theme.bgCard
+                radius: Theme.radiusSmall
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -155,15 +155,15 @@ Page {
                     spacing: 12
 
                     Rectangle {
-                        width: 42; height: 42; radius: Theme.radiusMd
-                        color: Theme.ngBg
-                        Text { anchors.centerIn: parent; text: "✕"; font.pixelSize: 20; font.bold: true; color: Theme.ng }
+                        width: 42; height: 42; radius: Theme.radiusSmall
+                        color: Theme.dangerSoft
+                        AppIcon { anchors.centerIn: parent; name: "icon_error"; size: 22; color: Theme.danger }
                     }
 
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "今日严重错误"; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary; font.family: Theme.fontFamily }
-                        Text { text: String(root.logStats.todayError || 0); font.pixelSize: 20; font.bold: true; color: Theme.ng; font.family: Theme.fontMono }
+                        Text { text: "今日严重错误"; font.pixelSize: Theme.fontCaption; color: Theme.textSoft; font.family: Theme.fontSans }
+                        Text { text: String(root.logStats.todayError || 0); font.pixelSize: Theme.fontTitle; font.weight: Theme.fontMedium; color: Theme.danger; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                     }
                 }
             }
@@ -172,10 +172,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 70
-                radius: Theme.radiusMd
-                color: Theme.bgCard
+                radius: Theme.radiusSmall
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderSubtle
+                border.color: Theme.borderMuted
 
                 RowLayout {
                     anchors.fill: parent
@@ -183,18 +183,18 @@ Page {
                     spacing: 12
 
                     Rectangle {
-                        width: 42; height: 42; radius: Theme.radiusMd
-                        color: Theme.okBg
+                        width: 42; height: 42; radius: Theme.radiusSmall
+                        color: Theme.okSoft
                         AppIcon { anchors.centerIn: parent; name: "icon_file_text"; size: 22; color: Theme.ok }
                     }
 
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "日志磁盘占用 (上限 1 GB)"; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary; font.family: Theme.fontFamily }
+                        Text { text: "日志磁盘占用 (上限 1 GB)"; font.pixelSize: Theme.fontCaption; color: Theme.textSoft; font.family: Theme.fontSans }
                         RowLayout {
                             spacing: 6
-                            Text { text: String(root.logStats.totalSizeStr || "0 MB"); font.pixelSize: 18; font.bold: true; color: Theme.textPrimary; font.family: Theme.fontMono }
-                            Text { text: "· 共 " + String(root.logStats.fileCount || 0) + " 个文件"; font.pixelSize: 12; color: Theme.textMuted }
+                            Text { text: String(root.logStats.totalSizeStr || "0 MB"); font.pixelSize: Theme.fontTitle; font.weight: Theme.fontMedium; color: Theme.text; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                            Text { text: "· 共 " + String(root.logStats.fileCount || 0) + " 个文件"; font.pixelSize: Theme.fontCaption; color: Theme.muted }
                         }
                     }
                 }
@@ -205,10 +205,10 @@ Page {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 56
-            radius: Theme.radiusMd
-            color: Theme.bgCard
+            radius: Theme.radiusSmall
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
 
             RowLayout {
                 anchors.fill: parent
@@ -221,22 +221,22 @@ Page {
                     spacing: 8
                     Text {
                         text: "日志日期:"
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.family: Theme.fontFamily
-                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontCaption
+                        font.family: Theme.fontSans
+                        color: Theme.textSoft
                     }
                     ComboBox {
                         id: dateCombo
                         Layout.preferredWidth: 140
                         Layout.preferredHeight: 34
                         model: root.availableDates
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeSmall
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontCaption
 
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: Theme.bgInput
-                            border.color: dateCombo.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                            radius: Theme.radiusMicro
+                            color: Theme.fieldFill
+                            border.color: dateCombo.activeFocus ? Theme.selectedBorder : Theme.border
                             border.width: 1
                         }
 
@@ -244,7 +244,7 @@ Page {
                             leftPadding: 10
                             rightPadding: 26
                             text: dateCombo.currentText
-                            color: Theme.textPrimary
+                            color: Theme.text
                             font: dateCombo.font
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
@@ -255,7 +255,7 @@ Page {
                             y: (dateCombo.height - height) / 2
                             name: "icon_arrow_down"
                             size: 12
-                            color: Theme.textSecondary
+                            color: Theme.textSoft
                         }
 
                         popup: Popup {
@@ -264,9 +264,9 @@ Page {
                             implicitHeight: Math.min(260, contentItem.implicitHeight + 8)
                             padding: 4
                             background: Rectangle {
-                                color: Theme.bgPopup
-                                radius: Theme.radiusMd
-                                border.color: Theme.borderMedium
+                                color: Theme.surfaceFloating
+                                radius: Theme.radiusSmall
+                                border.color: Theme.border
                                 border.width: 1
                             }
                             contentItem: ListView {
@@ -283,15 +283,15 @@ Page {
                             height: 32
                             contentItem: Text {
                                 text: modelData
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
-                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
                                 verticalAlignment: Text.AlignVCenter
                                 leftPadding: 8
                             }
                             background: Rectangle {
-                                radius: Theme.radiusSm
-                                color: highlighted ? Theme.bgCardActive : "transparent"
+                                radius: Theme.radiusMicro
+                                color: highlighted ? Theme.pressed : "transparent"
                             }
                         }
 
@@ -307,9 +307,9 @@ Page {
                     spacing: 8
                     Text {
                         text: "日志级别:"
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.family: Theme.fontFamily
-                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontCaption
+                        font.family: Theme.fontSans
+                        color: Theme.textSoft
                     }
                     ComboBox {
                         id: levelCombo
@@ -317,8 +317,8 @@ Page {
                         Layout.preferredHeight: 34
                         textRole: "text"
                         valueRole: "value"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
                         model: [
                             { text: "全部级别", value: "all" },
                             { text: "INFO 信息", value: "info" },
@@ -328,9 +328,9 @@ Page {
                         ]
 
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: Theme.bgInput
-                            border.color: levelCombo.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                            radius: Theme.radiusMicro
+                            color: Theme.fieldFill
+                            border.color: levelCombo.activeFocus ? Theme.selectedBorder : Theme.border
                             border.width: 1
                         }
 
@@ -338,7 +338,7 @@ Page {
                             leftPadding: 10
                             rightPadding: 26
                             text: levelCombo.currentText
-                            color: Theme.textPrimary
+                            color: Theme.text
                             font: levelCombo.font
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -348,7 +348,7 @@ Page {
                             y: (levelCombo.height - height) / 2
                             name: "icon_arrow_down"
                             size: 12
-                            color: Theme.textSecondary
+                            color: Theme.textSoft
                         }
 
                         popup: Popup {
@@ -357,9 +357,9 @@ Page {
                             implicitHeight: contentItem.implicitHeight + 8
                             padding: 4
                             background: Rectangle {
-                                color: Theme.bgPopup
-                                radius: Theme.radiusMd
-                                border.color: Theme.borderMedium
+                                color: Theme.surfaceFloating
+                                radius: Theme.radiusSmall
+                                border.color: Theme.border
                                 border.width: 1
                             }
                             contentItem: ListView {
@@ -376,20 +376,20 @@ Page {
                             contentItem: Text {
                                 text: modelData.text
                                 color: {
-                                    if (modelData.value === "error") return Theme.ng
-                                    if (modelData.value === "warn") return Theme.warning
+                                    if (modelData.value === "error") return Theme.danger
+                                    if (modelData.value === "warn") return Theme.warn
                                     if (modelData.value === "info") return Theme.ok
-                                    return Theme.textPrimary
+                                    return Theme.text
                                 }
-                                font.bold: highlighted || modelData.value === levelCombo.currentValue
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: (highlighted || modelData.value === levelCombo.currentValue) ? Theme.fontMedium : Theme.fontRegular
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
                                 verticalAlignment: Text.AlignVCenter
                                 leftPadding: 8
                             }
                             background: Rectangle {
-                                radius: Theme.radiusSm
-                                color: highlighted ? Theme.bgCardActive : "transparent"
+                                radius: Theme.radiusMicro
+                                color: highlighted ? Theme.pressed : "transparent"
                             }
                         }
 
@@ -409,14 +409,14 @@ Page {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 34
                         placeholderText: "输入关键字搜索日志内容或时间..."
-                        placeholderTextColor: Theme.textMuted
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
+                        placeholderTextColor: Theme.muted
+                        color: Theme.text
+                        font.family: Theme.fontSans
                         selectByMouse: true
                         background: Rectangle {
-                            color: Theme.bgInput
-                            radius: Theme.radiusSm
-                            border.color: searchField.activeFocus ? Theme.borderHighlight : Theme.borderSubtle
+                            color: Theme.fieldFill
+                            radius: Theme.radiusMicro
+                            border.color: searchField.activeFocus ? Theme.selectedBorder : Theme.borderMuted
                             border.width: 1
                         }
                         onAccepted: {
@@ -451,7 +451,7 @@ Page {
                 ActionButton {
                     Layout.preferredHeight: 34
                     Layout.preferredWidth: 124
-                    text: "📁 打开日志目录"
+                    text: "打开日志目录"
                     variant: "secondary"
                     onClicked: {
                         if (appController) appController.openLogDirectory()
@@ -464,10 +464,10 @@ Page {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radiusMd
-            color: Theme.bgCard
+            radius: Theme.radiusSmall
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderMedium
+            border.color: Theme.border
             clip: true
 
             ColumnLayout {
@@ -478,7 +478,7 @@ Page {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 38
-                    color: Theme.bgCardElevated
+                    color: Theme.surfaceAlt
 
                     RowLayout {
                         anchors.fill: parent
@@ -486,15 +486,15 @@ Page {
                         anchors.rightMargin: 16
                         spacing: 12
 
-                        Text { Layout.preferredWidth: 50; text: "#"; font.bold: true; color: Theme.textSecondary; font.pixelSize: Theme.fontSizeSmall }
-                        Text { Layout.preferredWidth: 170; text: "时间戳"; font.bold: true; color: Theme.textSecondary; font.pixelSize: Theme.fontSizeSmall }
-                        Text { Layout.preferredWidth: 80; text: "级别"; font.bold: true; color: Theme.textSecondary; font.pixelSize: Theme.fontSizeSmall; horizontalAlignment: Text.AlignHCenter }
-                        Text { Layout.fillWidth: true; text: "日志消息正文"; font.bold: true; color: Theme.textSecondary; font.pixelSize: Theme.fontSizeSmall }
+                        Text { Layout.preferredWidth: 50; text: "#"; font.weight: Theme.fontMedium; color: Theme.textSoft; font.pixelSize: Theme.fontCaption }
+                        Text { Layout.preferredWidth: 170; text: "时间戳"; font.weight: Theme.fontMedium; color: Theme.textSoft; font.pixelSize: Theme.fontCaption }
+                        Text { Layout.preferredWidth: 80; text: "级别"; font.weight: Theme.fontMedium; color: Theme.textSoft; font.pixelSize: Theme.fontCaption; horizontalAlignment: Text.AlignHCenter }
+                        Text { Layout.fillWidth: true; text: "日志消息正文"; font.weight: Theme.fontMedium; color: Theme.textSoft; font.pixelSize: Theme.fontCaption }
                     }
 
                     Rectangle {
                         anchors.bottom: parent.bottom
-                        width: parent.width; height: 1; color: Theme.borderSubtle
+                        width: parent.width; height: 1; color: Theme.borderMuted
                     }
                 }
 
@@ -514,7 +514,7 @@ Page {
                         id: delegateRow
                         width: logListView.width
                         height: 38
-                        color: index % 2 === 0 ? "transparent" : (Theme.isDark ? "#09ffffff" : "#05000000")
+                        color: index % 2 === 0 ? "transparent" : Theme.subtleFill
 
                         // 整个数据行的指针悬停检测
                         HoverHandler {
@@ -532,7 +532,7 @@ Page {
                         // 悬停行高亮背景
                         Rectangle {
                             anchors.fill: parent
-                            color: (rowHoverHandler.hovered || copyBtn.hovered) ? Theme.bgCardActive : "transparent"
+                            color: (rowHoverHandler.hovered || copyBtn.hovered) ? Theme.pressed : "transparent"
                         }
 
                         RowLayout {
@@ -545,18 +545,18 @@ Page {
                             Text {
                                 Layout.preferredWidth: 50
                                 text: String((root.currentPage - 1) * root.pageSize + index + 1)
-                                color: Theme.textMuted
-                                font.family: Theme.fontMono
-                                font.pixelSize: 11
+                                color: Theme.muted
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
                             }
 
                             // 时间戳
                             Text {
                                 Layout.preferredWidth: 170
                                 text: modelData.time || ""
-                                color: Theme.textPrimary
-                                font.family: Theme.fontMono
-                                font.pixelSize: 12
+                                color: Theme.text
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                font.pixelSize: Theme.fontCaption
                             }
 
                             // 级别徽章药丸
@@ -570,29 +570,29 @@ Page {
                                     anchors.centerIn: parent
                                     width: 64; height: 20; radius: 10
                                     color: {
-                                        if (parent.lvl === "ERROR" || parent.lvl === "CRITICAL") return Theme.ngBg
-                                        if (parent.lvl === "WARN" || parent.lvl === "WARNING") return Theme.warningBg
-                                        if (parent.lvl === "DEBUG" || parent.lvl === "TRACE") return Theme.bgCardElevated
-                                        return Theme.okBg
+                                        if (parent.lvl === "ERROR" || parent.lvl === "CRITICAL") return Theme.dangerSoft
+                                        if (parent.lvl === "WARN" || parent.lvl === "WARNING") return Theme.warnSoft
+                                        if (parent.lvl === "DEBUG" || parent.lvl === "TRACE") return Theme.surfaceAlt
+                                        return Theme.okSoft
                                     }
                                     border.width: 1
                                     border.color: {
-                                        if (parent.lvl === "ERROR" || parent.lvl === "CRITICAL") return Theme.ngBorder
-                                        if (parent.lvl === "WARN" || parent.lvl === "WARNING") return Theme.warning
-                                        if (parent.lvl === "DEBUG" || parent.lvl === "TRACE") return Theme.borderMedium
+                                        if (parent.lvl === "ERROR" || parent.lvl === "CRITICAL") return Theme.dangerBorder
+                                        if (parent.lvl === "WARN" || parent.lvl === "WARNING") return Theme.warn
+                                        if (parent.lvl === "DEBUG" || parent.lvl === "TRACE") return Theme.border
                                         return Theme.okBorder
                                     }
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: parent.parent.lvl
-                                        font.bold: true
-                                        font.pixelSize: 10
-                                        font.family: Theme.fontMono
+                                        font.weight: Theme.fontMedium
+                                        font.pixelSize: Theme.fontMicro
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                         color: {
-                                            if (parent.parent.lvl === "ERROR" || parent.parent.lvl === "CRITICAL") return Theme.ng
-                                            if (parent.parent.lvl === "WARN" || parent.parent.lvl === "WARNING") return Theme.warning
-                                            if (parent.parent.lvl === "DEBUG" || parent.parent.lvl === "TRACE") return Theme.textMuted
+                                            if (parent.parent.lvl === "ERROR" || parent.parent.lvl === "CRITICAL") return Theme.danger
+                                            if (parent.parent.lvl === "WARN" || parent.parent.lvl === "WARNING") return Theme.warn
+                                            if (parent.parent.lvl === "DEBUG" || parent.parent.lvl === "TRACE") return Theme.muted
                                             return Theme.ok
                                         }
                                     }
@@ -609,16 +609,16 @@ Page {
                                 selectByMouse: true
                                 activeFocusOnPress: true
                                 cursorVisible: false
-                                selectionColor: Theme.primaryLight
-                                selectedTextColor: "#ffffff"
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.textOnAccent
                                 color: {
                                     var l = String(modelData.level || "").toUpperCase()
-                                    if (l === "ERROR" || l === "CRITICAL") return Theme.ng
-                                    if (l === "WARN" || l === "WARNING") return Theme.warning
-                                    return Theme.textPrimary
+                                    if (l === "ERROR" || l === "CRITICAL") return Theme.danger
+                                    if (l === "WARN" || l === "WARNING") return Theme.warn
+                                    return Theme.text
                                 }
                                 font.family: Theme.fontMono
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
 
@@ -647,24 +647,24 @@ Page {
                             contentItem: RowLayout {
                                 anchors.centerIn: parent
                                 spacing: 3
-                                Text {
-                                    text: copyBtn.copied ? "✓" : "📋"
-                                    font.pixelSize: 11
-                                    color: copyBtn.copied ? Theme.ok : Theme.textSecondary
+                                AppIcon {
+                                    name: copyBtn.copied ? "icon_check" : "icon_copy"
+                                    size: 14
+                                    color: copyBtn.copied ? Theme.ok : Theme.textSoft
                                 }
                                 Text {
                                     text: copyBtn.copied ? "已复制" : "复制"
-                                    font.pixelSize: 11
-                                    font.bold: copyBtn.copied
-                                    color: copyBtn.copied ? Theme.ok : Theme.textPrimary
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: (copyBtn.copied) ? Theme.fontMedium : Theme.fontRegular
+                                    color: copyBtn.copied ? Theme.ok : Theme.text
                                 }
                             }
 
                             background: Rectangle {
-                                radius: Theme.radiusSm
-                                color: copyBtn.copied ? Theme.okBg : (copyBtn.hovered ? Theme.bgCardActive : Theme.bgCardElevated)
+                                radius: Theme.radiusMicro
+                                color: copyBtn.copied ? Theme.okSoft : (copyBtn.hovered ? Theme.pressed : Theme.surfaceAlt)
                                 border.width: 1
-                                border.color: copyBtn.copied ? Theme.okBorder : (copyBtn.hovered ? Theme.borderMedium : Theme.borderSubtle)
+                                border.color: copyBtn.copied ? Theme.okBorder : (copyBtn.hovered ? Theme.border : Theme.borderMuted)
                                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
                                 Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
                             }
@@ -688,16 +688,16 @@ Page {
                             anchors.centerIn: parent
                             spacing: 8
                             Text {
-                                text: "📭 无匹配日志数据"
-                                font.pixelSize: 16
-                                font.bold: true
-                                color: Theme.textSecondary
+                                text: "无匹配日志数据"
+                                font.pixelSize: Theme.fontTitle
+                                font.weight: Theme.fontMedium
+                                color: Theme.textSoft
                                 Layout.alignment: Qt.AlignHCenter
                             }
                             Text {
                                 text: "请尝试调整上方日期、级别或关键字筛选条件"
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontCaption
+                                color: Theme.muted
                                 Layout.alignment: Qt.AlignHCenter
                             }
                         }
@@ -732,17 +732,17 @@ Page {
         property string logDetail: ""
 
         background: Rectangle {
-            color: Theme.bgCard
-            radius: Theme.radiusMd
-            border.color: Theme.borderMedium
+            color: Theme.surface
+            radius: Theme.radiusSmall
+            border.color: Theme.border
             border.width: 1
         }
 
         header: Rectangle {
             width: parent.width
             height: 44
-            color: Theme.bgCardElevated
-            radius: Theme.radiusMd
+            color: Theme.surfaceAlt
+            radius: Theme.radiusSmall
 
             RowLayout {
                 anchors.fill: parent
@@ -754,34 +754,34 @@ Page {
                     width: 3
                     height: 14
                     radius: 1.5
-                    color: Theme.primary
+                    color: Theme.borderStrong
                 }
 
                 Text {
                     text: "日志详情"
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
-                    font.bold: true
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Theme.fontMedium
                 }
 
                 Item { Layout.fillWidth: true }
 
                 Button {
-                    text: "✕"
                     Layout.preferredWidth: 26
                     Layout.preferredHeight: 26
                     onClicked: detailDialog.close()
-                    contentItem: Text {
-                        text: parent.text
-                        color: Theme.textSecondary
-                        font.pixelSize: 13
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    contentItem: Item {
+                        AppIcon {
+                            anchors.centerIn: parent
+                            name: "icon_close"
+                            size: 14
+                            color: parent.parent.hovered ? Theme.text : Theme.muted
+                        }
                     }
                     background: Rectangle {
-                        color: parent.hovered ? Theme.ngBg : "transparent"
-                        radius: Theme.radiusSm
+                        color: parent.hovered ? Theme.pressed : "transparent"
+                        radius: Theme.radiusMicro
                     }
                 }
             }
@@ -790,7 +790,7 @@ Page {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
         }
 
@@ -803,12 +803,12 @@ Page {
                 readOnly: true
                 wrapMode: Text.WrapAnywhere
                 font.family: Theme.fontMono
-                font.pixelSize: 12
-                color: Theme.textPrimary
+                font.pixelSize: Theme.fontCaption
+                color: Theme.text
                 background: Rectangle {
-                    color: Theme.bgInput
-                    radius: Theme.radiusSm
-                    border.color: Theme.borderSubtle
+                    color: Theme.fieldFill
+                    radius: Theme.radiusMicro
+                    border.color: Theme.borderMuted
                 }
             }
             RowLayout {

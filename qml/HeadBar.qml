@@ -7,14 +7,13 @@ Rectangle {
     id: root
     width: parent ? parent.width : 0
     height: 60
-    color: Theme.bgHeader
+    color: Theme.surface
 
     // ===== 对外暴露的属性 =====
-    property string logoText: "📷"
     property string systemName: "Carrier 自动点检终端系统"
-    property color logoColor: Theme.textPrimary
-    property color systemNameColor: Theme.textPrimary
-    property color timeColor: Theme.primaryLight
+    property color logoColor: Theme.text
+    property color systemNameColor: Theme.text
+    property color timeColor: Theme.accent
     property bool showExitButton: true
 
     // ===== 服务运行真实状态监听 =====
@@ -31,19 +30,19 @@ Rectangle {
     readonly property color masterStatusColor: {
         if (ftpRunning)
             return Theme.ok;
-        return Theme.warning;
+        return Theme.warn;
     }
 
     readonly property color masterStatusBg: {
         if (ftpRunning)
-            return Theme.okBg;
-        return Theme.warningBg;
+            return Theme.okSoft;
+        return Theme.warnSoft;
     }
 
     readonly property color masterStatusBorder: {
         if (ftpRunning)
             return Theme.okBorder;
-        return Theme.warningBorder;
+        return Theme.warnBorder;
     }
 
     // ===== 信号 =====
@@ -97,7 +96,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 1
-        color: Theme.borderSubtle
+        color: Theme.borderMuted
     }
 
     // ===== 核心三段式黄金律布局 (左品牌 · 中全局检索 · 右控制集群) =====
@@ -129,7 +128,7 @@ Rectangle {
                 Layout.preferredWidth: 1
                 Layout.preferredHeight: 22
                 Layout.alignment: Qt.AlignVCenter
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
 
             // 系统名称与状态微胶囊
@@ -141,10 +140,10 @@ Rectangle {
                     spacing: 8
                     Text {
                         text: root.systemName
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontH2
-                        font.weight: Theme.weightBold
-                        color: Theme.textPrimary
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontTitle
+                        font.weight: Theme.fontBold
+                        color: Theme.text
                     }
 
                     // 1. 系统总览运行状态脉冲药丸徽章
@@ -198,10 +197,10 @@ Rectangle {
 
                             Text {
                                 text: root.masterStatusText
-                                font.family: Theme.fontMono
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontMicro
                                 font.letterSpacing: Theme.letterSpacingWide
-                                font.weight: Theme.weightBold
+                                font.weight: Theme.fontBold
                                 color: root.masterStatusColor
                             }
                         }
@@ -224,10 +223,10 @@ Rectangle {
 
                 Text {
                     text: "CARRIER AUTO-INSPECTION TERMINAL SYSTEM"
-                    font.family: Theme.fontMono
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                     font.pixelSize: Theme.fontMicro
-                    font.letterSpacing: Theme.letterSpacingLoose
-                    color: Theme.textMuted
+                    font.letterSpacing: Theme.letterSpacingWide
+                    color: Theme.muted
                 }
             }
         }
@@ -252,8 +251,8 @@ Rectangle {
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.radiusPill
-                    color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.bgInput : (topSearchMouseArea.containsMouse ? Theme.bgCardActive : Theme.bgCardElevated)
-                    border.color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.primary : (topSearchMouseArea.containsMouse ? Theme.borderHover : Theme.borderSubtle)
+                    color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.fieldFill : (topSearchMouseArea.containsMouse ? Theme.pressed : Theme.surfaceAlt)
+                    border.color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.accent : (topSearchMouseArea.containsMouse ? Theme.borderStrong : Theme.borderMuted)
                     border.width: topSearchInput.activeFocus || searchDropdownPopup.opened ? 1.5 : 1
 
                     Behavior on color {
@@ -276,7 +275,7 @@ Rectangle {
                         AppIcon {
                             name: "nav_search"
                             size: 14
-                            color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.primaryLight : Theme.textMuted
+                            color: topSearchInput.activeFocus || searchDropdownPopup.opened ? Theme.accent : Theme.muted
                             Layout.alignment: Qt.AlignVCenter
                         }
 
@@ -285,9 +284,9 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             placeholderText: "快速检索指令、页面、架号轮号 (Ctrl+K)..."
-                            placeholderTextColor: Theme.textMuted
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
+                            placeholderTextColor: Theme.muted
+                            color: Theme.text
+                            font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
                             background: null
                             verticalAlignment: TextInput.AlignVCenter
@@ -341,14 +340,14 @@ Rectangle {
                             Layout.preferredWidth: 18
                             Layout.preferredHeight: 18
                             radius: 9
-                            color: clearMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                            color: clearMouse.containsMouse ? Theme.pressed : "transparent"
                             Layout.alignment: Qt.AlignVCenter
 
-                            Text {
+                            AppIcon {
                                 anchors.centerIn: parent
-                                text: "✕"
-                                color: Theme.textMuted
-                                font.pixelSize: 10
+                                name: "icon_close"
+                                size: 12
+                                color: Theme.muted
                             }
 
                             MouseArea {
@@ -368,9 +367,9 @@ Rectangle {
                             visible: topSearchInput.text.length === 0
                             Layout.preferredHeight: 18
                             Layout.preferredWidth: kbdText.implicitWidth + 8
-                            radius: Theme.radiusSm
-                            color: Theme.bgInput
-                            border.color: Theme.borderSubtle
+                            radius: Theme.radiusMicro
+                            color: Theme.fieldFill
+                            border.color: Theme.borderMuted
                             border.width: 1
                             Layout.alignment: Qt.AlignVCenter
 
@@ -378,10 +377,10 @@ Rectangle {
                                 id: kbdText
                                 anchors.centerIn: parent
                                 text: "Ctrl+K"
-                                color: Theme.textMuted
+                                color: Theme.muted
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.weightBold
+                                font.weight: Theme.fontBold
                             }
                         }
                     }
@@ -494,8 +493,17 @@ Rectangle {
                                 defaultOrder: 4
                             },
                             {
-                                cmdId: "ws_search",
+                                cmdId: "ws_heat_image",
                                 wsIndex: 2,
+                                title: "切换至「热力图像」工作区",
+                                subtitle: "50 架本轮 12 相机检测图像，按架号分组浏览",
+                                category: "工作区",
+                                icon: "icon_image",
+                                defaultOrder: 4
+                            },
+                            {
+                                cmdId: "ws_search",
+                                wsIndex: 3,
                                 title: "切换至「数据查询」工作区",
                                 subtitle: "历史点检图像、轮号、架号多维追溯检索",
                                 category: "质量追溯",
@@ -504,7 +512,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_search_today",
-                                wsIndex: 2,
+                                wsIndex: 3,
                                 subAction: "today",
                                 title: "数据查询：快速检索今日检测记录",
                                 subtitle: "自动应用当天起止时间戳并执行综合查询",
@@ -514,7 +522,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_search_ng",
-                                wsIndex: 2,
+                                wsIndex: 3,
                                 subAction: "ng",
                                 title: "数据查询：筛选全部 NG 缺陷图片",
                                 subtitle: "快速定位带几何超差或外观缺陷的历史检测样本",
@@ -524,7 +532,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_stats",
-                                wsIndex: 3,
+                                wsIndex: 4,
                                 title: "切换至「统计分析」工作区",
                                 subtitle: "驱动轮/走行轮离散度统计与周报导出",
                                 category: "工作区",
@@ -533,7 +541,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_stats_wheel",
-                                wsIndex: 3,
+                                wsIndex: 4,
                                 subAction: 0,
                                 title: "统计分析：轮位质量离散度看板",
                                 subtitle: "驱动轮与走行轮正态分布、标准差与工序能力",
@@ -543,7 +551,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_stats_rack",
-                                wsIndex: 3,
+                                wsIndex: 4,
                                 subAction: 1,
                                 title: "统计分析：架损分布与形变统计",
                                 subtitle: "50 组托架各轮位历史累积磨损与架损趋势",
@@ -553,7 +561,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_stats_week",
-                                wsIndex: 3,
+                                wsIndex: 4,
                                 subAction: 2,
                                 title: "统计分析：周报统计与报表导出",
                                 subtitle: "周期质量检测汇总、Drivers/Deformed 数据 CSV 导出",
@@ -563,7 +571,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_alert",
-                                wsIndex: 4,
+                                wsIndex: 5,
                                 title: "切换至「报警统计」工作区",
                                 subtitle: "系统缺陷事件看板、统计与告警历史",
                                 category: "工作区",
@@ -572,7 +580,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_alert_record",
-                                wsIndex: 4,
+                                wsIndex: 5,
                                 subAction: 0,
                                 title: "报警统计：异常告警事件明细",
                                 subtitle: "实时采集各工位硬件与算法触发的报警事件流水",
@@ -582,7 +590,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_alert_stats",
-                                wsIndex: 4,
+                                wsIndex: 5,
                                 subAction: 1,
                                 title: "报警统计：报警频次与趋势看板",
                                 subtitle: "按缺陷类型与工位通道聚合的报警占比图谱",
@@ -592,7 +600,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_log",
-                                wsIndex: 5,
+                                wsIndex: 6,
                                 title: "切换至「日志查询」工作区",
                                 subtitle: "全生命周期运行事件与底层通讯诊断日志",
                                 category: "工作区",
@@ -601,7 +609,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_log_error",
-                                wsIndex: 5,
+                                wsIndex: 6,
                                 subAction: "ERROR",
                                 title: "日志查询：筛选 ERROR 级故障日志",
                                 subtitle: "快速诊断网络掉线、端口占用或底层错误",
@@ -611,7 +619,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_log_warn",
-                                wsIndex: 5,
+                                wsIndex: 6,
                                 subAction: "WARN",
                                 title: "日志查询：筛选 WARN 级警告日志",
                                 subtitle: "排查通信重连、参数边界与潜在性能告警",
@@ -621,7 +629,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_settings",
-                                wsIndex: 6,
+                                wsIndex: 7,
                                 title: "切换至「系统设置」工作区",
                                 subtitle: "FTP服务、清理与安全密码",
                                 category: "工作区",
@@ -630,7 +638,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_settings_calib",
-                                wsIndex: 6,
+                                wsIndex: 7,
                                 subAction: 0,
                                 title: "系统设置：基准标定与相机映射",
                                 subtitle: "12 通道相机物理通道与标准槽位几何标定",
@@ -640,7 +648,7 @@ Rectangle {
                             },
                             {
                                 cmdId: "ws_settings_config",
-                                wsIndex: 6,
+                                wsIndex: 7,
                                 subAction: 1,
                                 title: "系统设置：系统配置与网络服务",
                                 subtitle: "通信端口、FTP 根目录、超期清理与管理员密码",
@@ -883,23 +891,23 @@ Rectangle {
                             if (typeof appController !== "undefined" && appController && appController.genericSearchRequested) {
                                 appController.genericSearchRequested("", "", item.wheelNum, "");
                             } else if (typeof root.navigateRequested === "function") {
-                                root.navigateRequested(2);
+                                root.navigateRequested(3);
                             }
                         } else if (item.cmdId === "query_rack") {
                             if (typeof root.navigateRequested === "function") {
-                                root.navigateRequested(2);
+                                root.navigateRequested(3);
                             }
                         } else if (item.cmdId === "query_ng") {
                             if (typeof root.navigateRequested === "function") {
-                                root.navigateRequested(2, "ng");
+                                root.navigateRequested(3, "ng");
                             }
                         }
                     }
 
                     background: Rectangle {
-                        radius: Theme.radiusMd
-                        color: Theme.bgPopup
-                        border.color: Theme.borderMedium
+                        radius: Theme.radiusSmall
+                        color: Theme.surfaceFloating
+                        border.color: Theme.border
                         border.width: 1
 
                         // 顶部高光微线条
@@ -908,7 +916,7 @@ Rectangle {
                             anchors.right: parent.right
                             anchors.top: parent.top
                             height: 1
-                            color: Theme.borderHighlight
+                            color: Theme.selectedBorder
                             opacity: 0.35
                         }
                     }
@@ -925,17 +933,17 @@ Rectangle {
                             Layout.bottomMargin: 2
                             Text {
                                 text: topSearchInput.text.length > 0 ? "检索结果 (按高频与匹配度优先)" : "常用工控指令 (高频优先排列)"
-                                color: Theme.textMuted
-                                font.family: Theme.fontFamily
+                                color: Theme.muted
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.weightBold
+                                font.weight: Theme.fontBold
                                 font.letterSpacing: Theme.letterSpacingWide
                                 Layout.fillWidth: true
                             }
                             Text {
                                 text: searchDropdownPopup.filteredCommands().length + " 项"
-                                color: Theme.textMuted
-                                font.family: Theme.fontMono
+                                color: Theme.muted
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontMicro
                             }
                         }
@@ -959,9 +967,9 @@ Rectangle {
                                 id: cmdDelegate
                                 width: ListView.view.width
                                 height: 46
-                                radius: Theme.radiusSm
-                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.bgCardActive : "transparent"
-                                border.color: searchDropdownPopup.selectedIndex === index ? Theme.borderHighlight : "transparent"
+                                radius: Theme.radiusMicro
+                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.pressed : "transparent"
+                                border.color: searchDropdownPopup.selectedIndex === index ? Theme.selectedBorder : "transparent"
                                 border.width: searchDropdownPopup.selectedIndex === index ? 1 : 0
 
                                 Behavior on color {
@@ -979,13 +987,13 @@ Rectangle {
                                     Rectangle {
                                         Layout.preferredWidth: 28
                                         Layout.preferredHeight: 28
-                                        radius: Theme.radiusSm
-                                        color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.primaryGlow : Theme.bgCardElevated
+                                        radius: Theme.radiusMicro
+                                        color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.activeSubtle : Theme.surfaceAlt
 
                                         AppIcon {
                                             anchors.centerIn: parent
                                             name: modelData.icon || "nav_search"
-                                            color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.primaryLight : Theme.textSecondary
+                                            color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.accent : Theme.textSoft
                                             size: 14
                                         }
                                     }
@@ -1000,10 +1008,10 @@ Rectangle {
 
                                             Text {
                                                 text: modelData.title
-                                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.primaryLight : Theme.textPrimary
-                                                font.family: Theme.fontFamily
+                                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.accent : Theme.text
+                                                font.family: Theme.fontSans
                                                 font.pixelSize: Theme.fontCaption
-                                                font.weight: Theme.weightMedium
+                                                font.weight: Theme.fontMedium
                                                 elide: Text.ElideRight
                                             }
 
@@ -1013,26 +1021,26 @@ Rectangle {
                                                 Layout.preferredHeight: 14
                                                 implicitWidth: freqText.implicitWidth + 8
                                                 radius: 3
-                                                color: Qt.rgba(0.0, 0.85, 0.65, 0.15)
-                                                border.color: Qt.rgba(0.0, 0.85, 0.65, 0.4)
+                                                color: Theme.surfaceAlt
+                                                border.color: Theme.borderMuted
                                                 border.width: 1
 
                                                 Text {
                                                     id: freqText
                                                     anchors.centerIn: parent
                                                     text: "高频"
-                                                    color: Theme.okLight
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: 9
-                                                    font.weight: Theme.weightBold
+                                                    color: Theme.muted
+                                                    font.family: Theme.fontSans
+                                                    font.pixelSize: Theme.fontMicro
+                                                    font.weight: Theme.fontBold
                                                 }
                                             }
                                         }
 
                                         Text {
                                             text: modelData.subtitle
-                                            color: Theme.textSecondary
-                                            font.family: Theme.fontFamily
+                                            color: Theme.textSoft
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontMicro
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
@@ -1042,17 +1050,17 @@ Rectangle {
                                     Rectangle {
                                         Layout.preferredHeight: 18
                                         implicitWidth: catText.implicitWidth + 10
-                                        radius: Theme.radiusSm
-                                        color: Theme.bgInput
-                                        border.color: Theme.borderSubtle
+                                        radius: Theme.radiusMicro
+                                        color: Theme.fieldFill
+                                        border.color: Theme.borderMuted
                                         border.width: 1
 
                                         Text {
                                             id: catText
                                             anchors.centerIn: parent
                                             text: modelData.category
-                                            color: Theme.textMuted
-                                            font.family: Theme.fontFamily
+                                            color: Theme.muted
+                                            font.family: Theme.fontSans
                                             font.pixelSize: Theme.fontMicro
                                         }
                                     }
@@ -1090,7 +1098,7 @@ Rectangle {
                                 AppIcon {
                                     Layout.alignment: Qt.AlignHCenter
                                     name: "nav_search"
-                                    color: Theme.textMuted
+                                    color: Theme.muted
                                     size: 18
                                     opacity: 0.6
                                 }
@@ -1098,8 +1106,8 @@ Rectangle {
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     text: "未找到匹配的指令、工作区或点检数据"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontCaption
                                 }
                             }
@@ -1125,9 +1133,9 @@ Rectangle {
                 id: themeToggleBtn
                 Layout.preferredWidth: 34
                 Layout.preferredHeight: 34
-                radius: Theme.radiusMd
-                color: themeToggleMouse.containsMouse ? Theme.bgCardActive : Theme.bgCardElevated
-                border.color: themeToggleMouse.containsMouse ? Theme.borderHover : Theme.borderSubtle
+                radius: Theme.radiusSmall
+                color: themeToggleMouse.containsMouse ? Theme.pressed : Theme.surfaceAlt
+                border.color: themeToggleMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
                 border.width: 1
 
                 Behavior on color {
@@ -1145,7 +1153,7 @@ Rectangle {
                     anchors.centerIn: parent
                     name: Theme.isDark ? "icon_sun" : "icon_moon"
                     size: 15
-                    color: themeToggleMouse.containsMouse ? Theme.primaryLight : Theme.textSecondary
+                    color: themeToggleMouse.containsMouse ? Theme.text : Theme.textSoft
                 }
 
                 MouseArea {
@@ -1167,7 +1175,7 @@ Rectangle {
                 Layout.preferredHeight: 18
                 Layout.leftMargin: 2
                 Layout.rightMargin: 2
-                color: Theme.divider
+                color: Theme.borderMuted
             }
 
             // 紧凑窗体控制组 (Caption Controls Group)
@@ -1178,14 +1186,14 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
-                    radius: Theme.radiusSm
-                    color: winMinMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    radius: Theme.radiusMicro
+                    color: winMinMouse.containsMouse ? Theme.pressed : "transparent"
 
                     AppIcon {
                         anchors.centerIn: parent
                         name: "icon_win_min"
                         size: 14
-                        color: winMinMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                        color: winMinMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {
@@ -1207,8 +1215,8 @@ Rectangle {
                     id: winMaxBtn
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
-                    radius: Theme.radiusSm
-                    color: winMaxMouse.containsMouse ? Theme.bgCardActive : "transparent"
+                    radius: Theme.radiusMicro
+                    color: winMaxMouse.containsMouse ? Theme.pressed : "transparent"
 
                     readonly property bool isMaximized: Window.window && Window.window.visibility === Window.Maximized
 
@@ -1216,7 +1224,7 @@ Rectangle {
                         anchors.centerIn: parent
                         name: winMaxBtn.isMaximized ? "icon_win_restore" : "icon_win_max"
                         size: 14
-                        color: winMaxMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                        color: winMaxMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {
@@ -1242,14 +1250,14 @@ Rectangle {
                     id: winCloseBtn
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
-                    radius: Theme.radiusSm
-                    color: winCloseMouse.containsMouse ? Theme.ngBg : "transparent"
+                    radius: Theme.radiusMicro
+                    color: winCloseMouse.containsMouse ? Theme.dangerSoft : "transparent"
 
                     AppIcon {
                         anchors.centerIn: parent
                         name: "icon_close"
                         size: 14
-                        color: winCloseMouse.containsMouse ? Theme.ng : Theme.textSecondary
+                        color: winCloseMouse.containsMouse ? Theme.danger : Theme.textSoft
                     }
 
                     MouseArea {

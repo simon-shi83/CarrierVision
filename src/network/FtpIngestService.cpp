@@ -13,7 +13,7 @@ FtpIngestService::FtpIngestService(QObject *parent)
 {
     connect(&m_server, &FtpServer::runningChanged, this, &FtpIngestService::runningChanged);
     connect(&m_server, &FtpServer::clientCountChanged, this, &FtpIngestService::clientCountChanged);
-    connect(&m_server, &FtpServer::logMessage, this, &FtpIngestService::logMessage);
+    connect(&m_server, &FtpServer::warningRaised, this, &FtpIngestService::warningRaised);
     m_server.uploadHandler = [this](const QString &staged, const QString &target, const QString &requested) {
         QString error;
         const bool accepted = ImageIngest::accept(staged, target,

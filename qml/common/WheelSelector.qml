@@ -40,23 +40,23 @@ Item {
             Text {
                 text: root.displayText
                 color: root.selectionToken === "WALK" || Number(root.selectionToken) >= 9 ? Theme.walkWheel : Theme.driveWheel
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-                font.bold: true
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontBody
+                font.weight: Theme.fontMedium
                 elide: Text.ElideRight
             }
-            Text {
-                text: "▾"
-                color: Theme.textMuted
-                font.pixelSize: 11
+            AppIcon {
+                name: "icon_arrow_down"
+                size: 14
+                color: Theme.muted
             }
         }
         
         background: Rectangle {
-            radius: Theme.radiusMd
-            color: selectorButton.hovered ? Theme.bgInputHover : Theme.bgInput
+            radius: Theme.radiusSmall
+            color: selectorButton.hovered ? Theme.hover : Theme.fieldFill
             border.width: 1
-            border.color: selectorPopup.visible ? Theme.borderHighlight : Theme.borderMedium
+            border.color: selectorPopup.visible ? Theme.selectedBorder : Theme.border
             Behavior on color { ColorAnimation { duration: Theme.animFast } }
             Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
         }
@@ -72,9 +72,9 @@ Item {
         modal: false
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle { 
-            radius: Theme.radiusMd 
-            color: Theme.bgPopup 
-            border.color: Theme.borderMedium
+            radius: Theme.radiusSmall 
+            color: Theme.surfaceFloating 
+            border.color: Theme.border
             border.width: 1
         }
 
@@ -90,17 +90,17 @@ Item {
                 onClicked: root.select("DRIVE")
                 contentItem: Text { 
                     text: parent.text
-                    color: parent.checked ? "#ffffff" : Theme.driveWheel
-                    font.family: Theme.fontFamily
-                    font.bold: true
+                    color: parent.checked ? Theme.textOnAccent : Theme.driveWheel
+                    font.family: Theme.fontSans
+                    font.weight: Theme.fontMedium
                     horizontalAlignment: Text.AlignHCenter 
                     verticalAlignment: Text.AlignVCenter 
                 }
                 background: Rectangle {
-                    radius: Theme.radiusSm
-                    color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.driveWheelBg : Theme.bgCard)
+                    radius: Theme.radiusMicro
+                    color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.driveWheelSoft : Theme.surface)
                     border.width: 1
-                    border.color: parent.checked ? Theme.driveWheel : Theme.borderSubtle
+                    border.color: parent.checked ? Theme.driveWheel : Theme.borderMuted
                 }
             }
             
@@ -119,17 +119,17 @@ Item {
                         onClicked: root.select(token)
                         contentItem: Text { 
                             text: parent.text 
-                            color: parent.checked ? "#ffffff" : Theme.textPrimary
-                            font.family: Theme.fontMono
-                            font.bold: true
+                            color: parent.checked ? Theme.textOnAccent : Theme.text
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.weight: Theme.fontMedium
                             horizontalAlignment: Text.AlignHCenter 
                             verticalAlignment: Text.AlignVCenter 
                         }
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.bgCardActive : Theme.bgCard)
+                            radius: Theme.radiusMicro
+                            color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.pressed : Theme.surface)
                             border.width: 1
-                            border.color: parent.checked ? Theme.driveWheel : Theme.borderSubtle
+                            border.color: parent.checked ? Theme.driveWheel : Theme.borderMuted
                         }
                     }
                 }
@@ -138,7 +138,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Theme.divider
+                color: Theme.borderMuted
             }
 
             // 走行轮标题与全选
@@ -150,17 +150,17 @@ Item {
                 onClicked: root.select("WALK")
                 contentItem: Text { 
                     text: parent.text
-                    color: parent.checked ? "#ffffff" : Theme.walkWheel
-                    font.family: Theme.fontFamily
-                    font.bold: true
+                    color: parent.checked ? Theme.textOnAccent : Theme.walkWheel
+                    font.family: Theme.fontSans
+                    font.weight: Theme.fontMedium
                     horizontalAlignment: Text.AlignHCenter 
                     verticalAlignment: Text.AlignVCenter 
                 }
                 background: Rectangle {
-                    radius: Theme.radiusSm
-                    color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.walkWheelBg : Theme.bgCard)
+                    radius: Theme.radiusMicro
+                    color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.walkWheelSoft : Theme.surface)
                     border.width: 1
-                    border.color: parent.checked ? Theme.walkWheel : Theme.borderSubtle
+                    border.color: parent.checked ? Theme.walkWheel : Theme.borderMuted
                 }
             }
 
@@ -179,17 +179,17 @@ Item {
                         onClicked: root.select(token)
                         contentItem: Text { 
                             text: parent.text 
-                            color: parent.checked ? "#ffffff" : Theme.textPrimary
-                            font.family: Theme.fontMono
-                            font.bold: true
+                            color: parent.checked ? Theme.textOnAccent : Theme.text
+                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                            font.weight: Theme.fontMedium
                             horizontalAlignment: Text.AlignHCenter 
                             verticalAlignment: Text.AlignVCenter 
                         }
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.bgCardActive : Theme.bgCard)
+                            radius: Theme.radiusMicro
+                            color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.pressed : Theme.surface)
                             border.width: 1
-                            border.color: parent.checked ? Theme.walkWheel : Theme.borderSubtle
+                            border.color: parent.checked ? Theme.walkWheel : Theme.borderMuted
                         }
                     }
                 }

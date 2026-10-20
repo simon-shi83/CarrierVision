@@ -31,7 +31,8 @@ signals:
     void connectionClosed();
     void loginFailed();
     void loginSucceeded();
-    void logMessage(const QString &message);
+    // 需要在界面状态栏提示的异常（已写入主日志）
+    void warningRaised(const QString &message);
     void imageStored(const QString &filePath);
 
 private slots:
@@ -41,6 +42,7 @@ private slots:
     void onDataReadyRead();
 
 private:
+    void reportWarning(const QString &message);
     void sendReply(int code, const QString &text);
     void processCommand(const QString &cmdLine);
     QString makePasvReply(quint16 port);
@@ -107,13 +109,15 @@ public:
 signals:
     void runningChanged(bool running);
     void clientCountChanged(int count);
-    void logMessage(const QString &message);
+    // 需要在界面状态栏提示的异常（已写入主日志）
+    void warningRaised(const QString &message);
     void imageStored(const QString &filePath);
 
 private slots:
     void onNewConnection();
 
 private:
+    void reportWarning(const QString &message);
     static constexpr int MaxClients = 64;
     QTcpServer m_server;
     QString m_rootDir;

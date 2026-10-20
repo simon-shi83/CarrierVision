@@ -12,14 +12,27 @@
 
 namespace {
 
-QString ftpLogPrefix()
+// FTP 日志统一写入主日志（logs/carrier_YYYY-MM-DD.log）：会话与服务事件为 INFO，
+// 逐条命令与应答为 DEBUG（现场排查时把 log/level 调为 debug 即可看到完整交互）
+void ftpInfo(const QString &message)
 {
-    return QDateTime::currentDateTime().toString(Qt::ISODateWithMs) + QStringLiteral(" [FTP] ");
+    LOG_INFO("[FTP] {}", message.toStdString());
+}
+
+void ftpDebug(const QString &message)
+{
+    LOG_DEBUG("[FTP] {}", message.toStdString());
 }
 
 }
 
 // --- FtpControlConnection ---
+void FtpControlConnection::reportWarning(const QString &message)
+{
+    LOG_WARN("[FTP] {}", message.toStdString());
+    emit warningRaised(message);
+}
+
 FtpControlConnection::FtpControlConnection(QTcpSocket *sock, const QString &root, const QMap<QString, QString> &users, bool allowAnonymous, QObject *parent)
     : QObject(parent), m_ctrl(sock), m_root(root), m_cwd(root), m_users(users), m_allowAnonymous(allowAnonymous)
 {
@@ -41,7 +54,7 @@ FtpControlConnection::FtpControlConnection(QTcpSocket *sock, const QString &root
     m_idleTimer->start();
     connect(m_ctrl, &QTcpSocket::readyRead, this, &FtpControlConnection::onReadyRead);
     connect(m_ctrl, &QTcpSocket::disconnected, this, &FtpControlConnection::onDisconnected);
-    emit logMessage(ftpLogPrefix() + QStringLiteral("客户端连接: %1:%2")
+    ftpInfo(QStringLiteral("客户端连接: %1:%2")
         .arg(m_ctrl->peerAddress().toString())
         .arg(m_ctrl->peerPort()));
     sendReply(220, "Simple Qt FTP Server");
@@ -104,7 +117,7 @@ void FtpControlConnection::onReadyRead()
 
 void FtpControlConnection::onDisconnected()
 {
-    emit logMessage(ftpLogPrefix() + QStringLiteral("客户端断开: %1:%2")
+    ftpInfo(QStringLiteral("客户端断开: %1:%2")
         .arg(m_ctrl ? m_ctrl->peerAddress().toString() : QStringLiteral("<unknown>"))
         .arg(m_ctrl ? m_ctrl->peerPort() : 0));
     shutdown();
@@ -116,7 +129,7 @@ void FtpControlConnection::sendReply(int code, const QString &text)
         return;
     }
     QString s = QString::number(code) + " " + text + "\r\n";
-    emit logMessage(ftpLogPrefix() + QStringLiteral("RSP %1 %2").arg(code).arg(text));
+    ftpDebug(QStringLiteral("RSP %1 %2").arg(code).arg(text));
     const QByteArray response = s.toUtf8();
     if (m_ctrl->bytesToWrite() + response.size() > 256 * 1024) { shutdown(); return; }
     m_ctrl->write(response);
@@ -141,7 +154,7 @@ QString FtpControlConnection::makePasvReply(quint16 port)
     QStringList numbers;
     for (auto &b : parts) numbers << QString::fromUtf8(b);
     numbers << QString::number(p1) << QString::number(p2);
-    emit logMessage(ftpLogPrefix() + QStringLiteral("PASV advertise: %1 port=%2 -> %3").arg(QString::fromUtf8(ip)).arg(port).arg(numbers.join(',')));
+    ftpDebug(QStringLiteral("PASV advertise: %1 port=%2 -> %3").arg(QString::fromUtf8(ip)).arg(port).arg(numbers.join(',')));
     return numbers.join(",");
 }
 
@@ -181,14 +194,14 @@ void FtpControlConnection::attachDataSocket(QTcpSocket *socket)
         if (bytes > 0) { m_transferTimer.start(); if (m_idleTimer) m_idleTimer->start(); }
         pumpDownload();
     });
-    emit logMessage(ftpLogPrefix() + QStringLiteral("attachDataSocket: peer=%1:%2 state=%3")
+    ftpDebug(QStringLiteral("attachDataSocket: peer=%1:%2 state=%3")
         .arg(m_dataSocket->peerAddress().toString())
         .arg(m_dataSocket->peerPort())
         .arg(m_dataSocket->state()));
     connect(m_dataSocket, &QTcpSocket::readyRead, this, &FtpControlConnection::onDataReadyRead);
     connect(m_dataSocket, &QTcpSocket::errorOccurred, this, [this](QAbstractSocket::SocketError err) {
         if (err != QAbstractSocket::RemoteHostClosedError) {
-            emit logMessage(ftpLogPrefix() + QStringLiteral("数据连接异常: %1").arg(err));
+            reportWarning(QStringLiteral("数据连接异常: %1").arg(err));
             m_storeSuccess = false;
             m_storeFailed = true;
         }
@@ -358,13 +371,13 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
     m_storeSuccess = finalizeOk;
     if (!effectiveFinalPath.isEmpty()) {
         if (!finalizeOk) {
-            emit logMessage(ftpLogPrefix() + QStringLiteral("上传中断或提交失败，未替换目标文件: %1 (bytes=%2)")
+            reportWarning(QStringLiteral("上传中断或提交失败，未替换目标文件: %1 (bytes=%2)")
                                 .arg(effectiveFinalPath)
                                 .arg(m_storeBytesReceived));
         }
 
         QFileInfo fi(effectiveFinalPath);
-        emit logMessage(ftpLogPrefix() + QStringLiteral("上传处理完成: %1 (%2 bytes) finalized=%3")
+        ftpDebug(QStringLiteral("上传处理完成: %1 (%2 bytes) finalized=%3")
             .arg(effectiveFinalPath)
             .arg(fi.exists() ? fi.size() : 0)
             .arg(finalizeOk ? QStringLiteral("Y") : QStringLiteral("N")));
@@ -401,7 +414,7 @@ bool FtpControlConnection::listenPassive()
         const quint16 port = static_cast<quint16>(passivePortMin + (offset + i) % count);
         if (m_pasvServer->listen(QHostAddress::Any, port)) return true;
     }
-    emit logMessage(ftpLogPrefix() + QStringLiteral("被动端口 %1-%2 已全部占用").arg(passivePortMin).arg(passivePortMax));
+    reportWarning(QStringLiteral("被动端口 %1-%2 已全部占用").arg(passivePortMin).arg(passivePortMax));
     return false;
 }
 
@@ -413,13 +426,13 @@ void FtpControlConnection::onPasvNewConnection()
     // 被动模式的数据连接也必须来自控制连接的同一客户端，防止第三方
     // 抢占临时端口并读取目录/文件或注入上传内容。
     if (m_dataSocket || !m_ctrl || !s->peerAddress().isEqual(m_ctrl->peerAddress(), QHostAddress::ConvertV4MappedToIPv4)) {
-        emit logMessage(ftpLogPrefix() + QStringLiteral("拒绝非控制端来源的数据连接: %1")
+        reportWarning(QStringLiteral("拒绝非控制端来源的数据连接: %1")
                             .arg(s->peerAddress().toString()));
         s->abort();
         s->deleteLater();
         return;
     }
-    emit logMessage(ftpLogPrefix() + QStringLiteral("onPasvNewConnection: incoming data connection from %1:%2")
+    ftpDebug(QStringLiteral("onPasvNewConnection: incoming data connection from %1:%2")
         .arg(s->peerAddress().toString()).arg(s->peerPort()));
     attachDataSocket(s);
     m_pasvServer->close();
@@ -445,7 +458,7 @@ void FtpControlConnection::onDataReadyRead()
         if (data.size() > remaining || m_storeFile->write(data) != data.size()) {
             m_storeSuccess = false;
             m_storeFailed = true;
-            emit logMessage(ftpLogPrefix() + QStringLiteral("上传写入失败或超出大小限制: %1")
+            reportWarning(QStringLiteral("上传写入失败或超出大小限制: %1")
                                 .arg(m_pendingStorePath));
             m_dataSocket->abort();
             return;
@@ -583,7 +596,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
     if (this->property("sessionId").isValid()) p = this->property("sessionId");
     if (p.isValid()) sid = static_cast<quint32>(p.toULongLong(&ok));
     const QString peer = m_ctrl ? m_ctrl->peerAddress().toString() : QStringLiteral("-");
-    emit logMessage(ftpLogPrefix() + QStringLiteral("[s%1][%2] CMD %3 %4").arg(sid).arg(peer).arg(cmd).arg(logArg).trimmed());
+    ftpDebug(QStringLiteral("[s%1][%2] CMD %3 %4").arg(sid).arg(peer).arg(cmd).arg(logArg).trimmed());
 
     // 强制登录鉴权校验：未登录状态下只允许基础协商和认证命令
     if (!m_loggedIn) {
@@ -653,7 +666,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
     } else if (cmd == "MKD") {
         if (arg.isEmpty()) { sendReply(501, "No directory name."); return; }
         const QString targetPath = resolveWithinRoot(arg, true);
-        emit logMessage(ftpLogPrefix() + QStringLiteral("[s%1][%2] MKD debug: arg='%3' resolved='%4'")
+        ftpDebug(QStringLiteral("[s%1][%2] MKD debug: arg='%3' resolved='%4'")
             .arg(this->property("sessionId").toULongLong())
             .arg(m_ctrl ? m_ctrl->peerAddress().toString() : QStringLiteral("-"))
             .arg(arg)
@@ -664,7 +677,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         }
         if (QDir().mkpath(targetPath)) {
             sendReply(257, QStringLiteral("\"%1\" created.").arg(toVirtualPath(targetPath)));
-            emit logMessage(ftpLogPrefix() + QStringLiteral("创建目录: %1").arg(targetPath));
+            ftpInfo(QStringLiteral("创建目录: %1").arg(targetPath));
         } else {
             sendReply(550, "Create directory failed.");
         }
@@ -768,12 +781,12 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         if (m_waitingForStore) { sendReply(503, "Another upload is already active."); return; }
         if (!m_pasvServer && !m_dataSocket) { sendReply(425, "Use PASV/PORT first."); return; }
         if (uploadGate && !uploadGate()) {
-            emit logMessage(ftpLogPrefix() + QStringLiteral("存储空间不足，拒绝上传: %1").arg(arg));
+            reportWarning(QStringLiteral("存储空间不足，拒绝上传: %1").arg(arg));
             sendReply(452, "Insufficient storage space.");
             return;
         }
         QString path = resolveWithinRoot(arg, false);
-        emit logMessage(ftpLogPrefix() + QStringLiteral("[s%1][%2] STOR debug: arg='%3' resolved='%4'")
+        ftpDebug(QStringLiteral("[s%1][%2] STOR debug: arg='%3' resolved='%4'")
             .arg(this->property("sessionId").toULongLong())
             .arg(m_ctrl ? m_ctrl->peerAddress().toString() : QStringLiteral("-"))
             .arg(arg)
@@ -788,11 +801,11 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         if (!m_storeFile->open()) {
             delete m_storeFile;
             m_storeFile = nullptr;
-            emit logMessage(ftpLogPrefix() + QStringLiteral("无法创建临时文件: %1").arg(m_pendingStorePath));
+            reportWarning(QStringLiteral("无法创建临时文件: %1").arg(m_pendingStorePath));
             sendReply(550, "Can't open file for writing: " + path);
             return;
         }
-        emit logMessage(ftpLogPrefix() + QStringLiteral("开始接收上传: %1").arg(m_pendingStorePath));
+        ftpDebug(QStringLiteral("开始接收上传: %1").arg(m_pendingStorePath));
         m_waitingForStore = true;
         m_transferTimer.start();
         m_deadlineTimer.start();
@@ -830,19 +843,24 @@ int FtpServer::clientCount() const
     return m_clientCount;
 }
 
+void FtpServer::reportWarning(const QString &message)
+{
+    LOG_WARN("[FTP] {}", message.toStdString());
+    emit warningRaised(message);
+}
+
 bool FtpServer::listen(const QHostAddress &addr, quint16 port, const QString &rootDir, const QMap<QString, QString> &users, bool allowAnonymous)
 {
     m_rootDir = rootDir;
     m_users = users;
     m_allowAnonymous = allowAnonymous;
     if (!m_server.listen(addr, port)) {
-        LOG_ERROR("FTP 底层监听失败: 地址={}, 端口={}", addr.toString().toStdString(), port);
-        emit logMessage(ftpLogPrefix() + QStringLiteral("FTP listen failed: port=%1 root=%2").arg(port).arg(rootDir));
+        LOG_ERROR("[FTP] 监听失败: 地址={}, 端口={}, 根目录={}, 原因={}", addr.toString().toStdString(), port,
+                  rootDir.toStdString(), m_server.errorString().toStdString());
         return false;
     }
     emit runningChanged(true);
-    emit logMessage(ftpLogPrefix() + QStringLiteral("FTP 服务启动: port=%1 root=%2").arg(port).arg(rootDir));
-    LOG_DEBUG("FTP 底层监听成功: 端口={}, 根目录={}", port, rootDir.toStdString());
+    ftpDebug(QStringLiteral("监听成功: 端口=%1, 根目录=%2").arg(port).arg(rootDir));
     return true;
 }
 
@@ -871,8 +889,7 @@ void FtpServer::stop()
     m_clientCount = 0;
     emit clientCountChanged(m_clientCount);
     emit runningChanged(false);
-    emit logMessage(ftpLogPrefix() + QStringLiteral("FTP 服务停止"));
-    LOG_DEBUG("FTP 底层服务已停止");
+    ftpInfo(QStringLiteral("服务已停止"));
 }
 
 void FtpServer::setUsers(const QMap<QString, QString> &users, bool allowAnonymous)
@@ -895,7 +912,7 @@ void FtpServer::onNewConnection()
         else if (m_loginThrottle.isBanned(peerKey, QDateTime::currentDateTime())) rejection = "421 Too many failed logins, try later.\r\n";
         else if (m_clientCount >= MaxClients) rejection = "421 Too many connections.\r\n";
         if (rejection) {
-            emit logMessage(ftpLogPrefix() + QStringLiteral("拒绝连接 %1: %2").arg(peerKey, QString::fromLatin1(rejection).trimmed()));
+            reportWarning(QStringLiteral("拒绝连接 %1: %2").arg(peerKey, QString::fromLatin1(rejection).trimmed()));
             // 先发出拒绝原因再断开；断开完成后再删除，否则未发出的数据会随套接字一起丢失
             connect(sock, &QAbstractSocket::disconnected, sock, &QObject::deleteLater);
             sock->write(rejection);
@@ -913,8 +930,7 @@ void FtpServer::onNewConnection()
         conn->passivePortMax = m_passiveMax;
         connect(conn, &FtpControlConnection::loginFailed, this, [this, peerKey]() {
             if (m_loginThrottle.recordFailure(peerKey, QDateTime::currentDateTime())) {
-                LOG_WARN("[FTP] 来源 {} 登录失败次数过多，封禁 15 分钟", peerKey.toStdString());
-                emit logMessage(ftpLogPrefix() + QStringLiteral("来源 %1 登录失败次数过多，封禁 15 分钟").arg(peerKey));
+                reportWarning(QStringLiteral("来源 %1 登录失败次数过多，封禁 15 分钟").arg(peerKey));
                 // 封禁立即生效：断开该来源的所有现有会话
                 for (auto *session : findChildren<FtpControlConnection *>())
                     if (session->property("peerKey").toString() == peerKey) session->shutdown();
@@ -928,8 +944,7 @@ void FtpServer::onNewConnection()
         const QString peer = sock->peerAddress().toString();
         const quint32 sid = static_cast<quint32>(reinterpret_cast<quintptr>(conn) & 0xffffffff);
         conn->setProperty("sessionId", (qulonglong)sid);
-        emit logMessage(ftpLogPrefix() + QStringLiteral("New connection: session=%1 peer=%2").arg(sid).arg(peer));
-        LOG_DEBUG("FTP 客户端建立连接: session={} peer={}", sid, peer.toStdString());
+        ftpDebug(QStringLiteral("建立会话: session=%1 peer=%2").arg(sid).arg(peer));
         ++m_clientCount;
         emit clientCountChanged(m_clientCount);
         connect(conn, &FtpControlConnection::connectionClosed, this, [this]() {
@@ -938,7 +953,7 @@ void FtpServer::onNewConnection()
             }
             emit clientCountChanged(m_clientCount);
         });
-        connect(conn, &FtpControlConnection::logMessage, this, &FtpServer::logMessage);
+        connect(conn, &FtpControlConnection::warningRaised, this, &FtpServer::warningRaised);
         // forward stored image notifications
         connect(conn, &FtpControlConnection::imageStored, this, &FtpServer::imageStored);
     }

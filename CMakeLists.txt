@@ -59,6 +59,12 @@ qt_add_executable(CarrierVision
     src/main.cpp
     src/app/AppController.cpp
     src/app/AppController.h
+    src/app/UiSnapshot.cpp
+    src/app/UiSnapshot.h
+    src/app/ThumbnailCache.cpp
+    src/app/ThumbnailCache.h
+    src/app/ThumbnailProvider.cpp
+    src/app/ThumbnailProvider.h
     src/network/TcpDataReceiver.cpp
     src/network/TcpDataReceiver.h
     src/network/FtpServer.cpp
@@ -161,6 +167,7 @@ qt_add_qml_module(CarrierVision
 
         # 全景监控
         qml/monitor/MonitorWorkspace.qml
+        qml/monitor/HeatImageWorkspace.qml
 
         # 数据查询
         qml/query/DataQueryWorkspace.qml
@@ -192,6 +199,20 @@ qt_add_qml_module(CarrierVision
         assets/models/Assembly.glb
         assets/icons/favicon.png
         assets/icons/logo_agc.svg
+        assets/icons/icon_refresh.svg
+        assets/icons/icon_pause.svg
+        assets/icons/icon_play.svg
+        assets/icons/icon_ruler.svg
+        assets/icons/icon_tag.svg
+        assets/icons/icon_folder.svg
+        assets/icons/icon_copy.svg
+        assets/icons/icon_check.svg
+        assets/icons/icon_info.svg
+        assets/icons/icon_warning.svg
+        assets/icons/icon_square.svg
+        assets/icons/icon_image.svg
+        assets/icons/icon_error.svg
+        assets/icons/icon_check_square.svg
         assets/icons/nav_home.svg
         assets/icons/nav_batch.svg
         assets/icons/nav_monitor.svg
@@ -256,6 +277,15 @@ if(ipo_supported)
 else()
     message(STATUS "IPO / LTO not supported: ${ipo_output}")
 endif()
+
+# 界面字体（assets/fonts）放在可执行文件旁的 fonts/ 目录，启动时由 main.cpp 加载；
+# 不编进资源，避免 25 MB 字体数据进入 rcc 生成的源文件
+set(CARRIERVISION_FONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+add_custom_command(TARGET CarrierVision POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CARRIERVISION_FONT_DIR}" "$<TARGET_FILE_DIR:CarrierVision>/fonts"
+    COMMENT "Staging bundled fonts")
+install(DIRECTORY "${CARRIERVISION_FONT_DIR}/" DESTINATION fonts
+        FILES_MATCHING PATTERN "*.otf" PATTERN "*.ttf" PATTERN "LICENSE-*.txt")
 
 include(GNUInstallDirs)
 if(WIN32)
@@ -392,6 +422,7 @@ endif()
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionReleaseTests
         tests/ReleaseBoundaryTests.cpp
+        src/app/ThumbnailCache.cpp src/app/ThumbnailCache.h
         src/network/TcpDataReceiver.cpp src/network/TcpDataReceiver.h
         src/ingest/ImageIngest.cpp src/ingest/ImageIngest.h
         src/data/ArchiveMaintenance.cpp src/data/ArchiveMaintenance.h

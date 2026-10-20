@@ -65,10 +65,10 @@ Rectangle {
     property bool embeddedMode: false
     property var externalViewer: null
 
-    radius: embeddedMode ? 0 : Theme.radiusLg
-    color: embeddedMode ? "transparent" : Theme.bgCard
+    radius: embeddedMode ? 0 : Theme.radiusMedium
+    color: embeddedMode ? "transparent" : Theme.surface
     border.width: embeddedMode ? 0 : 1
-    border.color: embeddedMode ? "transparent" : Theme.borderMedium
+    border.color: embeddedMode ? "transparent" : Theme.border
 
     StationImageInspectDialog {
         id: stationInspectDialog
@@ -89,23 +89,23 @@ Rectangle {
                 width: 4
                 height: 18
                 radius: 2
-                color: Theme.primary
+                color: Theme.borderStrong
             }
 
             Label {
                 text: root.titleText
-                color: Theme.textPrimary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeH2
-                font.bold: true
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontTitle
+                font.weight: Theme.fontMedium
             }
 
             Rectangle {
                 Layout.preferredHeight: 22
                 implicitWidth: serialMsgText.implicitWidth + 16
                 radius: Theme.radiusPill
-                color: Theme.bgCardElevated
-                border.color: Theme.borderSubtle
+                color: Theme.surfaceAlt
+                border.color: Theme.borderMuted
                 border.width: 1
                 visible: root.summaryText.length > 0
 
@@ -113,9 +113,9 @@ Rectangle {
                     id: serialMsgText
                     anchors.centerIn: parent
                     text: root.summaryText
-                    color: Theme.primaryLight
-                    font.family: Theme.fontMono
-                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.text
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontCaption
                 }
             }
 
@@ -125,8 +125,8 @@ Rectangle {
                 Layout.preferredHeight: 22
                 implicitWidth: hintRow.implicitWidth + 14
                 radius: Theme.radiusPill
-                color: Theme.bgCardElevated
-                border.color: Theme.borderSubtle
+                color: Theme.surfaceAlt
+                border.color: Theme.borderMuted
                 border.width: 1
 
                 RowLayout {
@@ -137,14 +137,14 @@ Rectangle {
                     AppIcon {
                         name: "icon_eye"
                         size: 11
-                        color: Theme.textMuted
+                        color: Theme.muted
                     }
 
                     Text {
                         text: "轻触或双击卡片进入全景缩放"
-                        color: Theme.textMuted
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeTiny
+                        color: Theme.muted
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontMicro
                     }
                 }
             }
@@ -154,10 +154,10 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radiusMd
-            color: Theme.bgInput
+            radius: Theme.radiusSmall
+            color: Theme.fieldFill
             border.width: 1
-            border.color: Theme.borderSubtle
+            border.color: Theme.borderMuted
 
             GridLayout {
                 id: gridLayout

@@ -134,9 +134,9 @@ Page {
             Rectangle {
                 Layout.preferredHeight: 52
                 implicitWidth: wheelTypeSwitchRow.implicitWidth + 12
-                radius: Theme.radiusMd
-                color: Theme.bgCard
-                border.color: Theme.borderMedium
+                radius: Theme.radiusSmall
+                color: Theme.surface
+                border.color: Theme.border
                 border.width: 1
 
                 Row {
@@ -148,8 +148,8 @@ Page {
                     Rectangle {
                         width: 96
                         height: 38
-                        radius: Theme.radiusSm
-                        color: !root.isWalkWheel ? Theme.driveWheelBg : (btnDriveMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: !root.isWalkWheel ? Theme.driveWheelSoft : (btnDriveMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
                         border.color: !root.isWalkWheel ? Theme.driveWheel : "transparent"
 
@@ -162,10 +162,10 @@ Page {
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
                             Text {
                                 text: "驱动轮 (1~8)"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: !root.isWalkWheel
-                                color: !root.isWalkWheel ? Theme.driveWheel : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (!root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
+                                color: !root.isWalkWheel ? Theme.driveWheel : Theme.textSoft
                             }
                         }
 
@@ -187,8 +187,8 @@ Page {
                     Rectangle {
                         width: 106
                         height: 38
-                        radius: Theme.radiusSm
-                        color: root.isWalkWheel ? Theme.walkWheelBg : (btnWalkMouse.containsMouse ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusMicro
+                        color: root.isWalkWheel ? Theme.walkWheelSoft : (btnWalkMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                         border.width: 1
                         border.color: root.isWalkWheel ? Theme.walkWheel : "transparent"
 
@@ -201,10 +201,10 @@ Page {
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
                             Text {
                                 text: "走行轮 (9~16)"
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.bold: root.isWalkWheel
-                                color: root.isWalkWheel ? Theme.walkWheel : Theme.textSecondary
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: (root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
+                                color: root.isWalkWheel ? Theme.walkWheel : Theme.textSoft
                             }
                         }
 
@@ -234,10 +234,10 @@ Page {
             Rectangle {
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
-                radius: Theme.radiusLg
-                color: Theme.bgCard
+                radius: Theme.radiusMedium
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderMedium
+                border.color: Theme.border
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -246,28 +246,28 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.ng }
+                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
                         Label {
                             text: root.wheelTypeName + " · 架号异常"
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH3
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Theme.fontMedium
                         }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
                         height: 32
-                        color: Theme.bgCardElevated
-                        radius: Theme.radiusSm
+                        color: Theme.surfaceAlt
+                        radius: Theme.radiusMicro
 
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 8
                             anchors.rightMargin: 8
-                            Text { text: "架号"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
-                            Text { text: "NG 频次"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.ngLight; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
+                            Text { text: "架号"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                            Text { text: "NG 频次"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.danger; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                     }
 
@@ -285,10 +285,10 @@ Page {
                             readonly property bool selected: root.selectedRack === modelData.rack
                             width: rackList.width
                             height: 38
-                            radius: Theme.radiusMd
-                            color: selected ? Theme.bgCardActive : (itemMouse.containsMouse ? Theme.bgCardElevated : Theme.bgInput)
+                            radius: Theme.radiusSmall
+                            color: selected ? Theme.pressed : (itemMouse.containsMouse ? Theme.surfaceAlt : Theme.fieldFill)
                             border.width: 1
-                            border.color: selected ? Theme.primary : "transparent"
+                            border.color: selected ? Theme.accent : "transparent"
                             clip: true
 
                             // 异常频次微热力图底色 (数据可视化深度赋能)
@@ -297,9 +297,9 @@ Page {
                                 anchors.top: parent.top
                                 anchors.bottom: parent.bottom
                                 width: Math.max(4, (modelData.count / Math.max(1, root.maxRackNg)) * parent.width)
-                                color: Theme.ngBg
+                                color: Theme.dangerSoft
                                 opacity: parent.selected ? 0.45 : 0.25
-                                radius: Theme.radiusMd
+                                radius: Theme.radiusSmall
                             }
 
                             RowLayout {
@@ -313,16 +313,16 @@ Page {
                                     Layout.preferredWidth: 18
                                     Layout.preferredHeight: 18
                                     radius: 9
-                                    color: index < 3 ? Theme.ngBg : Theme.bgCardElevated
-                                    border.color: index < 3 ? Theme.ngBorder : Theme.borderSubtle
+                                    color: index < 3 ? Theme.dangerSoft : Theme.surfaceAlt
+                                    border.color: index < 3 ? Theme.dangerBorder : Theme.borderMuted
                                     border.width: 1
                                     Text {
                                         anchors.centerIn: parent
                                         text: String(index + 1)
-                                        color: index < 3 ? Theme.ngLight : Theme.textMuted
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: 9
-                                        font.bold: true
+                                        color: index < 3 ? Theme.danger : Theme.muted
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontMicro
+                                        font.weight: Theme.fontMedium
                                     }
                                 }
 
@@ -330,27 +330,27 @@ Page {
                                     text: "架 #" + parent.parent.modelData.rack
                                     Layout.fillWidth: true
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: parent.parent.selected ? Theme.primaryLight : Theme.textPrimary
-                                    font.bold: true
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: parent.parent.selected ? Theme.accent : Theme.text
+                                    font.weight: Theme.fontMedium
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
 
                                 Rectangle {
                                     Layout.preferredWidth: 44
                                     Layout.preferredHeight: 22
                                     radius: Theme.radiusPill
-                                    color: Theme.ngBg
-                                    border.color: Theme.ngBorder
+                                    color: Theme.dangerSoft
+                                    border.color: Theme.dangerBorder
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: parent.parent.parent.modelData.count
-                                        color: Theme.ngLight
-                                        font.bold: true
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.danger
+                                        font.weight: Theme.fontMedium
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
                                     }
                                 }
                             }
@@ -380,18 +380,18 @@ Page {
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: "全区间运行正常"
-                                color: Theme.okLight
-                                font.family: Theme.fontFamily
-                                font.bold: true
-                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.ok
+                                font.family: Theme.fontSans
+                                font.weight: Theme.fontMedium
+                                font.pixelSize: Theme.fontCaption
                             }
 
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: "当前时间范围无异常记录"
-                                color: Theme.textMuted
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
+                                color: Theme.muted
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
                             }
                         }
                     }
@@ -402,10 +402,10 @@ Page {
             Rectangle {
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
-                radius: Theme.radiusLg
-                color: Theme.bgCard
+                radius: Theme.radiusMedium
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderMedium
+                border.color: Theme.border
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -414,28 +414,28 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.ng }
+                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
                         Label {
                             text: selectedRack > 0 ? "架 #" + selectedRack + " · " + root.wheelTypeName + "异常" : root.wheelTypeName + "异常统计"
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH3
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Theme.fontMedium
                         }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
                         height: 32
-                        color: Theme.bgCardElevated
-                        radius: Theme.radiusSm
+                        color: Theme.surfaceAlt
+                        radius: Theme.radiusMicro
 
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 8
                             anchors.rightMargin: 8
-                            Text { text: "轮号"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.textSecondary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
-                            Text { text: "NG 频次"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignHCenter; font.bold: true; color: Theme.ngLight; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeSmall }
+                            Text { text: "轮号"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                            Text { text: "NG 频次"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.danger; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                     }
 
@@ -453,10 +453,10 @@ Page {
                             readonly property bool selected: root.selectedWheel === modelData.wheel
                             width: wheelList.width
                             height: 38
-                            radius: Theme.radiusMd
-                            color: selected ? Theme.bgCardActive : (wheelMouse.containsMouse ? Theme.bgCardElevated : Theme.bgInput)
+                            radius: Theme.radiusSmall
+                            color: selected ? Theme.pressed : (wheelMouse.containsMouse ? Theme.surfaceAlt : Theme.fieldFill)
                             border.width: 1
-                            border.color: selected ? Theme.primary : "transparent"
+                            border.color: selected ? Theme.accent : "transparent"
                             clip: true
 
                             // 轮位频次热力条
@@ -465,9 +465,9 @@ Page {
                                 anchors.top: parent.top
                                 anchors.bottom: parent.bottom
                                 width: Math.max(4, (modelData.count / Math.max(1, root.maxWheelNg)) * parent.width)
-                                color: Theme.ngBg
+                                color: Theme.dangerSoft
                                 opacity: parent.selected ? 0.45 : 0.25
-                                radius: Theme.radiusMd
+                                radius: Theme.radiusSmall
                             }
 
                             RowLayout {
@@ -480,26 +480,26 @@ Page {
                                     text: "轮位 " + parent.parent.modelData.wheel
                                     Layout.fillWidth: true
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: parent.parent.selected ? Theme.primaryLight : Theme.textPrimary
-                                    font.bold: true
-                                    font.family: Theme.fontMono
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: parent.parent.selected ? Theme.accent : Theme.text
+                                    font.weight: Theme.fontMedium
+                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Rectangle {
                                     Layout.preferredWidth: 44
                                     Layout.preferredHeight: 22
                                     radius: Theme.radiusPill
-                                    color: Theme.ngBg
-                                    border.color: Theme.ngBorder
+                                    color: Theme.dangerSoft
+                                    border.color: Theme.dangerBorder
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: parent.parent.parent.modelData.count
-                                        color: Theme.ngLight
-                                        font.bold: true
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.danger
+                                        font.weight: Theme.fontMedium
+                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                                        font.pixelSize: Theme.fontCaption
                                     }
                                 }
                             }
@@ -526,9 +526,9 @@ Page {
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: "该架号全轮检测正常"
-                                color: Theme.okLight
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.ok
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
                     }
@@ -539,10 +539,10 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: Theme.radiusLg
-                color: Theme.bgCard
+                radius: Theme.radiusMedium
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderMedium
+                border.color: Theme.border
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -551,33 +551,33 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.primary }
+                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.borderStrong }
                         Label {
                             text: selectedWheel > 0 ? "架 #" + selectedRack + " · 轮 #" + selectedWheel + " (" + root.wheelTypeName + ") 异常证据链" : "异常点检原图"
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeH3
-                            font.bold: true
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Theme.fontMedium
                         }
                         Item { Layout.fillWidth: true }
                         Rectangle {
                             Layout.preferredHeight: 22
                             implicitWidth: galleryHintRow.implicitWidth + 14
                             radius: Theme.radiusPill
-                            color: Theme.bgCardElevated
-                            border.color: Theme.borderSubtle
+                            color: Theme.surfaceAlt
+                            border.color: Theme.borderMuted
                             border.width: 1
 
                             RowLayout {
                                 id: galleryHintRow
                                 anchors.centerIn: parent
                                 spacing: 4
-                                AppIcon { name: "icon_eye"; size: 11; color: Theme.textMuted }
+                                AppIcon { name: "icon_eye"; size: 11; color: Theme.muted }
                                 Text {
                                     text: "轻触卡片查看大图证据"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontMicro
                                 }
                             }
                         }

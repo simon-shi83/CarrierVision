@@ -4,7 +4,7 @@ import QtQuick.Effects
 Item {
     id: root
     property string name: ""
-    property color color: Theme.textSecondary
+    property color color: Theme.textSoft
     property int size: 18
 
     implicitWidth: size

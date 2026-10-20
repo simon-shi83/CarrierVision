@@ -11,7 +11,7 @@ Window {
     height: 800
     visible: true
     title: qsTr("Carrier 自动点检终端系统")
-    color: Theme.bgApp
+    color: Theme.window
 
     flags: Qt.FramelessWindowHint
     visibility: Window.Maximized
@@ -45,7 +45,7 @@ Window {
     property int navHeight: 52
     property int statusBarHeight: 32
     property string alignment: "left"
-    readonly property color panelDark: Theme.bgApp
+    readonly property color panelDark: Theme.window
     readonly property int settingsMenuIndex: {
         for (var i = 0; i < menuData.length; i++) {
             if (menuData[i].title === "系统设置")
@@ -164,47 +164,45 @@ Window {
         {
             title: "首页",
             iconName: "nav_home",
-            iconText: "⌂",
             pageSource: "home/HomeWorkspace.qml"
         },
         {
             title: "热力矩阵",
             iconName: "nav_monitor",
-            iconText: "▦",
             pageSource: "monitor/MonitorWorkspace.qml"
+        },
+        {
+            title: "热力图像",
+            iconName: "icon_image",
+            pageSource: "monitor/HeatImageWorkspace.qml"
         },
         {
             title: "数据查询",
             iconName: "nav_search",
-            iconText: "☵",
             pageSource: "query/DataQueryWorkspace.qml",
             enabled: true
         },
         {
             title: "统计分析",
             iconName: "nav_stats",
-            iconText: "☲",
             pageSource: "stats/StatsWorkspace.qml",
             enabled: true
         },
         {
             title: "报警统计",
             iconName: "nav_alert",
-            iconText: "▲",
             pageSource: "alert/AlertWorkspace.qml",
             enabled: true
         },
         {
             title: "日志查询",
             iconName: "nav_log",
-            iconText: "🗎",
             pageSource: "log/LogWorkspace.qml",
             enabled: true
         },
         {
             title: "系统设置",
             iconName: "nav_settings",
-            iconText: "⚙",
             pageSource: "settings/SettingsWorkspace.qml",
             enabled: true
         }
@@ -214,7 +212,6 @@ Window {
     property var statusItems: [
         {
             modelId: "status",
-            iconText: "●",
             text: "系统就绪",
             textColor: Theme.ok,
             width: 110
@@ -284,9 +281,10 @@ Window {
         // 2. 导航菜单 (内嵌水平导航栏)
         Rectangle {
             id: navMenu
+            objectName: "navMenu"
             Layout.fillWidth: true
             Layout.preferredHeight: mainwindow.navHeight
-            color: Theme.bgNav
+            color: Theme.surface
 
             // 底部细微分割线
             Rectangle {
@@ -294,7 +292,7 @@ Window {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 1
-                color: Theme.borderSubtle
+                color: Theme.borderMuted
             }
 
             property var menuData: mainwindow.menuData
@@ -378,7 +376,6 @@ Window {
                     readonly property bool itemHovered: mouseArea.containsMouse && !itemDisabled
                     readonly property bool itemSelected: delegateRoot.index === navMenu.currentIndex && !itemDisabled
                     readonly property string itemTitle: (delegateRoot.modelData && delegateRoot.modelData.title) ? String(delegateRoot.modelData.title) : ""
-                    readonly property string itemIcon: (delegateRoot.modelData && delegateRoot.modelData.iconText) ? String(delegateRoot.modelData.iconText) : "●"
                     readonly property string itemIconName: (delegateRoot.modelData && delegateRoot.modelData.iconName) ? String(delegateRoot.modelData.iconName) : ""
 
                     Rectangle {
@@ -386,11 +383,11 @@ Window {
                         anchors.fill: parent
                         anchors.topMargin: 8
                         anchors.bottomMargin: 8
-                        radius: Theme.radiusMd
-                        color: delegateRoot.itemSelected ? Theme.bgCardActive : (delegateRoot.itemHovered ? Theme.bgCardElevated : "transparent")
+                        radius: Theme.radiusSmall
+                        color: delegateRoot.itemSelected ? Theme.pressed : (delegateRoot.itemHovered ? Theme.surfaceAlt : "transparent")
 
                         border.width: 1
-                        border.color: delegateRoot.itemSelected ? Theme.primary : (delegateRoot.itemHovered ? Theme.borderMedium : "transparent")
+                        border.color: delegateRoot.itemSelected ? Theme.accent : (delegateRoot.itemHovered ? Theme.border : "transparent")
 
                         Behavior on color {
                             ColorAnimation {
@@ -411,7 +408,7 @@ Window {
                             width: (delegateRoot.itemSelected && itemBg.width > 24) ? (itemBg.width - 24) : 0
                             height: 2
                             radius: 1
-                            color: Theme.primaryLight
+                            color: Theme.accent
                             visible: delegateRoot.itemSelected
 
                             Behavior on width {
@@ -431,7 +428,7 @@ Window {
                                 visible: delegateRoot.itemIconName !== ""
                                 name: delegateRoot.itemIconName
                                 size: navMenu.iconSize
-                                color: delegateRoot.itemSelected ? Theme.primaryLight : (delegateRoot.itemHovered ? Theme.textPrimary : Theme.textSecondary)
+                                color: delegateRoot.itemSelected ? Theme.accent : (delegateRoot.itemHovered ? Theme.text : Theme.textSoft)
                                 Behavior on color {
                                     ColorAnimation {
                                         duration: Theme.animFast
@@ -439,28 +436,14 @@ Window {
                                 }
                             }
 
-                            Text {
-                                id: iconText
-                                visible: delegateRoot.itemIconName === ""
-                                text: delegateRoot.itemIcon
-                                font.pixelSize: navMenu.iconSize
-                                color: delegateRoot.itemSelected ? Theme.primaryLight : (delegateRoot.itemHovered ? Theme.textPrimary : Theme.textSecondary)
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.animFast
-                                    }
-                                }
-                            }
 
                             Text {
                                 id: titleText
                                 text: delegateRoot.itemTitle
-                                font.family: Theme.fontFamily
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: delegateRoot.itemSelected ? Theme.weightSemiBold : Theme.weightNormal
-                                color: delegateRoot.itemSelected ? Theme.textPrimary : (delegateRoot.itemHovered ? Theme.textPrimary : Theme.textSecondary)
+                                font.weight: delegateRoot.itemSelected ? Theme.fontBold : Theme.fontRegular
+                                color: delegateRoot.itemSelected ? Theme.text : (delegateRoot.itemHovered ? Theme.text : Theme.textSoft)
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                                 Behavior on color {
@@ -483,9 +466,9 @@ Window {
                             height: 18
                             width: Math.max(26, badgeText.implicitWidth + 8)
                             radius: 9
-                            color: delegateRoot.isWarning ? Theme.ng : Theme.primary
+                            color: delegateRoot.isWarning ? Theme.danger : Theme.accent
                             border.width: 1.5
-                            border.color: Theme.isDark ? Theme.bgNav : Theme.textInverse
+                            border.color: Theme.isDark ? Theme.surface : Theme.textOnAccent
 
                             Behavior on color {
                                 ColorAnimation {
@@ -497,10 +480,10 @@ Window {
                                 id: badgeText
                                 anchors.centerIn: parent
                                 text: delegateRoot.countdownText
-                                font.family: Theme.fontMono
+                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.weightBold
-                                color: Theme.textInverse
+                                font.weight: Theme.fontBold
+                                color: Theme.textOnAccent
                             }
                         }
 
@@ -580,11 +563,11 @@ Window {
         id: settingsPasswordDialog
         titleText: "安全设置访问验证"
         subtitleText: "请输入管理员密码以进入系统设置"
-        subtitleColor: Theme.textSecondary
+        subtitleColor: Theme.textSoft
         iconName: "icon_lock"
-        accentColor: Theme.primary
-        accentBgColor: Theme.primaryGlow
-        focusBorderColor: Theme.borderHighlight
+        accentColor: Theme.accent
+        accentBgColor: Theme.activeSubtle
+        focusBorderColor: Theme.selectedBorder
         placeholderText: "请输入密码"
         confirmText: "确认"
         confirmVariant: "primary"
@@ -641,7 +624,7 @@ Window {
         id: exitPasswordDialog
         titleText: "确认退出点检系统"
         subtitleText: "退出将终止实时采集与 FTP 服务"
-        subtitleColor: Theme.ngLight
+        subtitleColor: Theme.danger
         iconName: "icon_close"
         placeholderText: "请输入设置密码以确认退出"
         confirmText: "确认退出"

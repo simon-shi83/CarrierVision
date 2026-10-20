@@ -16,9 +16,9 @@ Dialog {
     property string titleText: ""
     property string subtitleText: ""
     property string iconName: "icon_lock"
-    property color accentColor: Theme.ng
-    property color accentBgColor: Theme.ngBg
-    property color subtitleColor: Theme.textMuted
+    property color accentColor: Theme.danger
+    property color accentBgColor: Theme.dangerSoft
+    property color subtitleColor: Theme.muted
     property color focusBorderColor: accentColor
     property int confirmWidth: 90
     property string placeholderText: "请输入口令"
@@ -32,16 +32,16 @@ Dialog {
     signal confirmed()
 
     background: Rectangle {
-        radius: Theme.radiusLg
-        color: Theme.bgPopup
+        radius: Theme.radiusMedium
+        color: Theme.surfaceFloating
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
     }
 
     header: Rectangle {
         implicitHeight: 68
-        color: Theme.bgCardElevated
-        radius: Theme.radiusLg
+        color: Theme.surfaceAlt
+        radius: Theme.radiusMedium
 
         Rectangle {
             anchors.bottom: parent.bottom
@@ -78,18 +78,18 @@ Dialog {
 
                 Label {
                     text: dialog.titleText
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 16
-                    font.bold: true
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontTitle
+                    font.weight: Theme.fontMedium
                 }
 
                 Label {
                     Layout.fillWidth: true
                     text: dialog.subtitleText
                     color: dialog.subtitleColor
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 11
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontCaption
                     wrapMode: Text.WordWrap
                 }
             }
@@ -97,18 +97,18 @@ Dialog {
             Button {
                 Layout.preferredWidth: 28
                 Layout.preferredHeight: 28
-                text: "✕"
                 onClicked: dialog.close()
-                contentItem: Text {
-                    text: parent.text
-                    color: Theme.textMuted
-                    font.pixelSize: 14
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: Item {
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: "icon_close"
+                        size: 14
+                        color: parent.parent.hovered ? Theme.text : Theme.muted
+                    }
                 }
                 background: Rectangle {
                     radius: 14
-                    color: parent.hovered ? Theme.bgCardActive : "transparent"
+                    color: parent.hovered ? Theme.pressed : "transparent"
                 }
             }
         }
@@ -156,9 +156,9 @@ Dialog {
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhLatinOnly | Qt.ImhNoPredictiveText
                 placeholderText: dialog.placeholderText
-                placeholderTextColor: Theme.textMuted
-                color: Theme.textPrimary
-                font.family: Theme.fontMono
+                placeholderTextColor: Theme.muted
+                color: Theme.text
+                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                 selectByMouse: true
                 onActiveFocusChanged: {
                     if (activeFocus && appController)
@@ -167,10 +167,10 @@ Dialog {
                 onAccepted: dialog.submit()
 
                 background: Rectangle {
-                    radius: Theme.radiusMd
-                    color: Theme.bgInput
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
                     border.width: 1
-                    border.color: passwordInput.activeFocus ? dialog.focusBorderColor : Theme.borderMedium
+                    border.color: passwordInput.activeFocus ? dialog.focusBorderColor : Theme.border
                 }
             }
 
@@ -178,16 +178,16 @@ Dialog {
                 Layout.fillWidth: true
                 visible: dialog.errorMessage !== ""
                 text: dialog.errorMessage
-                color: Theme.ngLight
-                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.danger
+                font.pixelSize: Theme.fontCaption
             }
         }
     }
 
     footer: Rectangle {
         implicitHeight: 58
-        color: Theme.bgCardElevated
-        radius: Theme.radiusLg
+        color: Theme.surfaceAlt
+        radius: Theme.radiusMedium
 
         Rectangle {
             anchors.top: parent.top

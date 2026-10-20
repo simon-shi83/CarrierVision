@@ -14,6 +14,9 @@
 namespace IngestCoordinator {
 
 constexpr int kStationCount = 12;
+// 同一载具相邻两批数据的最大间隔（一个载具分两次触发、每次 6 个相机）：
+// 不超过该间隔的批次属于同一轮检测，超过则视为重新检测
+constexpr qint64 kSameCarrierMergeSecs = 120;
 
 // 文件名大小写不敏感的匹配键
 QString imageKey(const QString &name);

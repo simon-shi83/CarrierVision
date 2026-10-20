@@ -18,9 +18,9 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.bgCard
-        radius: Theme.radiusMd
-        border.color: Theme.borderMedium
+        color: Theme.surface
+        radius: Theme.radiusSmall
+        border.color: Theme.border
         border.width: 1
 
         RowLayout {
@@ -34,25 +34,20 @@ Item {
                 Layout.preferredHeight: 30
                 implicitWidth: totalText.implicitWidth + 16
                 radius: Theme.radiusPill
-                color: Theme.bgCardElevated
-                border.color: Theme.borderSubtle
+                color: Theme.surfaceAlt
+                border.color: Theme.borderMuted
                 border.width: 1
 
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 4
                     Text {
-                        text: "●"
-                        color: Theme.primaryLight
-                        font.pixelSize: 8
-                    }
-                    Text {
                         id: totalText
                         text: "共 " + bar.totalCount + " 条记录"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.bold: true
+                        color: Theme.textSoft
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Theme.fontMedium
                     }
                 }
             }
@@ -93,19 +88,19 @@ Item {
                 Rectangle {
                     Layout.preferredHeight: 32
                     implicitWidth: pageInfoText.implicitWidth + 20
-                    radius: Theme.radiusMd
-                    color: Theme.bgCardActive
-                    border.color: Theme.borderMedium
+                    radius: Theme.radiusSmall
+                    color: Theme.pressed
+                    border.color: Theme.border
                     border.width: 1
 
                     Text {
                         id: pageInfoText
                         anchors.centerIn: parent
                         text: bar.currentPage + " / " + bar.totalPages
-                        color: Theme.textPrimary
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeBody
-                        font.bold: true
+                        color: Theme.text
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontBody
+                        font.weight: Theme.fontMedium
                     }
                 }
 
@@ -140,7 +135,7 @@ Item {
             Rectangle {
                 Layout.preferredWidth: 1
                 Layout.preferredHeight: 20
-                color: Theme.divider
+                color: Theme.borderMuted
             }
 
             // 每页数量选择
@@ -153,8 +148,8 @@ Item {
                     Layout.preferredHeight: 32
                     model: bar.pageSizeOptions
                     currentIndex: bar.pageSizeOptions.indexOf(bar.pageSize) >= 0 ? bar.pageSizeOptions.indexOf(bar.pageSize) : 0
-                    font.family: Theme.fontMono
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontCaption
 
                     onCurrentIndexChanged: {
                         bar.pageSize = model[currentIndex]
@@ -164,17 +159,17 @@ Item {
                     }
 
                     background: Rectangle {
-                        radius: Theme.radiusMd
-                        color: Theme.bgInput
-                        border.color: cb.activeFocus ? Theme.borderHighlight : Theme.borderMedium
+                        radius: Theme.radiusSmall
+                        color: Theme.fieldFill
+                        border.color: cb.activeFocus ? Theme.selectedBorder : Theme.border
                         border.width: 1
                     }
                     contentItem: Text {
                         text: cb.currentText
-                        color: Theme.textPrimary
-                        font.bold: true
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSizeBody
+                        color: Theme.text
+                        font.weight: Theme.fontMedium
+                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        font.pixelSize: Theme.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -184,9 +179,9 @@ Item {
                         implicitHeight: contentItem.implicitHeight + 8
                         padding: 4
                         background: Rectangle {
-                            color: Theme.bgPopup
-                            radius: Theme.radiusMd
-                            border.color: Theme.borderMedium
+                            color: Theme.surfaceFloating
+                            radius: Theme.radiusSmall
+                            border.color: Theme.border
                             border.width: 1
                         }
                         contentItem: ListView {
@@ -201,23 +196,23 @@ Item {
                         height: 28
                         contentItem: Text {
                             text: modelData
-                            color: Theme.textPrimary
-                            font.bold: true
+                            color: Theme.text
+                            font.weight: Theme.fontMedium
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
                         background: Rectangle {
-                            radius: Theme.radiusSm
-                            color: highlighted ? Theme.bgCardActive : "transparent"
+                            radius: Theme.radiusMicro
+                            color: highlighted ? Theme.pressed : "transparent"
                         }
                     }
                 }
 
                 Text {
-                    color: Theme.textSecondary
+                    color: Theme.textSoft
                     text: "条/页"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontCaption
                     verticalAlignment: Text.AlignVCenter
                 }
             }

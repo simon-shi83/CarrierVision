@@ -6,34 +6,33 @@ Button {
 
     // ===== 样式属性配置 =====
     property string variant: "primary" // "primary" | "secondary" | "danger" | "success" | "outline"
-    property int btnRadius: Theme.radiusMd
-    property color accentColor: Theme.primaryLight
+    property int btnRadius: Theme.radiusSmall
+    property color accentColor: Theme.accent
     property color bgColor: {
-        if (variant === "secondary") return Theme.bgCardElevated
-        if (variant === "danger") return Theme.ng
+        if (variant === "secondary") return Theme.surfaceAlt
+        if (variant === "danger") return Theme.danger
         if (variant === "success") return Theme.ok
         if (variant === "outline") return "transparent"
-        return Theme.primary
+        return Theme.accent
     }
     property color hoverColor: {
-        if (variant === "secondary") return Theme.bgCardActive
-        if (variant === "danger") return Theme.ngLight
-        if (variant === "success") return Theme.okLight
-        if (variant === "outline") return Theme.primaryGlow
-        return Theme.primaryLight
+        if (variant === "secondary") return Theme.pressed
+        if (variant === "danger") return Theme.danger
+        if (variant === "success") return Theme.ok
+        if (variant === "outline") return Theme.activeSubtle
+        return Theme.accent
     }
     property color textColor: {
-        if (variant === "outline") return Theme.primaryLight
-        if (variant === "secondary") return Theme.textPrimary
-        return "#ffffff"
+        if (variant === "outline") return Theme.accent
+        if (variant === "secondary") return Theme.text
+        return Theme.textOnAccent
     }
     property color hoverTextColor: {
-        if (variant === "outline") return "#ffffff"
-        return "#ffffff"
+        return Theme.textOnAccent
     }
     property color borderColor: {
-        if (variant === "outline") return Theme.primary
-        if (variant === "secondary") return Theme.borderMedium
+        if (variant === "outline") return Theme.accent
+        if (variant === "secondary") return Theme.border
         return "transparent"
     }
 
@@ -47,16 +46,16 @@ Button {
         id: bgRect
         radius: buttonRoot.btnRadius
         color: !buttonRoot.enabled 
-            ? Theme.bgCard 
+            ? Theme.surface 
             : (buttonRoot.down 
                 ? Qt.darker(buttonRoot.hoverColor, 1.2) 
                 : (buttonRoot.isHovered ? buttonRoot.hoverColor : buttonRoot.bgColor))
         
         border.width: 1
         border.color: !buttonRoot.enabled 
-            ? Theme.borderSubtle 
+            ? Theme.borderMuted 
             : (buttonRoot.isHovered 
-                ? (buttonRoot.variant === "danger" ? Theme.ngLight : Theme.borderHover) 
+                ? (buttonRoot.variant === "danger" ? Theme.danger : Theme.borderStrong) 
                 : buttonRoot.borderColor)
 
         Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -66,7 +65,7 @@ Button {
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
-            color: buttonRoot.isHovered ? (buttonRoot.variant === "danger" ? Theme.ngBg : Theme.primaryGlow) : "transparent"
+            color: buttonRoot.isHovered ? (buttonRoot.variant === "danger" ? Theme.dangerSoft : Theme.hover) : "transparent"
             visible: buttonRoot.enabled
             Behavior on color { ColorAnimation { duration: Theme.animFast } }
         }
@@ -75,11 +74,11 @@ Button {
     contentItem: Text {
         id: contentText
         text: buttonRoot.text
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeBody
-        font.bold: true
+        font.family: Theme.fontSans
+        font.pixelSize: Theme.fontBody
+        font.weight: Theme.fontMedium
         color: !buttonRoot.enabled 
-            ? Theme.textDisabled 
+            ? Theme.disabled 
             : (buttonRoot.isHovered ? buttonRoot.hoverTextColor : buttonRoot.textColor)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

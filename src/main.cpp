@@ -1,4 +1,6 @@
 #include <QGuiApplication>
+#include <QFont>
+#include <QFontDatabase>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QSharedMemory>
@@ -19,6 +21,9 @@
 
 #include "app/AppController.h"
 #include "app/ImageItemObject.h"
+#include "app/UiSnapshot.h"
+#include "app/ThumbnailProvider.h"
+#include <QQuickWindow>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
@@ -98,7 +103,8 @@ int main(int argc, char *argv[])
         singleMem.detach();
     }
 #endif
-    if (!singleMem.create(1)) {
+    // 开发截图模式在独立目录运行，不参与单实例检查
+    if (!UiSnapshot::requested() && !singleMem.create(1)) {
         // 如果创建失败，说明已有实例在运行，提示并退出
         QFile startupLog("startup_log.txt");
         if (startupLog.open(QIODevice::Append|QIODevice::Text)) {
@@ -123,6 +129,24 @@ int main(int argc, char *argv[])
     AppLogger::init();
     CrashHandler::install(AppLogger::getLogDirectory());
     LOG_INFO("CarrierVision 应用程序启动, 版本: {}", CARRIER_VISION_VERSION_FULL);
+
+    // 界面字体统一使用 fonts/ 下随程序分发的思源黑体与 JetBrains Mono，各平台字形和字重一致
+    {
+        const QDir fontDir(QCoreApplication::applicationDirPath() + QStringLiteral("/fonts"));
+        int loaded = 0;
+        for (const QString &fileName : fontDir.entryList({QStringLiteral("*.otf"), QStringLiteral("*.ttf")}, QDir::Files)) {
+            if (QFontDatabase::addApplicationFont(fontDir.filePath(fileName)) >= 0) ++loaded;
+        }
+        if (loaded == 0)
+            LOG_WARN("未找到随程序分发的字体（{}），界面将使用系统字体", fontDir.absolutePath().toStdString());
+        else
+            LOG_INFO("已加载界面字体 {} 个", loaded);
+        // JetBrains Mono 没有中文字形：缺字时回退到思源黑体，而不是系统字体
+        QFont::insertSubstitution(QStringLiteral("JetBrains Mono"), QStringLiteral("Noto Sans SC"));
+        QFont defaultFont(QStringLiteral("Noto Sans SC"));
+        defaultFont.setStyleStrategy(QFont::PreferAntialias);
+        app.setFont(defaultFont);
+    }
 
     // remove old debug log file to keep installation clean
     QFile oldDbg(QCoreApplication::applicationDirPath() + QDir::separator() + "run_debug_log.txt");
@@ -215,8 +239,17 @@ int main(int argc, char *argv[])
             controller.stopFtpServer();
         });
 
+        // 开发截图可指定主题：CV_UI_SNAPSHOT_THEME=dark|light
+        if (UiSnapshot::requested()) {
+            const QString theme = qEnvironmentVariable("CV_UI_SNAPSHOT_THEME").trimmed();
+            if (!theme.isEmpty()) controller.setDarkMode(theme == QStringLiteral("dark"));
+        }
+
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("appController", &controller);
+        // 热力图像缩略图：缓存上限 256MB（约 400 张 480 像素彩色缩略图，灰度图约四倍），引擎负责释放
+        engine.addImageProvider(QString::fromLatin1(ThumbnailProvider::kProviderId),
+                                new ThumbnailProvider(qint64(256) * 1024 * 1024));
 
         QObject::connect(
             &engine,
@@ -258,6 +291,7 @@ int main(int argc, char *argv[])
                 win->requestActivate();
                 // 如有需要可临时启用置顶以确保可见（默认注释）
                 // flags |= Qt::WindowStaysOnTopHint; win->setFlags(flags);
+                UiSnapshot::scheduleIfRequested(qobject_cast<QQuickWindow *>(win));
             }
         }
 

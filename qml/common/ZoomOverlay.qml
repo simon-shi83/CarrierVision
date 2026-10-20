@@ -45,7 +45,7 @@ Item {
     // 高端毛玻璃深色半透明遮罩
     Rectangle {
         anchors.fill: parent
-        color: Theme.bgOverlay
+        color: Theme.dialogOverlay
         opacity: root.visible ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
     }
@@ -298,10 +298,10 @@ Item {
         anchors.top: parent.top
         anchors.margins: 20
         height: 60
-        radius: Theme.radiusLg
-        color: Theme.bgPopup
+        radius: Theme.radiusMedium
+        color: Theme.surfaceFloating
         border.width: 1
-        border.color: Theme.borderMedium
+        border.color: Theme.border
 
         RowLayout {
             anchors.fill: parent
@@ -312,15 +312,16 @@ Item {
             Rectangle {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
-                radius: Theme.radiusSm
-                color: Theme.primaryGlow
-                border.color: Theme.primary
+                radius: Theme.radiusMicro
+                color: Theme.activeSubtle
+                border.color: Theme.accent
                 border.width: 1
 
-                Text {
+                AppIcon {
                     anchors.centerIn: parent
-                    text: "🔍"
-                    font.pixelSize: 14
+                    name: "icon_eye"
+                    size: 16
+                    color: Theme.textSoft
                 }
             }
 
@@ -333,10 +334,10 @@ Item {
 
                     Label {
                         text: root.titleText
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeH3
-                        font.bold: true
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontBody
+                        font.weight: Theme.fontMedium
                         elide: Label.ElideRight
                     }
 
@@ -345,8 +346,8 @@ Item {
                         Layout.preferredHeight: 20
                         implicitWidth: liveBadgeRow.implicitWidth + 12
                         radius: Theme.radiusPill
-                        color: Theme.primaryGlow
-                        border.color: Theme.primary
+                        color: Theme.activeSubtle
+                        border.color: Theme.accent
                         border.width: 1
                         visible: root.activeSlotIndex >= 0
 
@@ -359,7 +360,7 @@ Item {
                                 width: 6
                                 height: 6
                                 radius: 3
-                                color: Theme.primary
+                                color: Theme.ok
 
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
@@ -371,10 +372,10 @@ Item {
 
                             Label {
                                 text: "实时监控联动"
-                                color: Theme.primaryLight
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeTiny
-                                font.bold: true
+                                color: Theme.text
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontMicro
+                                font.weight: Theme.fontMedium
                             }
                         }
                     }
@@ -382,9 +383,9 @@ Item {
 
                 Label {
                     text: root.subtitleText + " ╎ 缩放率: " + Math.round(root.userZoom * 100) + "% (滚轮平滑缩放 / 拖拽平移)"
-                    color: Theme.textSecondary
-                    font.family: Theme.fontMono
-                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.textSoft
+                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                    font.pixelSize: Theme.fontCaption
                     elide: Label.ElideRight
                 }
             }

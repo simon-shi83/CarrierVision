@@ -168,7 +168,7 @@ class Simulator:
             else:
                 send_tcp()
                 upload_all()
-        except (OSError, ftplib.all_errors) as error:
+        except ftplib.all_errors as error:  # 已包含 OSError；元组不能嵌套
             self.stats.fail(f"批次 {index} 通信异常: {error}")
 
     # ---------- 资源采样 ----------

@@ -2,6 +2,7 @@
 
 #include "common/AgcUtils.h"
 #include "common/AppLogger.h"
+#include "ingest/IngestCoordinator.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -111,6 +112,117 @@ QString resolveRecordImage(const QString &imagePath, const QString &imageName,
         if (stored.isAbsolute() && stored.isFile()) return stored.absoluteFilePath();
     }
     return resolveImagePath(imageName, archiveDir, sourceDir);
+}
+
+QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir, const QString &sourceDir)
+{
+    using IngestCoordinator::kStationCount;
+    constexpr int kRackCount = 50;
+    // 一轮最多两批、每批最多 32 轮，留余量
+    constexpr int kRoundRowLimit = 128;
+
+    struct Camera {
+        bool hasRecord = false;
+        int result = 1;
+        QString time;
+        QString imageName;
+        QString imagePath;
+        QStringList wheels;
+    };
+
+    QVariantList out;
+    const bool usable = db.isValid() && db.isOpen();
+    QSqlQuery rows(db);
+    if (usable) {
+        // 走 idx_record_carrier_time 索引，每架只读最近的少量记录
+        rows.prepare(QStringLiteral(
+            "SELECT camera_id, wheel_id, result, createtime, imagename, image_path, distance FROM record "
+            "WHERE carrier_id = :rack ORDER BY createtime DESC, rowid DESC LIMIT %1").arg(kRoundRowLimit));
+    }
+
+    for (int rack = 1; rack <= kRackCount; ++rack) {
+        QVector<Camera> cameras(kStationCount);
+        QString latestText;
+        if (usable) {
+            rows.bindValue(QStringLiteral(":rack"), rack);
+            if (!rows.exec()) {
+                LOG_ERROR("热力图像：查询架号 #{} 本轮记录失败: {}", rack, rows.lastError().text().toStdString());
+            } else {
+                QDateTime newest;
+                while (rows.next()) {
+                    const QString time = rows.value(3).toString();
+                    const QDateTime at = AgcUtils::parseFlexibleDateTime(time, false);
+                    if (latestText.isEmpty()) {
+                        latestText = time;
+                        newest = at;
+                    }
+                    if (newest.isValid() && at.isValid()
+                        && at.secsTo(newest) > IngestCoordinator::kSameCarrierMergeSecs) {
+                        break; // 按时间倒序，之后都是上一轮
+                    }
+                    const int cameraId = rows.value(0).toInt();
+                    if (cameraId < 1 || cameraId > kStationCount) continue;
+                    Camera &camera = cameras[cameraId - 1];
+                    const QString imageName = rows.value(4).toString().trimmed();
+                    if (!camera.hasRecord) {
+                        camera.hasRecord = true;
+                        camera.time = time;
+                        camera.imageName = imageName;
+                        camera.imagePath = rows.value(5).toString();
+                    } else if (IngestCoordinator::imageKey(imageName) != IngestCoordinator::imageKey(camera.imageName)) {
+                        continue; // 同一相机本轮较早的另一张图，不计入当前显示的图像
+                    } else if (camera.imagePath.isEmpty()) {
+                        camera.imagePath = rows.value(5).toString(); // 同一张图的其他轮可能已补写落盘路径
+                    }
+                    const int result = rows.value(2).toInt();
+                    if (result == 0) camera.result = 0;
+                    camera.wheels.prepend(QStringLiteral("轮%1 %2 %3mm")
+                                              .arg(rows.value(1).toInt())
+                                              .arg(result ? QStringLiteral("OK") : QStringLiteral("NG"))
+                                              .arg(rows.value(6).toDouble(), 0, 'f', 1));
+                }
+                rows.finish();
+            }
+        }
+
+        QVariantList images;
+        int cameraCount = 0;
+        int imageCount = 0;
+        int ngCount = 0;
+        for (int i = 0; i < kStationCount; ++i) {
+            const Camera &camera = cameras[i];
+            QVariantMap image;
+            image.insert(QStringLiteral("cameraId"), i + 1);
+            image.insert(QStringLiteral("hasRecord"), camera.hasRecord);
+            image.insert(QStringLiteral("result"), camera.result);
+            image.insert(QStringLiteral("time"), camera.time);
+            image.insert(QStringLiteral("fileName"), QFileInfo(camera.imageName).fileName());
+            image.insert(QStringLiteral("wheels"), camera.wheels);
+            QString path;
+            if (camera.hasRecord) {
+                ++cameraCount;
+                if (camera.result == 0) ++ngCount;
+                path = resolveRecordImage(camera.imagePath, camera.imageName, archiveDir, sourceDir);
+                if (!path.isEmpty()) ++imageCount;
+            }
+            image.insert(QStringLiteral("hasImage"), !path.isEmpty());
+            image.insert(QStringLiteral("filePath"), path);
+            image.insert(QStringLiteral("fileUrl"), path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString());
+            images.append(image);
+        }
+
+        QVariantMap group;
+        group.insert(QStringLiteral("rack"), rack);
+        group.insert(QStringLiteral("time"), latestText);
+        group.insert(QStringLiteral("status"), cameraCount == 0 ? QStringLiteral("none")
+                                               : (ngCount > 0 ? QStringLiteral("ng") : QStringLiteral("ok")));
+        group.insert(QStringLiteral("cameraCount"), cameraCount);
+        group.insert(QStringLiteral("imageCount"), imageCount);
+        group.insert(QStringLiteral("ngCount"), ngCount);
+        group.insert(QStringLiteral("images"), images);
+        out.append(group);
+    }
+    return out;
 }
 
 RecordFilter buildRecordFilter(const QString &startText, const QString &endText, int rackNumber, const QString &wheelNo)
