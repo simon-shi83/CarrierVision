@@ -288,7 +288,7 @@ private slots:
             QVERIFY(SettingsStore::saveFtpSettings(db, changed, error));
             loaded = SettingsStore::loadFtpSettings(db, 21);
             QCOMPARE(loaded.port, 2222);
-            QCOMPARE(loaded.root, AgcUtils::normalizedPath(QStringLiteral("/data/upload")));
+            QCOMPARE(loaded.root, QStringLiteral("/data/upload"));
             QCOMPARE(loaded.users.keys(), QStringList{QStringLiteral("cam1")});
             QCOMPARE(loaded.slotMapping.at(0), 14);
 
