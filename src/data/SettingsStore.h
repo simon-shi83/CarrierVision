@@ -16,7 +16,7 @@ constexpr int kMaxSlotTarget = 14;
 
 struct FtpSettings {
     QMap<QString, QString> users;   // 用户名 -> 密码哈希
-    QString root;                   // 规范化后的根目录；不安全时为空
+    QString root;                   // 图像存储目录（FTP 上传目录）配置原值；相对路径相对程序目录，不安全时为空
     int port = 21;
     QVector<int> slotMapping;       // kSlotCount 项，取值 1..kMaxSlotTarget
 };

@@ -1,5 +1,6 @@
 #include "common/AgcUtils.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -41,6 +42,27 @@ QString normalizedPath(const QString &path)
     }
 
     return QDir::cleanPath(QFileInfo(trimmed).absoluteFilePath());
+}
+
+QString resolveAppPath(const QString &path)
+{
+    const QString trimmed = path.trimmed();
+    if (trimmed.isEmpty()) return {};
+    if (QDir::isAbsolutePath(trimmed)) return QDir::cleanPath(trimmed);
+    return QDir::cleanPath(QDir(QCoreApplication::applicationDirPath()).filePath(trimmed));
+}
+
+QString toAppRelativePath(const QString &path)
+{
+    const QString absolute = resolveAppPath(path);
+    if (absolute.isEmpty()) return {};
+    const QString appDir = QDir::cleanPath(QCoreApplication::applicationDirPath());
+    const QString relative = QDir(appDir).relativeFilePath(absolute);
+    if (relative.isEmpty() || relative == QStringLiteral(".") || relative.startsWith(QStringLiteral(".."))
+        || QDir::isAbsolutePath(relative)) {
+        return absolute;
+    }
+    return relative;
 }
 
 QString formatDateTime(const QDateTime &dateTime)

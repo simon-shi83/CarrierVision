@@ -240,7 +240,8 @@ private:
     QString m_ftpUser;
     QString m_ftpPass;
     int m_ftpPort = 21;
-    QString m_ftpRoot;
+    // 图像存储目录配置原值（FTP 上传与归档共用同一目录）；相对路径相对程序目录
+    QString m_imageDirSetting = QStringLiteral("images");
 
     QMap<QString, QString> m_ftpUsers;
     bool m_ftpAllowAnonymous = false;

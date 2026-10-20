@@ -539,23 +539,24 @@ Item {
                             }
                         }
 
-                        // FTP 存储根目录
+                        // 图像存储目录（FTP 上传目录，与"系统数据与存储路径"中的图像存储目录为同一目录）
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
 
                             Label {
-                                text: "存储根目录:"
+                                text: "图像存储目录:"
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontBody
                                 font.weight: Theme.weightMedium
-                                Layout.preferredWidth: 80
+                                Layout.preferredWidth: 96
                             }
 
                             TextField {
                                 id: ftpRootInput
-                                text: appController ? (appController.ftpRoot ? appController.ftpRoot : appController.archiveDirectory) : ""
+                                text: appController ? appController.archiveDirectory : ""
+                                placeholderText: "相对路径以程序目录为准，如 images"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
                                 color: Theme.textPrimary
@@ -877,7 +878,7 @@ Item {
                                     anchors.leftMargin: 10
                                     anchors.rightMargin: 10
                                     verticalAlignment: Text.AlignVCenter
-                                    text: appController ? (appController.imagesDirectory ? appController.imagesDirectory : appController.archiveDirectory) : ""
+                                    text: appController ? appController.archiveDirectory : ""
                                     color: Theme.textPrimary
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontBody

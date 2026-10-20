@@ -60,11 +60,13 @@ FtpSettings loadFtpSettings(QSqlDatabase &db, int defaultPort)
         root = QStringLiteral("images");
         DBSchema::setConfig(db, "ftp/rootDirectory", root);
     }
-    settings.root = AgcUtils::normalizedPath(root);
-    const QString fsRoot = QDir::cleanPath(QDir(settings.root).rootPath());
+    // 保留配置原值（默认相对路径 images），使用时再按程序目录解析，安装目录整体搬迁后仍指向新位置
+    settings.root = root.trimmed();
+    const QString resolved = AgcUtils::resolveAppPath(settings.root);
+    const QString fsRoot = QDir::cleanPath(QDir(resolved).rootPath());
     const QString home = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
-    if (settings.root.isEmpty() || settings.root == fsRoot || settings.root == home
-        || QFileInfo(settings.root).isSymbolicLink()) {
+    if (resolved.isEmpty() || resolved == fsRoot || resolved == home
+        || QFileInfo(resolved).isSymbolicLink()) {
         settings.root.clear();
     }
 

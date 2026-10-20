@@ -392,6 +392,8 @@ void AppLogger::init(const QString &logDir)
         s_logger->flush_on(spdlog::level::err);
 
         spdlog::set_default_logger(s_logger);
+        // 每秒落盘一次，现场排查时日志文件可实时查看
+        spdlog::flush_every(std::chrono::seconds(1));
 
         // 捕获并重定向 Qt 自带日志
         qInstallMessageHandler(qtMessageHandler);

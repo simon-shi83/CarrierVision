@@ -302,6 +302,14 @@ private slots:
             SettingsStore::loadFtpSettings(db, 21);
             QCOMPARE(DBSchema::getConfig(db, QStringLiteral("ftp/rootDirectory")), QStringLiteral("images"));
 
+            // 相对路径原样保存，按程序目录（而非工作目录）解析；程序目录内的绝对路径转为相对路径
+            QCOMPARE(SettingsStore::loadFtpSettings(db, 21).root, QStringLiteral("images"));
+            const QString appDir = QDir::cleanPath(QCoreApplication::applicationDirPath());
+            QCOMPARE(AgcUtils::resolveAppPath(QStringLiteral("images")), appDir + QStringLiteral("/images"));
+            QCOMPARE(AgcUtils::toAppRelativePath(appDir + QStringLiteral("/images")), QStringLiteral("images"));
+            QCOMPARE(AgcUtils::toAppRelativePath(QStringLiteral("/data/upload")), QDir::cleanPath(QStringLiteral("/data/upload")));
+            QCOMPARE(AgcUtils::toAppRelativePath(appDir), appDir);
+
             // 明文存储的 FTP 账户在加载时升级为哈希，原密码仍可验证
             QSqlQuery plain(db);
             QVERIFY(plain.exec(QStringLiteral("UPDATE ftp_users SET password_hash = 'legacy-pass' WHERE username = 'cam1'")));

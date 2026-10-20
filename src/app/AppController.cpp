@@ -73,6 +73,9 @@ static QSqlDatabase getThreadDatabase()
 
 constexpr int kMaxPageSize = 200;
 
+// 同一载具相邻两批数据的最大间隔：超过则视为重新检测，首页 12 宫格整屏刷新
+constexpr qint64 kSameCarrierMergeSecs = 120;
+
 bool isSafeArchiveRoot(const QString &path)
 {
     const QFileInfo info(path);
@@ -213,7 +216,7 @@ void AppController::startMaintenance(bool emergency)
             return;
         }
     }
-    request.managedRoots = {request.archiveRoot, m_ftpRoot};
+    request.managedRoots = {request.archiveRoot};
     request.storagePaths = storagePaths();
 
     // 数据库与文件删除在维护线程用独立连接执行，避免阻塞界面与上传处理
@@ -252,7 +255,7 @@ void AppController::startMaintenance(bool emergency)
 
 QStringList AppController::storagePaths() const
 {
-    return {m_archiveDirectory, m_ftpRoot, QFileInfo(DBSchema::defaultDatabasePath()).absolutePath(),
+    return {m_archiveDirectory, QFileInfo(DBSchema::defaultDatabasePath()).absolutePath(),
             AppLogger::getLogDirectory()};
 }
 
@@ -1262,9 +1265,17 @@ void AppController::loadFtpSettingsFromFile()
         if (!db.isOpen()) return;
         const SettingsStore::FtpSettings settings = SettingsStore::loadFtpSettings(db, m_ftpPort);
         m_ftpUsers = settings.users;
-        m_ftpRoot = settings.root;
+        m_imageDirSetting = settings.root.isEmpty() ? QStringLiteral("images") : settings.root;
         m_ftpPort = settings.port;
         m_slotMapping = settings.slotMapping;
+    }
+    // FTP 上传目录即图像存储目录；环境变量 AGCFTP_ARCHIVE_DIR 优先
+    if (qEnvironmentVariable("AGCFTP_ARCHIVE_DIR").trimmed().isEmpty()) {
+        const QString resolved = AgcUtils::resolveAppPath(m_imageDirSetting);
+        if (resolved != m_archiveDirectory) {
+            m_archiveDirectory = resolved;
+            emit archiveDirectoryChanged();
+        }
     }
     m_ftpAllowAnonymous = false; // 内置服务不允许匿名上传。
     if (!m_ftpUsers.isEmpty()) m_ftpUser = m_ftpUsers.firstKey();
@@ -1274,7 +1285,7 @@ void AppController::loadFtpSettingsFromFile()
 
 bool AppController::saveFtpSettingsToFile()
 {
-    const SettingsStore::FtpSettings settings{m_ftpUsers, m_ftpRoot, m_ftpPort, m_slotMapping};
+    const SettingsStore::FtpSettings settings{m_ftpUsers, m_imageDirSetting, m_ftpPort, m_slotMapping};
     QString error;
     bool saved = false;
     {
@@ -1352,19 +1363,18 @@ void AppController::startFtpServer()
         setStatusMessage(QStringLiteral("请先创建 FTP 账户，服务未启动"));
         return;
     }
-    // ensure root directory exists (use archive instead of incoming)
-    if (m_ftpRoot.isEmpty()) m_ftpRoot = m_archiveDirectory;
-    QTemporaryFile probe(QDir(m_ftpRoot).filePath(".cv-write-test-XXXXXX"));
-    if (!QSqlDatabase::database().isOpen() || !QDir().mkpath(m_ftpRoot) || !probe.open()) {
+    const QString root = m_archiveDirectory;
+    QTemporaryFile probe(QDir(root).filePath(".cv-write-test-XXXXXX"));
+    if (!QSqlDatabase::database().isOpen() || root.isEmpty() || !QDir().mkpath(root) || !probe.open()) {
         setStatusMessage(QStringLiteral("FTP 未启动：数据库或上传目录不可用")); return;
     }
-    if (ftpListen(m_ftpPort, m_ftpRoot)) {
-        const QString msg = QStringLiteral("FTP 服务器已启动：端口 %1，目录 %2").arg(m_ftpPort).arg(m_ftpRoot);
+    if (ftpListen(m_ftpPort, root)) {
+        const QString msg = QStringLiteral("FTP 服务器已启动：端口 %1，目录 %2").arg(m_ftpPort).arg(root);
         setStatusMessage(msg);
-        LOG_INFO("FTP 服务器已成功启动: 监听端口={}, 根目录={}, 用户数={}", m_ftpPort, m_ftpRoot.toStdString(), m_ftpUsers.size());
+        LOG_INFO("FTP 服务器已成功启动: 监听端口={}, 根目录={}, 用户数={}", m_ftpPort, root.toStdString(), m_ftpUsers.size());
         QStringList accounts;
         for (auto it = m_ftpUsers.constBegin(); it != m_ftpUsers.constEnd(); ++it) accounts << it.key();
-        appendFtpLog(QStringLiteral("FTP START: 端口 %1，根目录 %2，账户 %3").arg(m_ftpPort).arg(m_ftpRoot, accounts.join(',')));
+        appendFtpLog(QStringLiteral("FTP START: 端口 %1，根目录 %2，账户 %3").arg(m_ftpPort).arg(root, accounts.join(',')));
     } else {
         const QString msg = QStringLiteral("无法启动 FTP 服务器（端口可能被占用）：%1").arg(m_ftpPort);
         setStatusMessage(msg);
@@ -1460,7 +1470,7 @@ void AppController::ftpPushUsers()
 void AppController::ftpPushRoot()
 {
     FtpIngestService *service = m_ftpService;
-    const QString root = m_ftpRoot.isEmpty() ? m_archiveDirectory : m_ftpRoot;
+    const QString root = m_archiveDirectory;
     QMetaObject::invokeMethod(service, [service, root]() { service->setRoot(root); }, Qt::QueuedConnection);
 }
 
@@ -1560,22 +1570,40 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
 
     m_currentCarrierId = batch.carrierId;
     m_currentRoundNumber = 0;
-    m_currentReceivedAtText = AgcUtils::formatDateTime(batch.timestamp);
-    m_currentSerialsRaw = QStringLiteral("载具 #%1 (轮数=%2)").arg(batch.carrierId).arg(batch.wheels.size());
-    m_currentCopiedCount = batch.wheels.size();
-    emit currentBatchChanged();
-
     QHash<QString, QString> associated;
     for (const ImageIngest::WheelItem &wheel : std::as_const(batch.wheels)) {
         if (!wheel.imagePath.isEmpty()) associated.insert(wheel.imageName, wheel.imagePath);
     }
-    const QVector<ImageItem> cards = IngestCoordinator::buildStationCards(batch, [&](const QString &imageName) {
+    QVector<ImageItem> cards = IngestCoordinator::buildStationCards(batch, [&](const QString &imageName) {
         const QString path = associated.value(imageName);
         // 图片尚未到达：先按文件名在归档目录查找用于显示，到达后由 onFtpImageStored 更新卡片与记录
         return path.isEmpty() ? resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory) : path;
     });
+    // 一个载具分多次触发（每次 6 个相机）：同一载具的后续批次只刷新本批相机，
+    // 其余工位保留该载具前几批的卡片；换载具或间隔过久时整屏刷新
+    int keptCards = 0;
+    int totalWheels = 0;
+    for (int i = 0; i < cards.size(); ++i) {
+        if (cards[i].wheelsInfo.isEmpty() && i < m_currentImagesModel.count()) {
+            const ImageItem previous = m_currentImagesModel.itemAt(i);
+            if (previous.carrierId == batch.carrierId && !previous.wheelsInfo.isEmpty()
+                && previous.receivedAt.isValid()
+                && qAbs(previous.receivedAt.secsTo(batch.timestamp)) <= kSameCarrierMergeSecs) {
+                cards[i] = previous;
+                ++keptCards;
+            }
+        }
+        if (!cards[i].wheelsInfo.isEmpty())
+            totalWheels += cards[i].wheelsInfo.count(QStringLiteral(" ╎ ")) + 1;
+    }
     m_currentImagesModel.setItems(cards);
-    LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片", batch.carrierId);
+
+    m_currentReceivedAtText = AgcUtils::formatDateTime(batch.timestamp);
+    m_currentSerialsRaw = QStringLiteral("载具 #%1 (轮数=%2)").arg(batch.carrierId).arg(totalWheels);
+    m_currentCopiedCount = totalWheels;
+    emit currentBatchChanged();
+    LOG_INFO("[TCP] 载具 #{} 数据已成功入库并刷新 12 宫格卡片: 轮数={}, 已关联图片的轮={}, 待图片到达的轮={}, 保留同载具前批卡片={}",
+             batch.carrierId, batch.wheels.size(), consumed.size(), batch.wheels.size() - consumed.size(), keptCards);
     setStatusMessage(QStringLiteral("载具 #%1 测量数据已接收，共 %2 轮").arg(batch.carrierId).arg(batch.wheels.size()));
     return true;
 }
@@ -1641,7 +1669,7 @@ QString AppController::ftpUser() const
 
 QString AppController::ftpRoot() const
 {
-    return m_ftpRoot;
+    return m_archiveDirectory;
 }
 
 QString AppController::ftpAccountsDebug() const
@@ -1693,7 +1721,7 @@ void AppController::setFtpPass(const QString &pass)
 
 bool AppController::applyFtpConfiguration(const QString &root, int port)
 {
-    const QString normalized = AgcUtils::normalizedPath(root);
+    const QString normalized = AgcUtils::resolveAppPath(root);
     if (normalized.isEmpty() || normalized == QDir::rootPath() || normalized == QDir::homePath()
         || normalized == QCoreApplication::applicationDirPath() || QFileInfo(normalized).isSymbolicLink()
         || port < 1 || port > 65535) {
@@ -1704,34 +1732,42 @@ bool AppController::applyFtpConfiguration(const QString &root, int port)
     }
     QTemporaryFile probe(QDir(normalized).filePath(".cv-write-test-XXXXXX"));
     if (!probe.open()) { setStatusMessage(QStringLiteral("FTP 根目录不可写")); return false; }
-    const QString previousRoot = m_ftpRoot;
+    const QString previousRoot = m_archiveDirectory;
+    const QString previousSetting = m_imageDirSetting;
     const int previousPort = m_ftpPort;
     const bool running = m_ftpRunning;
     if (running) ftpStop();
-    m_ftpRoot = normalized; m_ftpPort = port;
+    m_archiveDirectory = normalized; m_ftpPort = port;
+    // 程序目录内的路径按相对路径保存，安装目录整体搬迁后仍然有效
+    m_imageDirSetting = AgcUtils::toAppRelativePath(normalized);
     bool success = !running || ftpListen(port, normalized);
     if (success) success = saveFtpSettingsToFile();
     if (!success) {
         if (m_ftpRunning) ftpStop();
-        m_ftpRoot = previousRoot; m_ftpPort = previousPort;
+        m_archiveDirectory = previousRoot; m_imageDirSetting = previousSetting; m_ftpPort = previousPort;
         const bool restored = !running || ftpListen(previousPort, previousRoot);
         ftpPushRoot();
         setStatusMessage(restored ? QStringLiteral("FTP 设置未生效，已恢复原配置") : QStringLiteral("FTP 设置失败，原服务也无法恢复，请检查端口"));
         return false;
     }
     ftpPushRoot();
+    if (normalized != previousRoot) {
+        ensureDirectories();
+        LOG_INFO("图像存储目录已变更: {} -> {}", previousRoot.toStdString(), normalized.toStdString());
+        emit archiveDirectoryChanged();
+    }
     emit ftpSettingsChanged();
     return true;
 }
 
 void AppController::setFtpRoot(const QString &root)
 {
-    if (AgcUtils::normalizedPath(root) != m_ftpRoot) applyFtpConfiguration(root, m_ftpPort);
+    if (AgcUtils::resolveAppPath(root) != m_archiveDirectory) applyFtpConfiguration(root, m_ftpPort);
 }
 
 void AppController::setFtpPort(int port)
 {
-    if (port != m_ftpPort) applyFtpConfiguration(m_ftpRoot.isEmpty() ? m_archiveDirectory : m_ftpRoot, port);
+    if (port != m_ftpPort) applyFtpConfiguration(m_archiveDirectory, port);
 }
 
 QVariantList AppController::ftpAccounts() const
@@ -1928,7 +1964,7 @@ void AppController::openArchiveDirectory()
 
 void AppController::openFtpRootDirectory()
 {
-    const QString root = m_ftpRoot.isEmpty() ? m_archiveDirectory : m_ftpRoot;
+    const QString root = m_archiveDirectory;
     if (!root.isEmpty()) {
         QDesktopServices::openUrl(QUrl::fromLocalFile(root));
     }
