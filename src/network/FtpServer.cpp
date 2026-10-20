@@ -312,7 +312,12 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
             && m_storeFile->error() == QFileDevice::NoError) {
             if (m_storeFile->flush()) {
                 const QString temporaryPath = m_storeFile->fileName();
+                // Windows 上 QTemporaryFile close() 后仍持有句柄直到析构，导致后续改名失败；
+                // 先关闭自动删除并销毁对象以释放句柄，提交失败时再手动清理
+                m_storeFile->setAutoRemove(false);
                 m_storeFile->close();
+                delete m_storeFile;
+                m_storeFile = nullptr;
 
                 // 若目标文件已存在且内容不同，自动分配自增后缀（_v2, _v3...），确保新图100%保存不被丢弃
                 if (QFileInfo::exists(effectiveFinalPath)) {
@@ -339,12 +344,15 @@ void FtpControlConnection::finishDataTransferAndCleanup(bool sendStoreReply)
                 }
 
                 finalizeOk = uploadHandler && uploadHandler(temporaryPath, effectiveFinalPath, m_pendingStorePath);
+                if (QFileInfo::exists(temporaryPath)) QFile::remove(temporaryPath);
             }
         } else {
             m_storeFile->remove();
         }
-        m_storeFile->deleteLater();
-        m_storeFile = nullptr;
+        if (m_storeFile) {
+            m_storeFile->deleteLater();
+            m_storeFile = nullptr;
+        }
     }
 
     m_storeSuccess = finalizeOk;
