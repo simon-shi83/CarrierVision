@@ -498,5 +498,9 @@ if(BUILD_TESTING)
     set_tests_properties(CarrierVisionBoundaryTests CarrierVisionReleaseTests CarrierVisionQmlSmoke CarrierVisionWheelSelectionTests
                          PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     # 此测试验证绑定/查询身份，不依赖 GPU；避免无显示设备的 CI 选择 D3D/OpenGL。
-    set_property(TEST CarrierVisionWheelSelectionTests APPEND PROPERTY ENVIRONMENT "QT_QUICK_BACKEND=software")
+    # Windows offscreen 不读取系统字体，显式使用随程序分发的字体，保持与 main.cpp 一致。
+    set_property(TEST CarrierVisionWheelSelectionTests APPEND PROPERTY ENVIRONMENT
+        "QT_QUICK_BACKEND=software"
+        "QT_QPA_FONTDIR=${CARRIERVISION_FONT_DIR}"
+        "CV_UI_FONT_DIR=${CARRIERVISION_FONT_DIR}")
 endif()

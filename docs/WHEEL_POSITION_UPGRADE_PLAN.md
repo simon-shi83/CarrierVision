@@ -274,3 +274,10 @@ README 增加完整映射表，将 `wheels`/`wheelId` 从笼统的“驱动轮�
 - [亮色选择器](/tmp/carriervision-wheel-final/selection-light/wheel-selector.png)、[暗色选择器](/tmp/carriervision-wheel-final/selection-dark/wheel-selector.png)。
 
 用户已授权提交全部修改到 GitHub；功能分支推送后手动触发 Windows CI，状态与结果以 GitHub Actions 为准。本地Linux验证不能替代Windows安装包验收。现场客户端和旧CSV下游兼容仍需在现场核对；本次未执行数据库迁移、改动客户端协议或修改开发库。
+
+
+### Windows CI 兼容性修正
+
+Windows / Qt 6.8.2 的首次回归中，编译和前三项测试通过，轮位QML交互测试失败。补齐控制台/文件日志后确认，Windows offscreen 字体后端查找 Qt 安装目录内不存在的 `lib/fonts`，触发严格告警检查；该测试失败后的图片等待也出现未完成状态。
+
+CTest 现为该用例明确设置软件渲染、`QT_QPA_FONTDIR` 和 `CV_UI_FONT_DIR`，字体均来自仓库 `assets/fonts`，与程序字体来源一致。继续保留全部身份/图片断言与“警告即失败”规则。Windows工作流同时保留测试文本日志与失败附件，构建并行度固定为 `-j8`。修正后的Windows结果以功能分支对应的Actions运行为准，通过后再合并main。
