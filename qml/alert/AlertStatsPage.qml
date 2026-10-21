@@ -19,18 +19,49 @@ Page {
     property int selectedRack: 0
     property int selectedWheel: 0
     property int maxRackNg: 1
-    property int maxWheelNg: 1
 
     property int rackRequestId: -1
     property int wheelRequestId: -1
+    property int imageRequestId: -1
+    property int dispositionRequestId: -1
+    property int imagePage: 1
+    property int imageTotal: 0
+    property var currentImage: ({})
+    property string queryStart: ""
+    property string queryEnd: ""
+    property string operationMessage: ""
+    property bool preserveWheel: false
+
+    function resetImage() {
+        imageRequestId = -1
+        imagePage = 1
+        imageTotal = 0
+        currentImage = ({})
+        viewer.visible = false
+    }
+
+    function disposeWheel(wheel, kind) {
+        if (dispositionRequestId !== -1) return
+        operationMessage = "正在保存处置状态…"
+        dispositionRequestId = appController.requestAlertOperation(kind, queryStart, queryEnd,
+                                                                  selectedRack, wheel, 1)
+    }
 
     function loadRackStatistics() {
         if (!appController || !appController.requestStats)
             return
+        queryStart = dateBar.startDate
+        queryEnd = dateBar.endDate
         wheelRequestId = -1
+        operationMessage = ""
+        rackRows = []
+        selectedRack = 0
+        selectedWheel = 0
+        wheelRows = []
+        resetImage()
         rackRequestId = appController.requestStats(
             root.isWalkWheel ? "walkingWheelRackStats" : "driveWheelRackStats",
-            [dateBar.startDate, dateBar.endDate])
+            [queryStart, queryEnd])
     }
 
     function applyRackStatistics(stats) {
@@ -49,39 +80,28 @@ Page {
         selectedRack = 0
         selectedWheel = 0
         wheelRows = []
-        if (appController.clearSearch)
-            appController.clearSearch()
+        resetImage()
         if (rows.length > 0)
             loadWheelStatistics(rows[0].rack)
     }
 
-    function loadWheelStatistics(rack) {
+    function loadWheelStatistics(rack, preserve) {
+        preserveWheel = preserve === true && selectedRack === rack
         selectedRack = rack
-        selectedWheel = 0
-        wheelRows = []
-        if (!appController || !appController.requestStats)
-            return
-        wheelRequestId = appController.requestStats("rackWheelResultStats",
-            [dateBar.startDate, dateBar.endDate, rack, "NG", root.wheelTypeIndex])
+        if (!preserveWheel) {
+            selectedWheel = 0
+            wheelRows = []
+            resetImage()
+        }
+        wheelRequestId = appController.requestAlertOperation("groups", queryStart, queryEnd,
+                                                             rack, root.isWalkWheel ? 9 : 1, 1)
     }
 
     function applyWheelStatistics(stats) {
-        var rows = []
-        var maxVal = 1
-        for (var i = 0; i < stats.length; ++i) {
-            var row = stats[i]
-            var count = Number(row.count)
-            if (count > 0) {
-                rows.push({ wheel: Number(row.wheel), count: count })
-                if (count > maxVal) maxVal = count
-            }
-        }
-        maxWheelNg = maxVal
-        wheelRows = rows
-        if (rows.length > 0)
-            loadImages(rows[0].wheel)
-        else if (appController.clearSearch)
-            appController.clearSearch()
+        wheelRows = stats
+        if (preserveWheel && selectedWheel > 0) return
+        if (stats.length > 0) loadImages(Number(stats[0].wheel))
+        else resetImage()
     }
 
     Connections {
@@ -89,17 +109,39 @@ Page {
         function onStatsReady(requestId, kind, result) {
             if (requestId === root.rackRequestId)
                 root.applyRackStatistics(result || [])
-            else if (requestId === root.wheelRequestId)
-                root.applyWheelStatistics(result || [])
+        }
+        function onAlertOperationFinished(requestId, result) {
+            if (requestId === root.dispositionRequestId) {
+                root.dispositionRequestId = -1
+                root.operationMessage = result.ok
+                    ? "已保存，本次处置 " + result.affected + " 条异常记录"
+                    : result.error
+                if (root.selectedRack > 0) root.loadWheelStatistics(root.selectedRack, true)
+            } else if (requestId === root.wheelRequestId) {
+                root.wheelRequestId = -1
+                if (result.ok) root.applyWheelStatistics(result.rows || [])
+                else root.operationMessage = result.error
+            } else if (requestId === root.imageRequestId) {
+                root.imageRequestId = -1
+                if (result.ok) {
+                    root.imagePage = Number(result.page)
+                    root.imageTotal = Number(result.total)
+                    root.currentImage = result.image || ({})
+                } else root.operationMessage = result.error
+            }
         }
     }
 
     function loadImages(wheel) {
         selectedWheel = wheel
-        if (!appController || !appController.searchPaged || selectedRack <= 0)
-            return
-        appController.searchPaged(dateBar.startDate, dateBar.endDate, "", selectedRack,
-                                  String(wheel), "0", 1, 200)
+        resetImage()
+        loadImagePage(1)
+    }
+
+    function loadImagePage(page) {
+        if (selectedRack <= 0 || selectedWheel <= 0) return
+        imageRequestId = appController.requestAlertOperation("image", queryStart, queryEnd,
+                                                             selectedRack, selectedWheel, page)
     }
 
     function generateCsv() {
@@ -121,6 +163,7 @@ Page {
 
             DateQueryBar {
                 id: dateBar
+                defaultRangeDays: 7
                 Layout.fillWidth: true
                 wheelType: root.wheelTypeIndex
                 exportCsvContent: root.generateCsv()
@@ -400,7 +443,7 @@ Page {
 
             // 2. 轮位 NG 汇总栏
             Rectangle {
-                Layout.preferredWidth: 220
+                Layout.preferredWidth: 330
                 Layout.fillHeight: true
                 radius: Theme.radiusMedium
                 color: Theme.surface
@@ -448,68 +491,74 @@ Page {
                         spacing: 4
 
                         delegate: Rectangle {
+                            id: wheelDelegate
                             required property var modelData
                             required property int index
                             readonly property bool selected: root.selectedWheel === modelData.wheel
                             width: wheelList.width
-                            height: 38
+                            height: 96
                             radius: Theme.radiusSmall
                             color: selected ? Theme.pressed : (wheelMouse.containsMouse ? Theme.surfaceAlt : Theme.fieldFill)
                             border.width: 1
                             border.color: selected ? Theme.accent : "transparent"
                             clip: true
 
-                            // 轮位频次热力条
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                width: Math.max(4, (modelData.count / Math.max(1, root.maxWheelNg)) * parent.width)
-                                color: Theme.dangerSoft
-                                opacity: parent.selected ? 0.45 : 0.25
-                                radius: Theme.radiusSmall
-                            }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 8
-                                spacing: 6
-
-                                Text {
-                                    text: appController.wheelLabel(parent.parent.modelData.wheel)
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: parent.parent.selected ? Theme.accent : Theme.text
-                                    font.weight: Theme.fontMedium
-                                    font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                    font.pixelSize: Theme.fontCaption
-                                }
-                                Rectangle {
-                                    Layout.preferredWidth: 44
-                                    Layout.preferredHeight: 22
-                                    radius: Theme.radiusPill
-                                    color: Theme.dangerSoft
-                                    border.color: Theme.dangerBorder
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: parent.parent.parent.modelData.count
-                                        color: Theme.danger
-                                        font.weight: Theme.fontMedium
-                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                        font.pixelSize: Theme.fontCaption
-                                    }
-                                }
-                            }
-
                             MouseArea {
                                 id: wheelMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.loadImages(parent.modelData.wheel)
+                                onClicked: root.loadImages(wheelDelegate.modelData.wheel)
+                            }
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: Theme.space2
+                                spacing: Theme.space1
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Label {
+                                        text: appController.wheelLabel(wheelDelegate.modelData.wheel)
+                                        Layout.fillWidth: true
+                                        color: Theme.text
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontCaption
+                                        font.weight: Theme.fontMedium
+                                    }
+                                    Label {
+                                        text: "NG " + wheelDelegate.modelData.count
+                                        color: Theme.textSoft
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: Theme.fontCaption
+                                        font.features: Theme.fontFeaturesTabular
+                                    }
+                                }
+                                Label {
+                                    text: "待处置 " + wheelDelegate.modelData.pending
+                                          + " · 已处理 " + wheelDelegate.modelData.handled
+                                          + " · 误报 " + wheelDelegate.modelData.falseAlarm
+                                    color: Theme.textSoft
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: Theme.fontCaption
+                                    font.features: Theme.fontFeaturesTabular
+                                }
+                                RowLayout {
+                                    spacing: Theme.space2
+                                    Repeater {
+                                        model: [{label: "已处理", kind: "handled"}, {label: "误报", kind: "falseAlarm"}]
+                                        delegate: ActionButton {
+                                            required property var modelData
+                                            text: modelData.label
+                                            variant: "secondary"
+                                            implicitHeight: 28
+                                            hoverTextColor: Theme.text
+                                            hoverColor: Theme.hover
+                                            enabled: Number(wheelDelegate.modelData.pending) > 0
+                                                     && root.dispositionRequestId === -1
+                                            onClicked: root.disposeWheel(Number(wheelDelegate.modelData.wheel), modelData.kind)
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -560,39 +609,89 @@ Page {
                             font.weight: Theme.fontMedium
                         }
                         Item { Layout.fillWidth: true }
-                        Rectangle {
-                            Layout.preferredHeight: 22
-                            implicitWidth: galleryHintRow.implicitWidth + 14
-                            radius: Theme.radiusPill
-                            color: Theme.surfaceAlt
-                            border.color: Theme.borderMuted
-                            border.width: 1
-
-                            RowLayout {
-                                id: galleryHintRow
-                                anchors.centerIn: parent
-                                spacing: 4
-                                AppIcon { name: "icon_eye"; size: 11; color: Theme.muted }
-                                Text {
-                                    text: "轻触卡片查看大图证据"
-                                    color: Theme.muted
-                                    font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
-                                }
-                            }
-                        }
                     }
 
-                    Item {
+                    Label {
+                        Layout.fillWidth: true
+                        text: root.operationMessage || "操作仅处置当前日期范围内的未处置记录；已处理表示已换轮"
+                        wrapMode: Text.WordWrap
+                        color: Theme.textSoft
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
+                    }
+
+                    Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        ImageGridView {
+                        color: Theme.surfaceAlt
+                        radius: Theme.radiusSmall
+                        Image {
+                            id: evidenceImage
                             anchors.fill: parent
-                            model: appController ? appController.searchImagesModel : null
-                            columns: Math.max(1, Math.floor(width / 220))
-                            onImageClicked: function(title, date, imageUrl) {
-                                viewer.openViewer(imageUrl, title, date)
+                            anchors.margins: Theme.space2
+                            source: root.currentImage.url || ""
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            visible: root.imageRequestId === -1
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                enabled: evidenceImage.status === Image.Ready
+                                onClicked: viewer.openViewer(root.currentImage.url, root.currentImage.name,
+                                                              root.currentImage.time)
                             }
+                        }
+                        Label {
+                            anchors.centerIn: parent
+                            text: root.imageRequestId !== -1 ? "正在加载…"
+                                  : (root.imageTotal === 0 ? "当前轮位没有异常图像记录"
+                                     : "图片尚未到达或文件不可用")
+                            visible: root.imageRequestId !== -1 || evidenceImage.status !== Image.Ready
+                            color: Theme.muted
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: root.currentImage.name || ""
+                        elide: Text.ElideMiddle
+                        color: Theme.textSoft
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontCaption
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label {
+                            text: root.currentImage.time || ""
+                            color: Theme.textSoft
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                            font.features: Theme.fontFeaturesTabular
+                        }
+                        Item { Layout.fillWidth: true }
+                        ActionButton {
+                            text: "上一幅"
+                            variant: "secondary"
+                            hoverTextColor: Theme.text
+                            hoverColor: Theme.hover
+                            enabled: root.imagePage > 1 && root.imageRequestId === -1
+                            onClicked: root.loadImagePage(root.imagePage - 1)
+                        }
+                        Label {
+                            text: (root.imageTotal > 0 ? root.imagePage : 0) + " / " + root.imageTotal
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                            font.features: Theme.fontFeaturesTabular
+                        }
+                        ActionButton {
+                            text: "下一幅"
+                            variant: "secondary"
+                            hoverTextColor: Theme.text
+                            hoverColor: Theme.hover
+                            enabled: root.imagePage < root.imageTotal && root.imageRequestId === -1
+                            onClicked: root.loadImagePage(root.imagePage + 1)
                         }
                     }
                 }

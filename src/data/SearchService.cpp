@@ -336,6 +336,98 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
     return true;
 }
 
+QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
+                          const QString &start, const QString &end, int rack, int wheel,
+                          int page, const QString &archiveDir, const QString &sourceDir)
+{
+    const auto fail = [](const QString &message) {
+        return QVariantMap{{QStringLiteral("ok"), false}, {QStringLiteral("error"), message}};
+    };
+    const QDateTime from = AgcUtils::parseFlexibleDateTime(start, false);
+    const QDateTime to = AgcUtils::parseFlexibleDateTime(end, true);
+    if (!db.isOpen() || !from.isValid() || !to.isValid() || from > to
+        || rack < 1 || rack > 50 || wheel < 1 || wheel > 16 || page < 1)
+        return fail(QStringLiteral("报警操作参数无效，请检查日期、架号和轮位"));
+    auto filter = buildRecordFilter(start, end, rack, kind == QLatin1String("groups")
+                                    ? (wheel <= 8 ? QStringLiteral("DRIVE") : QStringLiteral("WALK"))
+                                    : QString::number(wheel));
+    filter.where << QStringLiteral("result = 0");
+    QSqlQuery query(db);
+    auto execute = [&](const QString &sql) {
+        if (query.prepare(sql)) {
+            filter.bind(query);
+            if (query.exec()) return true;
+        }
+        LOG_ERROR("报警操作查询失败，架号={}，原始轮号={}，操作={}: {}",
+                  rack, wheel, kind.toStdString(), query.lastError().text().toStdString());
+        return false;
+    };
+    if (kind == QLatin1String("handled") || kind == QLatin1String("falseAlarm")) {
+        filter.where << QStringLiteral("is_handled = 0 AND is_false_alarm = 0");
+        const QString column = kind == QLatin1String("handled") ? QStringLiteral("is_handled") : QStringLiteral("is_false_alarm");
+        if (!execute(QStringLiteral("UPDATE record SET %1 = 1").arg(column) + filter.clause())) {
+            LOG_ERROR("报警处置失败，架号={}，原始轮号={}: {}", rack, wheel, query.lastError().text().toStdString());
+            return fail(QStringLiteral("保存处置状态失败，请查看日志"));
+        }
+        const qint64 affected = query.numRowsAffected();
+        LOG_INFO("报警处置完成，架号={}，原始轮号={}，操作={}，日期={} 至 {}，更新记录={}",
+                 rack, wheel, kind == QLatin1String("handled") ? "已处理（已换轮）" : "误报",
+                 start.toStdString(), end.toStdString(), affected);
+        return {{QStringLiteral("ok"), true}, {QStringLiteral("affected"), affected}};
+    }
+    if (kind == QLatin1String("groups")) {
+        if (!execute(QStringLiteral(
+                "SELECT wheel_id, COUNT(*), SUM(is_handled), SUM(is_false_alarm), "
+                "SUM(CASE WHEN is_handled=0 AND is_false_alarm=0 THEN 1 ELSE 0 END) FROM record")
+                + filter.clause() + QStringLiteral(" GROUP BY wheel_id ORDER BY wheel_id")))
+            return fail(QStringLiteral("读取轮位处置状态失败"));
+        QVariantList rows;
+        while (query.next()) {
+            rows.append(QVariantMap{{QStringLiteral("wheel"), query.value(0)},
+                                    {QStringLiteral("count"), query.value(1)},
+                                    {QStringLiteral("handled"), query.value(2)},
+                                    {QStringLiteral("falseAlarm"), query.value(3)},
+                                    {QStringLiteral("pending"), query.value(4)}});
+        }
+        return {{QStringLiteral("ok"), true}, {QStringLiteral("rows"), rows}};
+    }
+    if (kind != QLatin1String("image")) return fail(QStringLiteral("未知报警操作"));
+    // 按实际图片路径区分 FTP 同名不同内容的版本；缺路径时按文件名（不区分大小写）去重。
+    const QString grouped = QStringLiteral(
+        " FROM record") + filter.clause() + QStringLiteral(
+        " GROUP BY lower(COALESCE(NULLIF(image_path, ''), imagename))");
+    // COUNT 和取图处于同一只读快照，避免后台新增/清理记录导致页号不一致。
+    QSqlQuery transaction(db);
+    if (!transaction.exec(QStringLiteral("BEGIN"))) return fail(QStringLiteral("读取图片失败"));
+    auto rollback = [&]() { transaction.exec(QStringLiteral("ROLLBACK")); };
+    if (!execute(QStringLiteral("SELECT COUNT(*) FROM (SELECT 1") + grouped + QStringLiteral(")")) || !query.next()) {
+        rollback();
+        return fail(QStringLiteral("读取图片数量失败"));
+    }
+    const qint64 total = query.value(0).toLongLong();
+    const qint64 current = qMin<qint64>(page, qMax<qint64>(1, total));
+    query.finish();
+    if (!execute(QStringLiteral("SELECT MAX(createtime), imagename, image_path") + grouped
+                 + QStringLiteral(" ORDER BY MAX(createtime) DESC, lower(COALESCE(NULLIF(image_path, ''), imagename)) ASC LIMIT 1 OFFSET %1").arg(current - 1))) {
+        rollback();
+        return fail(QStringLiteral("读取图片失败"));
+    }
+    QVariantMap image;
+    if (query.next()) {
+        image.insert(QStringLiteral("time"), query.value(0));
+        image.insert(QStringLiteral("name"), query.value(1));
+        const QString path = resolveRecordImage(query.value(2).toString(), query.value(1).toString(), archiveDir, sourceDir);
+        image.insert(QStringLiteral("url"), path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString());
+    }
+    query.finish();
+    if (!transaction.exec(QStringLiteral("COMMIT"))) {
+        rollback();
+        return fail(QStringLiteral("读取图片快照失败"));
+    }
+    return {{QStringLiteral("ok"), true}, {QStringLiteral("total"), total},
+            {QStringLiteral("page"), current}, {QStringLiteral("image"), image}};
+}
+
 bool parseResultFilter(const QString &text, int &result)
 {
     const QString token = text.trimmed();

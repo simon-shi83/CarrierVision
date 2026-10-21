@@ -122,6 +122,10 @@ public:
     Q_INVOKABLE QVariantList slotMapping() const;
     Q_INVOKABLE void setSlotMapping(int sourceOneBased, int targetValue);
     Q_INVOKABLE QVariantList rackWheelDistances(int rackNumber) const;
+    // 报警操作在后台线程执行，结果通过请求编号返回，页面丢弃过期响应。
+    Q_INVOKABLE int requestAlertOperation(const QString &kind, const QString &start, const QString &end,
+                                          int rack, int wheel, int page = 1);
+    Q_SIGNAL void alertOperationFinished(int requestId, const QVariantMap &result);
     // 异步统计：kind 为下方同步统计函数名，args 与其参数顺序一致；结果经 statsReady 返回。
     // 页面应优先使用该接口，同步版本仅为兼容保留，会阻塞界面线程。
     Q_INVOKABLE int requestStats(const QString &kind, const QVariantList &args = {});

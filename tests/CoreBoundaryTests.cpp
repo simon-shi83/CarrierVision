@@ -23,6 +23,97 @@ class CoreBoundaryTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void alertDispositionIsBoundedFinalAndPreservesDetection()
+    {
+        const QString connection = QStringLiteral("AlertDispositionTest");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connection);
+            db.setDatabaseName(":memory:");
+            QVERIFY(db.open());
+            // 模拟升级前的现场库，验证原地迁移及默认值。
+            QSqlQuery q(db);
+            QVERIFY(q.exec("CREATE TABLE record(createtime DATETIME NOT NULL, carrier_id INTEGER NOT NULL, "
+                           "camera_id INTEGER DEFAULT 1, wheel_id INTEGER NOT NULL, result INTEGER, "
+                           "distance REAL DEFAULT 0, dist_norm REAL DEFAULT 0, lower_tolerance REAL DEFAULT 0, "
+                           "imagename TEXT NOT NULL, batch_id TEXT DEFAULT '')"));
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,wheel_id,result,distance,imagename) VALUES"
+                           "('2026-10-20 00:00:00',3,1,0,117.8,'first.png'),"
+                           "('2026-10-20 23:59:59',3,1,0,116.5,'last.png'),"
+                           "('2026-10-19 23:59:59',3,1,0,115.0,'outside.png'),"
+                           "('2026-10-21 00:00:00',3,1,0,115.0,'future.png'),"
+                           "('2026-10-20 12:00:00',4,1,0,114.0,'other-rack.png'),"
+                           "('2026-10-20 12:00:00',3,2,0,114.0,'other-wheel.png'),"
+                           "('2026-10-20 12:00:00',3,1,1,120.0,'ok.png')"));
+            QVERIFY(DBSchema::ensureAllTables(db));
+            QVERIFY(DBSchema::ensureAllTables(db));
+            auto operation = [&](const QString &kind, const QString &start = "2026-10-20", const QString &end = "2026-10-20") {
+                return SearchService::alertOperation(db, kind, start, end, 3, 1, 1, "", "");
+            };
+            QVERIFY(!operation("handled", "invalid").value("ok").toBool());
+            QVERIFY(!operation("handled", "", "").value("ok").toBool());
+            QVERIFY(!operation("handled", "2026-10-21", "2026-10-20").value("ok").toBool());
+            QCOMPARE(operation("handled").value("affected").toInt(), 2);
+            QCOMPARE(operation("handled").value("affected").toInt(), 0);
+            QCOMPARE(operation("falseAlarm").value("affected").toInt(), 0);
+            auto groups = operation("groups").value("rows").toList();
+            QCOMPARE(groups.first().toMap().value("handled").toInt(), 2);
+            QCOMPARE(groups.first().toMap().value("pending").toInt(), 0);
+            // 新报警保持未处置，且误报操作不覆盖先前换轮的记录。
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,wheel_id,result,distance,imagename) "
+                           "VALUES('2026-10-20 23:59:59',3,1,0,113.0,'new.png')"));
+            QCOMPARE(operation("falseAlarm").value("affected").toInt(), 1);
+            QVERIFY(q.exec("SELECT COUNT(*) FROM record WHERE is_handled=0 AND is_false_alarm=0"));
+            QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(), 5);
+            QVERIFY(q.exec("SELECT result,distance,imagename FROM record WHERE is_handled=1 ORDER BY createtime"));
+            QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(), 0); QCOMPARE(q.value(1).toDouble(), 117.8);
+            QCOMPARE(q.value(2).toString(), QStringLiteral("first.png"));
+            QVERIFY(q.exec("SELECT result,distance FROM record WHERE is_false_alarm=1"));
+            QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(), 0); QCOMPARE(q.value(1).toDouble(), 113.0);
+            QVERIFY(!q.exec("UPDATE record SET is_handled=0,is_false_alarm=1 WHERE is_handled=1"));
+            QVERIFY(q.exec("SELECT COUNT(*) FROM alertrecord WHERE result=0"));
+            QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(), 0); // 新插入的旧时间 NG 不替换最新检测，人工处置也不改缓存
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+
+    void alertImagesPageBeyond200AndRetainDisposedEvidence()
+    {
+        const QString connection = QStringLiteral("AlertImagesTest");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connection);
+            db.setDatabaseName(":memory:");
+            QVERIFY(db.open()); QVERIFY(DBSchema::ensureAllTables(db));
+            QSqlQuery q(db);
+            q.prepare("INSERT INTO record(createtime,carrier_id,wheel_id,result,imagename,image_path) "
+                      "VALUES('2026-10-20 12:00:00',3,1,0,?,?)");
+            for (int i = 0; i < 205; ++i) {
+                q.bindValue(0, QStringLiteral("%1.png").arg(i, 3, 10, QLatin1Char('0')));
+                q.bindValue(1, QStringLiteral("images/%1.png").arg(i, 3, 10, QLatin1Char('0')));
+                QVERIFY(q.exec());
+            }
+            // 大小写不敏感去重，同名但不同落盘版本保留。
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,wheel_id,result,imagename,image_path) VALUES"
+                           "('2026-10-20 12:00:00',3,1,0,'000.PNG','IMAGES/000.PNG'),"
+                           "('2026-10-20 12:00:00',3,1,0,'000.png','images/000_v2.png'),"
+                           "('2026-10-19 12:00:00',3,1,0,'outside.png','images/outside.png')"));
+            auto image = [&](int page) {
+                return SearchService::alertOperation(db, "image", "2026-10-20", "2026-10-20", 3, 1, page, "", "");
+            };
+            const auto first = image(1);
+            QVERIFY(first.value("ok").toBool()); QCOMPARE(first.value("total").toInt(), 206);
+            QVERIFY(first.value("image").toMap().value("url").toString().isEmpty()); // 缺图也可追溯
+            const auto last = image(206);
+            QCOMPARE(last.value("page").toInt(), 206);
+            QCOMPARE(last.value("image").toMap().value("name").toString(), QStringLiteral("204.png"));
+            QCOMPARE(image(999).value("page").toInt(), 206);
+            QVERIFY(SearchService::alertOperation(db, "handled", "2026-10-20", "2026-10-20", 3, 1, 1, "", "").value("ok").toBool());
+            QCOMPARE(image(206).value("total").toInt(), 206);
+            const auto empty = SearchService::alertOperation(db, "image", "2026-10-20", "2026-10-20", 3, 2, 1, "", "");
+            QCOMPARE(empty.value("total").toInt(), 0);
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+
     void wheelIdentityKeepsPhysicalWheelAndRejectsInvalidValues()
     {
         for (int index = 1; index <= 8; ++index) {

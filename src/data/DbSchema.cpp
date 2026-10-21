@@ -309,6 +309,31 @@ bool DBSchema::ensureAllTables(QSqlDatabase &db){
         }
     }
 
+    // 人工处置独立于客户端检测结果；旧库原地加列，历史记录保持未处置。
+    for (const QString &name : {QStringLiteral("is_handled"), QStringLiteral("is_false_alarm")}) {
+        bool exists = false;
+        QSqlQuery columns(db);
+        if (!columns.exec(QStringLiteral("PRAGMA table_info(record)"))) return false;
+        while (columns.next()) {
+            if (columns.value(1).toString() == name) exists = true;
+        }
+        columns.finish();
+        if (!exists && !q.exec(QStringLiteral(
+                "ALTER TABLE record ADD COLUMN %1 INTEGER NOT NULL DEFAULT 0 CHECK(%1 IN (0,1))").arg(name))) {
+            LOG_ERROR("数据库增加人工处置字段 {} 失败: {}", name.toStdString(), q.lastError().text().toStdString());
+            return false;
+        }
+    }
+    // 同一记录只能处置一次，禁止两个状态同时成立或覆盖已完成的处置。
+    if (!q.exec(R"(
+        CREATE TRIGGER IF NOT EXISTS trg_record_disposition_guard
+        BEFORE UPDATE OF is_handled, is_false_alarm ON record
+        WHEN (NEW.is_handled = 1 AND NEW.is_false_alarm = 1)
+          OR ((OLD.is_handled = 1 OR OLD.is_false_alarm = 1)
+              AND (NEW.is_handled != OLD.is_handled OR NEW.is_false_alarm != OLD.is_false_alarm))
+        BEGIN SELECT RAISE(ABORT, 'record disposition is final'); END
+    )")) return false;
+
     const auto execRequired = [&q](const QString &sql, const char *operation) {
         if (q.exec(sql)) return true;
         LOG_ERROR("DBSchema: {}失败: {}", operation, q.lastError().text().toStdString());

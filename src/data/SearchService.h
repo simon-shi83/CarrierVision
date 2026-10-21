@@ -33,6 +33,12 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
                      int page, int pageSize, const QString &archiveDir, const QString &sourceDir,
                      int &totalCount, QVector<ImageItem> &items);
 
+// 报警轮位汇总、单幅去重原图分页和批量人工处置。所有请求均强制有效日期范围。
+// kind: groups / image / handled / falseAlarm；page 为从 1 开始的图像页号。
+QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
+                          const QString &start, const QString &end, int rack, int wheel,
+                          int page, const QString &archiveDir, const QString &sourceDir);
+
 // "OK"/"1" -> 1，"NG"/"0" -> 0；其余返回 false
 bool parseResultFilter(const QString &text, int &result);
 

@@ -765,6 +765,22 @@ QVariantMap AppController::homepageCurrentDetection() const
     return StatsService::homepageCurrentDetection(QSqlDatabase::database(), currentRackHint());
 }
 
+int AppController::requestAlertOperation(const QString &kind, const QString &start, const QString &end,
+                                         int rack, int wheel, int page)
+{
+    const int requestId = ++m_statsRequestSeq;
+    const QString archiveDir = m_archiveDirectory;
+    const QString sourceDir = m_sourceDirectory;
+    (void)QtConcurrent::run(&m_statsPool, [this, requestId, kind, start, end, rack, wheel, page, archiveDir, sourceDir]() {
+        const QVariantMap result = SearchService::alertOperation(getThreadDatabase(), kind, start, end,
+                                                                 rack, wheel, page, archiveDir, sourceDir);
+        QMetaObject::invokeMethod(this, [this, requestId, result]() {
+            emit alertOperationFinished(requestId, result);
+        }, Qt::QueuedConnection);
+    });
+    return requestId;
+}
+
 int AppController::requestStats(const QString &kind, const QVariantList &args)
 {
     const int requestId = ++m_statsRequestSeq;

@@ -18,6 +18,16 @@ Rectangle {
     property int wheelType: 0
     property alias sheeltype: root.wheelType // 兼容历史别名
     property string exportCsvContent: ""
+    // 含今天在内的默认天数，其他页面保持当天。
+    property int defaultRangeDays: 1
+
+    function resetDates() {
+        var today = new Date()
+        var start = new Date(today)
+        start.setDate(start.getDate() - Math.max(0, defaultRangeDays - 1))
+        startDateField.dateString = Qt.formatDate(start, "yyyy-MM-dd")
+        endDateField.dateString = Qt.formatDate(today, "yyyy-MM-dd")
+    }
 
     // 信号
     signal searchClicked(string startDate, string endDate)
@@ -104,9 +114,7 @@ Rectangle {
             Layout.preferredHeight: 34
             Layout.alignment: Qt.AlignVCenter
             onClicked: {
-                var today = Qt.formatDate(new Date(), "yyyy-MM-dd");
-                startDateField.dateString = today;
-                endDateField.dateString = today;
+                root.resetDates();
                 root.resetClicked();
             }
         }
@@ -193,9 +201,5 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: {
-        var today = Qt.formatDate(new Date(), "yyyy-MM-dd");
-        startDateField.dateString = today;
-        endDateField.dateString = today;
-    }
+    Component.onCompleted: resetDates()
 }
