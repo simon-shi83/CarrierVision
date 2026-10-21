@@ -61,26 +61,12 @@ Page {
 
     // 将轮号转换为 3D 标签名称
     function wheelToTagName(wheel) {
-        if (wheel >= 1 && wheel <= 8) {
-            return "驱动轮" + wheel;
-        } else if (wheel >= 9 && wheel <= 16) {
-            return "走行轮" + (wheel - 8);
-        }
-        return "";
+        return appController.wheelTagName(wheel);
     }
 
     // 将 3D 标签名称转换为轮号
     function tagNameToWheel(name) {
-        if (!name)
-            return 0;
-        if (name.indexOf("驱动轮") === 0) {
-            var dwNum = parseInt(name.substring(3));
-            return (dwNum >= 1 && dwNum <= 8) ? dwNum : 0;
-        } else if (name.indexOf("走行轮") === 0) {
-            var wwNum = parseInt(name.substring(3));
-            return (wwNum >= 1 && wwNum <= 8) ? (wwNum + 8) : 0;
-        }
-        return 0;
+        return appController.wheelFromTagName(name || "");
     }
 
     // 选择轮位联动
@@ -109,7 +95,7 @@ Page {
             return;
         var normalizedPath = String(image.filePath).replace(/\\/g, "/");
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath) ? "file:///" + normalizedPath : normalizedPath;
-        var wheelName = wheel <= 8 ? ("驱动轮 " + wheel) : ("走行轮 " + wheel);
+        var wheelName = appController.wheelLabel(wheel);
         imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time);
     }
 
@@ -223,12 +209,7 @@ Page {
 
                 Label {
                     text: {
-                        var w = (delegateRoot.modelData && delegateRoot.modelData.wheel !== undefined) ? delegateRoot.modelData.wheel : 0;
-                        if (w <= 8)
-                            return "轮位 " + w;
-                        if (w >= 9 && w <= 16)
-                            return "轮位 " + w;
-                        return "轮位 " + w;
+                        return appController.wheelLabel(delegateRoot.modelData ? delegateRoot.modelData.wheel : 0);
                     }
                     color: delegateRoot.hasResult ? Theme.text : Theme.textSoft
                     font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
@@ -823,84 +804,7 @@ Page {
                     }
                 }
 
-                // 驱动轮面板 (上)
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: Theme.radiusSmall
-                    color: Theme.fieldFill
-                    border.width: 1
-                    border.color: Theme.borderMuted
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 8
-                        spacing: 4
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Rectangle {
-                                width: 3
-                                height: 13
-                                radius: 1.5
-                                color: Theme.driveWheel
-                            }
-                            Label {
-                                text: "驱动轮 (1 ~ 8)"
-                                color: Theme.driveWheel
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontBody
-                                font.weight: Theme.fontMedium
-                            }
-                            Item {
-                                Layout.fillWidth: true
-                            }
-                            Label {
-                                text: "当前判定"
-                                color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
-                            }
-                            Item {
-                                width: 14
-                            }
-                            Label {
-                                text: "合格率"
-                                color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
-                            }
-                            Item {
-                                width: 26
-                            }
-                        }
-
-                        Flickable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            contentWidth: width
-                            contentHeight: driveListCol.implicitHeight
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            ColumnLayout {
-                                id: driveListCol
-                                width: parent.width
-                                spacing: 3
-
-                                Repeater {
-                                    model: root.effectiveDriveWheels
-                                    delegate: wheelResultDelegate
-                                }
-
-                                Item {
-                                    Layout.fillHeight: true
-                                    Layout.fillWidth: true
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 走行轮面板 (下)
+                // 走行轮面板 (上)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -923,7 +827,7 @@ Page {
                                 color: Theme.walkWheel
                             }
                             Label {
-                                text: "走行轮 (9 ~ 16)"
+                                text: "走行轮（1～8）"
                                 color: Theme.walkWheel
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
@@ -965,6 +869,82 @@ Page {
 
                                 Repeater {
                                     model: root.effectiveWalkingWheels
+                                    delegate: wheelResultDelegate
+                                }
+
+                                Item {
+                                    Layout.fillHeight: true
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+                    }
+                }
+                // 驱动轮面板 (下)
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
+                    border.width: 1
+                    border.color: Theme.borderMuted
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 4
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Rectangle {
+                                width: 3
+                                height: 13
+                                radius: 1.5
+                                color: Theme.driveWheel
+                            }
+                            Label {
+                                text: "驱动轮（9～16）"
+                                color: Theme.driveWheel
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Theme.fontMedium
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: "当前判定"
+                                color: Theme.muted
+                                font.pixelSize: Theme.fontMicro
+                            }
+                            Item {
+                                width: 14
+                            }
+                            Label {
+                                text: "合格率"
+                                color: Theme.muted
+                                font.pixelSize: Theme.fontMicro
+                            }
+                            Item {
+                                width: 26
+                            }
+                        }
+
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            contentWidth: width
+                            contentHeight: driveListCol.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            ColumnLayout {
+                                id: driveListCol
+                                width: parent.width
+                                spacing: 3
+
+                                Repeater {
+                                    model: root.effectiveDriveWheels
                                     delegate: wheelResultDelegate
                                 }
 

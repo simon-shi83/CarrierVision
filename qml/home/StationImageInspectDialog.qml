@@ -791,8 +791,9 @@ Dialog {
                             }
 
                             MetricRow {
-                                labelName: "检测轮号 (Wheel)"
-                                metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.wheelId !== undefined ? inspectDialog.currentItemObject.wheelId : inspectDialog.currentItemObject.slot) : "-"
+                                objectName: "wheelIdentityMetric"
+                                labelName: "检测轮位"
+                                metricValue: appController.wheelLabel(inspectDialog.currentItemObject ? inspectDialog.currentItemObject.wheelId : 0)
                             }
 
                             Rectangle {
@@ -824,7 +825,7 @@ Dialog {
                                 text: inspectDialog.currentItemObject ? inspectDialog.currentItemObject.wheelsInfo : ""
                                 color: Theme.text
                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
                             }

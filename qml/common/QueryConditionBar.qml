@@ -129,7 +129,7 @@ Rectangle {
         RowLayout {
             spacing: 6
             Label { 
-                text: "轮号" 
+                text: "轮位"
                 font.family: Theme.fontSans
                 font.weight: Theme.fontMedium
                 color: Theme.textSoft 
@@ -138,7 +138,8 @@ Rectangle {
             }
             WheelSelector {
                 id: wheelSelector
-                Layout.preferredWidth: 130
+                objectName: "wheelSelector"
+                Layout.preferredWidth: 180
                 Layout.preferredHeight: 34
                 Layout.alignment: Qt.AlignVCenter
             }

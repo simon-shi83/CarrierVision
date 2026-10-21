@@ -90,29 +90,29 @@ Page {
     // 驱动轮数据列表 (3D 视图中白色轮组，对应点检驱动轮 1 ~ 8)
     readonly property var driveWheelList: [
         // 左侧工位
-        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: "驱动轮 #1 (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: "驱动轮 #2 (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: "驱动轮 #5 (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: "驱动轮 #6 (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" },
+        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: appController.wheelLabel(1) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: appController.wheelLabel(2) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: appController.wheelLabel(5) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: appController.wheelLabel(6) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: "驱动轮 #3 (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: "驱动轮 #4 (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: "驱动轮 #7 (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: "驱动轮 #8 (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" }
+        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: appController.wheelLabel(3) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: appController.wheelLabel(4) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: appController.wheelLabel(7) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: appController.wheelLabel(8) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" }
     ]
 
     // 走行轮数据列表 (3D 视图中灰色轮组，对应 wheelId 9 ~ 16)
     readonly property var walkWheelList: [
         // 左侧工位
-        { name: "走行轮1", node: ww1, station: "左侧工位", desc: "走行轮 #1 (wheelId 9/前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
-        { name: "走行轮2", node: ww2, station: "左侧工位", desc: "走行轮 #2 (wheelId 10/后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
-        { name: "走行轮5", node: ww5, station: "左侧工位", desc: "走行轮 #5 (wheelId 13/前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
-        { name: "走行轮6", node: ww6, station: "左侧工位", desc: "走行轮 #6 (wheelId 14/后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" },
+        { name: "走行轮1", node: ww1, station: "左侧工位", desc: appController.wheelLabel(9) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮2", node: ww2, station: "左侧工位", desc: appController.wheelLabel(10) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮5", node: ww5, station: "左侧工位", desc: appController.wheelLabel(13) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮6", node: ww6, station: "左侧工位", desc: appController.wheelLabel(14) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "走行轮3", node: ww3, station: "右侧工位", desc: "走行轮 #3 (wheelId 11/前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
-        { name: "走行轮4", node: ww4, station: "右侧工位", desc: "走行轮 #4 (wheelId 12/后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
-        { name: "走行轮7", node: ww7, station: "右侧工位", desc: "走行轮 #7 (wheelId 15/前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
-        { name: "走行轮8", node: ww8, station: "右侧工位", desc: "走行轮 #8 (wheelId 16/后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" }
+        { name: "走行轮3", node: ww3, station: "右侧工位", desc: appController.wheelLabel(11) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮4", node: ww4, station: "右侧工位", desc: appController.wheelLabel(12) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮7", node: ww7, station: "右侧工位", desc: appController.wheelLabel(15) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮8", node: ww8, station: "右侧工位", desc: appController.wheelLabel(16) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" }
     ]
 
     // 风格色彩方案 (黑/白 双主题体系)。界面色（文字、强调、卡片、分割线）与 Theme 同值；
@@ -2086,10 +2086,10 @@ Page {
                             spacing: 5
                             Rectangle { width: 9; height: 9; radius: 4.5; color: root.curTheme.isDark ? "#60a5fa" : "#2563eb"; border.width: 1; border.color: root.curTheme.isDark ? "#ffffff" : "#e2e8f0" }
                             Label {
-                                text: "驱动轮1~8 (蓝轮/蓝标)"
+                                text: "驱动轮1～8（轮位9～16）"
                                 color: root.curTheme.textPrimary
                                 font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                                 font.weight: Theme.fontMedium
                             }
                         }
@@ -2099,10 +2099,10 @@ Page {
                             spacing: 5
                             Rectangle { width: 9; height: 9; radius: 4.5; color: root.curTheme.isDark ? "#fbbf24" : "#d97706"; border.width: 1; border.color: root.curTheme.isDark ? "#ffffff" : "#e2e8f0" }
                             Label {
-                                text: "走行轮1~8 (灰轮/琥珀标)"
+                                text: "走行轮1～8（轮位1～8）"
                                 color: root.curTheme.textPrimary
                                 font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                                 font.weight: Theme.fontMedium
                             }
                         }
@@ -2123,6 +2123,7 @@ Page {
 
                 // 右下角：交互操作指引芯片
                 Rectangle {
+                    visible: root.width >= 1150
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.margins: 14

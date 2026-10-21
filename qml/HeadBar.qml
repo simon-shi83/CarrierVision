@@ -755,22 +755,18 @@ Rectangle {
                         var numMatch = q.match(/\d+/);
                         if (numMatch) {
                             var num = parseInt(numMatch[0]);
-                            if (num >= 1 && num <= 8) {
+                            // 用户输入的是显示轮位或轮系内序号；跨页参数只转换一次。
+                            var driveInput = q.indexOf("驱动轮") >= 0;
+                            var walkInput = q.indexOf("走行轮") >= 0;
+                            var rawWheel = (driveInput || walkInput)
+                                    ? appController.wheelFromTagName((driveInput ? "驱动轮" : "走行轮") + num)
+                                    : appController.wheelRawId(num);
+                            if (rawWheel > 0) {
                                 results.push({
                                     cmdId: "query_wheel",
-                                    wheelNum: num,
-                                    title: "按轮号速查：第 " + num + " 号驱动轮检测图像",
-                                    subtitle: "跳转至数据查询并自动检索驱动轮 " + num + " 历史巡检记录",
-                                    category: "智能速查",
-                                    icon: "nav_search",
-                                    isQuery: true
-                                });
-                            } else if (num >= 9 && num <= 16) {
-                                results.push({
-                                    cmdId: "query_wheel",
-                                    wheelNum: num,
-                                    title: "按轮号速查：第 " + num + " 号走行轮检测图像",
-                                    subtitle: "跳转至数据查询并自动检索走行轮 " + num + " 历史巡检记录",
+                                    wheelNum: rawWheel,
+                                    title: "按轮位速查：" + appController.wheelLabel(rawWheel),
+                                    subtitle: "跳转至数据查询并自动检索对应物理轮的历史巡检记录",
                                     category: "智能速查",
                                     icon: "nav_search",
                                     isQuery: true

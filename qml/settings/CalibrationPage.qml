@@ -16,7 +16,7 @@ Item {
     property var wheelImages: [{}, {}, {}, {}, {}, {}, {}, {}]
     property var normDistanceValues: ["0", "0", "0", "0", "0", "0", "0", "0"]
     property var databaseDistanceValues: ["0", "0", "0", "0", "0", "0", "0", "0"]
-    property string statusText: "请选择架号后查看轮 1 至轮 8 的最新 OK 间距图片"
+    property string statusText: "请选择架号后查看驱动轮1～8（轮位9～16）的最新 OK 间距图片"
     property string previewImageUrl: ""
 
     function loadRackImages() {
@@ -51,7 +51,10 @@ Item {
         var imageModel = appController.searchImagesModel
         for (var row = 0; row < imageModel.count; ++row) {
             var image = imageModel.get(row)
-            var wheelIndex = Number(image.slot) - 1
+            // 模型的 slot 是相机号；共图和轮号不连续时必须按 wheelId 定位。
+            if (Number(image.carrierId) !== selectedRack)
+                continue
+            var wheelIndex = Number(image.wheelId) - 1
             if (wheelIndex >= 0 && wheelIndex < 8)
                 selectedImages[wheelIndex] = image
         }
@@ -93,7 +96,7 @@ Item {
         var values = normDistanceValues.slice()
         values[wheelIndex] = String(databaseDistanceValues[wheelIndex])
         normDistanceValues = values
-        statusText = "已将轮 " + (wheelIndex + 1) + " 的实测间距标定为标准间距"
+        statusText = "已将" + appController.wheelLabel(wheelIndex + 1) + " 的实测间距标定为标准间距"
     }
 
     Component.onCompleted: {
@@ -312,7 +315,7 @@ Item {
                         Label { text: "参数 / 轮位"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
                         Repeater {
                             model: 8
-                            Label { text: "轮 " + (index + 1); horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; color: Theme.driveWheel; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
+                            Label { text: appController.wheelLabel(index + 1).replace("/", "\n"); horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; color: Theme.driveWheel; font.weight: Theme.fontMedium; font.pixelSize: Theme.fontCaption }
                         }
 
                         // Row 1: Standard norm input
@@ -433,6 +436,7 @@ Item {
 
                     delegate: Rectangle {
                         required property int index
+                        id: calibrationCard
                         property var imageData: root.wheelImages[index] || ({})
                         property string imageUrl: imageData.fileUrl || ""
                         property string imageName: imageData.fileName || ""
@@ -455,7 +459,7 @@ Item {
                                 Layout.fillWidth: true
                                 Rectangle { width: 3; height: 12; radius: 1.5; color: Theme.driveWheel }
                                 Label {
-                                    text: "轮位 #" + (index + 1)
+                                    text: appController.wheelLabel(index + 1)
                                     color: Theme.driveWheel
                                     font.family: Theme.fontSans
                                     font.weight: Theme.fontMedium
@@ -478,9 +482,10 @@ Item {
                                 clip: true
 
                                 Image {
+                                    objectName: "calibrationImage" + (index + 1)
                                     anchors.fill: parent
                                     anchors.margins: 2
-                                    source: imageUrl
+                                    source: calibrationCard.imageUrl
                                     // 按显示尺寸的 2 倍解码，避免按相机原图分辨率占用内存
                                     sourceSize.width: Math.min(4096, Math.max(1, width * 2))
                                     sourceSize.height: Math.min(4096, Math.max(1, height * 2))
@@ -496,14 +501,14 @@ Item {
                                     onClicked: {
                                         if (imageUrl !== "") {
                                             var title = imageData.serial && imageData.serial.length > 0 ? imageData.serial : imageName
-                                            var subtitle = "架 #" + root.selectedRack + " ╎ 轮 #" + (index + 1) + " ╎ " + (imageData.receivedAtText || "")
+                                            var subtitle = "架 #" + root.selectedRack + " ╎ " + appController.wheelLabel(index + 1) + " ╎ " + (imageData.receivedAtText || "")
                                             viewer.openViewer(imageUrl, title, subtitle)
                                         }
                                     }
                                     onDoubleClicked: {
                                         if (imageUrl !== "") {
                                             var title = imageData.serial && imageData.serial.length > 0 ? imageData.serial : imageName
-                                            var subtitle = "架 #" + root.selectedRack + " ╎ 轮 #" + (index + 1) + " ╎ " + (imageData.receivedAtText || "")
+                                            var subtitle = "架 #" + root.selectedRack + " ╎ " + appController.wheelLabel(index + 1) + " ╎ " + (imageData.receivedAtText || "")
                                             viewer.openViewer(imageUrl, title, subtitle)
                                         }
                                     }

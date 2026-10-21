@@ -208,7 +208,7 @@ Item {
 
                 // 左侧：数据表格卡片
                 Rectangle {
-                    Layout.preferredWidth: Math.max(500, Math.floor(mainViewStack.width * 0.40))
+                    Layout.preferredWidth: Math.max(640, Math.floor(mainViewStack.width * 0.44))
                     Layout.fillHeight: true
                     radius: Theme.radiusMedium
                     color: Theme.surface
@@ -253,8 +253,8 @@ Item {
                                     font.weight: Theme.fontMedium
                                 }
                                 Text {
-                                    text: "轮号"
-                                    Layout.preferredWidth: 44
+                                    text: "轮位 / 轮名称"
+                                    Layout.preferredWidth: 136
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.textSoft
                                     font.family: Theme.fontSans
@@ -372,8 +372,8 @@ Item {
                                         font.pixelSize: Theme.fontBody
                                     }
                                     Text {
-                                        text: String(wheelId)
-                                        Layout.preferredWidth: 44
+                                        text: appController.wheelLabel(wheelId)
+                                        Layout.preferredWidth: 136
                                         horizontalAlignment: Text.AlignHCenter
                                         color: Theme.text
                                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
@@ -435,8 +435,8 @@ Item {
                                         var item = appController.searchImagesModel.get(index);
                                         if (item && item.fileUrl) {
                                             var cId = (item.carrierId !== undefined && item.carrierId > 0) ? item.carrierId : item.rack;
-                                            var wId = (item.wheelId !== undefined) ? item.wheelId : item.slot;
-                                            inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ 轮 #" + wId + " ╎ " + item.receivedAtText);
+                                            var wId = item.wheelId;
+                                            inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ " + appController.wheelLabel(wId) + " ╎ " + item.receivedAtText);
                                         }
                                     }
                                 }

@@ -56,6 +56,7 @@ qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(CarrierVision
+    src/common/WheelIdentity.h
     src/main.cpp
     src/app/AppController.cpp
     src/app/AppController.h
@@ -389,6 +390,8 @@ include(CPack)
 
 if(BUILD_TESTING)
     qt_add_executable(CarrierVisionBoundaryTests
+        src/common/WheelIdentity.h
+        src/data/WeeklyReport.cpp
         tests/CoreBoundaryTests.cpp
         src/data/StatsService.cpp
         src/data/StatsService.h
@@ -448,6 +451,47 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
-    set_tests_properties(CarrierVisionBoundaryTests CarrierVisionReleaseTests CarrierVisionQmlSmoke
+    qt_add_executable(CarrierVisionWheelSelectionTests
+        tests/WheelSelectionTests.cpp src/common/WheelIdentity.h
+        src/app/ImageListModel.cpp src/app/ImageListModel.h
+        src/app/ImageItemObject.cpp src/app/ImageItemObject.h
+        src/common/AgcUtils.cpp src/common/AgcUtils.h
+        src/common/AppLogger.cpp src/common/AppLogger.h)
+    target_include_directories(CarrierVisionWheelSelectionTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_include_directories(CarrierVisionWheelSelectionTests SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
+    target_link_libraries(CarrierVisionWheelSelectionTests PRIVATE Qt6::Test Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+    qt_add_qml_module(CarrierVisionWheelSelectionTests
+        URI CarrierVisionWheelTests
+        VERSION 1.0
+        OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/wheel-tests/CarrierVisionWheelTests"
+        NO_CACHEGEN
+        NO_PLUGIN
+        QML_FILES
+            qml/Theme.qml
+            qml/common/AppIcon.qml
+            qml/common/ActionButton.qml
+            qml/common/DatePicker.qml
+            qml/common/NumPicker.qml
+            qml/common/WheelSelector.qml
+            qml/common/QueryConditionBar.qml
+            qml/common/DateQueryBar.qml
+            qml/stats/WheelQueryBar.qml
+            qml/home/StationImageInspectDialog.qml
+            qml/common/ZoomOverlay.qml
+            qml/settings/CalibrationPage.qml)
+    qt_add_resources(CarrierVisionWheelSelectionTests wheel_test_icons
+        PREFIX "/qt/qml/CarrierVision"
+        FILES
+            assets/icons/icon_arrow_down.svg
+            assets/icons/icon_calendar.svg
+            assets/icons/icon_check_circle.svg
+            assets/icons/icon_close.svg
+            assets/icons/icon_camera.svg
+            assets/icons/icon_eye.svg)
+    add_test(NAME CarrierVisionWheelSelectionTests COMMAND CarrierVisionWheelSelectionTests)
+endif()
+
+if(BUILD_TESTING)
+    set_tests_properties(CarrierVisionBoundaryTests CarrierVisionReleaseTests CarrierVisionQmlSmoke CarrierVisionWheelSelectionTests
                          PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()

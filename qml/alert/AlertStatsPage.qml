@@ -8,7 +8,7 @@ Page {
     anchors.fill: parent
     background: Rectangle { color: "transparent" }
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
+    // 轮系类别：false 为驱动轮（9～16）, true 为走行轮（1～8）
     property bool isWalkWheel: false
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
@@ -103,8 +103,8 @@ Page {
     }
 
     function generateCsv() {
-        var csv = "轮系类别,架号,NG数量\n"
-        var prefix = root.wheelTypeName + ","
+        var csv = "wheel_type,position_range,轮系类别,架号,NG数量\n"
+        var prefix = (root.isWalkWheel ? "walk,1～8," : "drive,9～16,") + root.wheelTypeName + ","
         for (var i = 0; i < rackRows.length; ++i)
             csv += prefix + rackRows[i].rack + "," + rackRows[i].count + "\n"
         return csv
@@ -161,7 +161,7 @@ Page {
                             spacing: 5
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
                             Text {
-                                text: "驱动轮 (1~8)"
+                                text: "驱动轮（9～16）"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                                 font.weight: (!root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
@@ -200,7 +200,7 @@ Page {
                             spacing: 5
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
                             Text {
-                                text: "走行轮 (9~16)"
+                                text: "走行轮（1～8）"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                                 font.weight: (root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
@@ -477,7 +477,7 @@ Page {
                                 spacing: 6
 
                                 Text {
-                                    text: "轮位 " + parent.parent.modelData.wheel
+                                    text: appController.wheelLabel(parent.parent.modelData.wheel)
                                     Layout.fillWidth: true
                                     horizontalAlignment: Text.AlignHCenter
                                     color: parent.parent.selected ? Theme.accent : Theme.text
@@ -553,7 +553,7 @@ Page {
                         Layout.fillWidth: true
                         Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.borderStrong }
                         Label {
-                            text: selectedWheel > 0 ? "架 #" + selectedRack + " · 轮 #" + selectedWheel + " (" + root.wheelTypeName + ") 异常证据链" : "异常点检原图"
+                            text: selectedWheel > 0 ? "架 #" + selectedRack + " · " + appController.wheelLabel(selectedWheel) + " 异常证据链" : "异常点检原图"
                             color: Theme.text
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontBody

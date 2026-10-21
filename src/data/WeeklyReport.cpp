@@ -1,6 +1,7 @@
 #include "data/WeeklyReport.h"
 #include "data/DbSchema.h"
 #include "common/AppLogger.h"
+#include "common/WheelIdentity.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -30,7 +31,7 @@ static bool writeCsv(const QString &path, const QList<QList<QVariant>> &rows){
     QSaveFile f(path);
     if(!f.open(QIODevice::WriteOnly|QIODevice::Text)) return false;
     QTextStream out(&f);
-    out << "carrier_id,wheel_id,ok_count,ng_count,total,loss_rate\n";
+    out << "carrier_id,wheel_id,position_no,wheel_type,type_index,ok_count,ng_count,total,loss_rate\n";
     for(const auto &r : rows){
         int rack = r[0].toInt();
         int wheel = r[1].toInt();
@@ -38,7 +39,7 @@ static bool writeCsv(const QString &path, const QList<QList<QVariant>> &rows){
         int ng = r[3].toInt();
         int total = ok + ng;
         double loss = (total>0)? double(ng)/double(total) : 0.0;
-        out << rack << "," << wheel << "," << ok << "," << ng << "," << total << "," << QString::number(loss,'f',4) << "\n";
+        out << rack << "," << WheelIdentity::csvIdentity(wheel) << "," << ok << "," << ng << "," << total << "," << QString::number(loss,'f',4) << "\n";
     }
     out.flush();
     if (out.status() != QTextStream::Ok || f.error() != QFileDevice::NoError) {

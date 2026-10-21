@@ -4,46 +4,47 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
-    implicitWidth: 130
+    implicitWidth: 180
     implicitHeight: 36
 
+    // 数字令牌始终是原始轮号；0 表示不筛选，不能回退成驱动轮整组。
     property string selectionToken: "DRIVE"
-    readonly property string displayText: selectionToken === "DRIVE" ? "全选 (驱动轮)"
-                                      : selectionToken === "WALK" ? "全选 (走行轮)"
-                                      : "轮位 " + selectionToken
+    readonly property string displayText: selectionToken === "0" ? "全部轮位"
+                                      : selectionToken === "DRIVE" ? "全选（驱动轮）"
+                                      : selectionToken === "WALK" ? "全选（走行轮）"
+                                      : appController.wheelLabel(selectionToken)
     signal selectionChanged(string selectionToken)
 
+    function setSelectionToken(token) {
+        var value = String(token).trim()
+        selectionToken = (value === "DRIVE" || value === "WALK" || /^([1-9]|1[0-6])$/.test(value)) ? value : "0"
+    }
+
     function select(token) {
-        selectionToken = String(token)
+        setSelectionToken(token)
         selectionChanged(selectionToken)
         selectorPopup.close()
     }
 
-    function setSelectionToken(token) {
-        var value = String(token).trim()
-        selectionToken = (value === "DRIVE" || value === "WALK" || /^([1-9]|1[0-6])$/.test(value)) ? value : "DRIVE"
-    }
-
     function reset() {
-        selectionToken = "DRIVE"
-        selectionChanged(selectionToken)
+        select("DRIVE")
     }
 
     Button {
         id: selectorButton
+        objectName: "wheelSelectorButton"
         anchors.fill: parent
         onClicked: selectorPopup.open()
-        
         contentItem: RowLayout {
-            anchors.centerIn: parent
-            spacing: 6
+            spacing: Theme.space1
             Text {
                 text: root.displayText
-                color: root.selectionToken === "WALK" || Number(root.selectionToken) >= 9 ? Theme.walkWheel : Theme.driveWheel
+                color: Theme.text
                 font.family: Theme.fontSans
                 font.pixelSize: Theme.fontBody
                 font.weight: Theme.fontMedium
                 elide: Text.ElideRight
+                Layout.fillWidth: true
             }
             AppIcon {
                 name: "icon_arrow_down"
@@ -51,145 +52,90 @@ Item {
                 color: Theme.muted
             }
         }
-        
         background: Rectangle {
             radius: Theme.radiusSmall
             color: selectorButton.hovered ? Theme.hover : Theme.fieldFill
             border.width: 1
             border.color: selectorPopup.visible ? Theme.selectedBorder : Theme.border
-            Behavior on color { ColorAnimation { duration: Theme.animFast } }
-            Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
         }
+        ToolTip.visible: hovered
+        ToolTip.text: root.displayText
     }
 
     Popup {
         id: selectorPopup
         parent: selectorButton
-        x: 0
-        y: selectorButton.height + 4
-        width: 340
-        padding: 12
-        modal: false
+        y: selectorButton.height + Theme.space1
+        width: 360
+        padding: Theme.space3
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle { 
-            radius: Theme.radiusSmall 
-            color: Theme.surfaceFloating 
+        background: Rectangle {
+            radius: Theme.radiusSmall
+            color: Theme.surfaceFloating
             border.color: Theme.border
             border.width: 1
         }
-
         contentItem: ColumnLayout {
-            spacing: 8
-
-            // 驱动轮标题与全选
-            Button {
-                text: "驱动轮全选 (轮 1 ~ 8)"
+            spacing: Theme.space2
+            ActionButton {
+                text: "全部轮位"
                 Layout.fillWidth: true
-                checkable: true
-                checked: root.selectionToken === "DRIVE"
-                onClicked: root.select("DRIVE")
-                contentItem: Text { 
-                    text: parent.text
-                    color: parent.checked ? Theme.textOnAccent : Theme.driveWheel
-                    font.family: Theme.fontSans
-                    font.weight: Theme.fontMedium
-                    horizontalAlignment: Text.AlignHCenter 
-                    verticalAlignment: Text.AlignVCenter 
-                }
-                background: Rectangle {
-                    radius: Theme.radiusMicro
-                    color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.driveWheelSoft : Theme.surface)
-                    border.width: 1
-                    border.color: parent.checked ? Theme.driveWheel : Theme.borderMuted
-                }
+                variant: root.selectionToken === "0" ? "primary" : "secondary"
+                hoverColor: Theme.hover
+                hoverTextColor: Theme.text
+                onClicked: root.select("0")
             }
-            
-            RowLayout {
-                spacing: 4
-                Repeater {
-                    model: 8
-                    delegate: Button {
-                        required property int index
-                        property string token: String(index + 1)
-                        text: token
-                        checkable: true
-                        checked: root.selectionToken === token
+            Repeater {
+                model: ["WALK", "DRIVE"]
+                delegate: ColumnLayout {
+                    id: group
+                    required property string modelData
+                    readonly property bool walking: modelData === "WALK"
+                    Layout.fillWidth: true
+                    spacing: Theme.space1
+                    ActionButton {
+                        text: group.walking ? "走行轮全选（轮位1～8）" : "驱动轮全选（轮位9～16）"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 30
-                        onClicked: root.select(token)
-                        contentItem: Text { 
-                            text: parent.text 
-                            color: parent.checked ? Theme.textOnAccent : Theme.text
-                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                            font.weight: Theme.fontMedium
-                            horizontalAlignment: Text.AlignHCenter 
-                            verticalAlignment: Text.AlignVCenter 
-                        }
-                        background: Rectangle {
-                            radius: Theme.radiusMicro
-                            color: parent.checked ? Theme.driveWheel : (parent.hovered ? Theme.pressed : Theme.surface)
-                            border.width: 1
-                            border.color: parent.checked ? Theme.driveWheel : Theme.borderMuted
-                        }
+                        variant: root.selectionToken === group.modelData ? "primary" : "secondary"
+                        hoverColor: Theme.hover
+                        hoverTextColor: Theme.text
+                        onClicked: root.select(group.modelData)
                     }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: Theme.borderMuted
-            }
-
-            // 走行轮标题与全选
-            Button {
-                text: "走行轮全选 (轮 9 ~ 16)"
-                Layout.fillWidth: true
-                checkable: true
-                checked: root.selectionToken === "WALK"
-                onClicked: root.select("WALK")
-                contentItem: Text { 
-                    text: parent.text
-                    color: parent.checked ? Theme.textOnAccent : Theme.walkWheel
-                    font.family: Theme.fontSans
-                    font.weight: Theme.fontMedium
-                    horizontalAlignment: Text.AlignHCenter 
-                    verticalAlignment: Text.AlignVCenter 
-                }
-                background: Rectangle {
-                    radius: Theme.radiusMicro
-                    color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.walkWheelSoft : Theme.surface)
-                    border.width: 1
-                    border.color: parent.checked ? Theme.walkWheel : Theme.borderMuted
-                }
-            }
-
-            RowLayout {
-                spacing: 4
-                Repeater {
-                    model: 8
-                    delegate: Button {
-                        required property int index
-                        property string token: String(index + 9)
-                        text: token
-                        checkable: true
-                        checked: root.selectionToken === token
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 30
-                        onClicked: root.select(token)
-                        contentItem: Text { 
-                            text: parent.text 
-                            color: parent.checked ? Theme.textOnAccent : Theme.text
-                            font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                            font.weight: Theme.fontMedium
-                            horizontalAlignment: Text.AlignHCenter 
-                            verticalAlignment: Text.AlignVCenter 
-                        }
-                        background: Rectangle {
-                            radius: Theme.radiusMicro
-                            color: parent.checked ? Theme.walkWheel : (parent.hovered ? Theme.pressed : Theme.surface)
-                            border.width: 1
-                            border.color: parent.checked ? Theme.walkWheel : Theme.borderMuted
+                    RowLayout {
+                        spacing: Theme.space1
+                        Repeater {
+                            model: 8
+                            delegate: Button {
+                                id: wheelButton
+                                objectName: "wheelPosition" + positionNo
+                                required property int index
+                                readonly property int positionNo: index + (group.walking ? 1 : 9)
+                                readonly property string token: String(appController.wheelRawId(positionNo))
+                                text: String(positionNo)
+                                checkable: true
+                                checked: root.selectionToken === token
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 30
+                                onClicked: root.select(token)
+                                contentItem: Text {
+                                    text: wheelButton.text
+                                    color: wheelButton.checked ? Theme.textOnAccent : Theme.text
+                                    font.family: Theme.fontSans
+                                    font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
+                                    font.weight: Theme.fontMedium
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle {
+                                    radius: Theme.radiusMicro
+                                    color: wheelButton.checked ? Theme.accent : (wheelButton.hovered ? Theme.hover : Theme.surface)
+                                    border.width: 1
+                                    border.color: wheelButton.checked ? Theme.accent : Theme.borderMuted
+                                }
+                                ToolTip.visible: hovered
+                                ToolTip.text: appController.wheelLabel(token)
+                            }
                         }
                     }
                 }

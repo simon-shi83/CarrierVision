@@ -101,7 +101,7 @@ Page {
                     }
                     Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 18; color: Theme.borderMuted }
                     Label { text: "时间: " + (startDate || "--") + " ~ " + (endDate || "--"); color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontCaption }
-                    Label { text: "轮号: #" + wheelNumber; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontCaption }
+                    Label { text: appController.wheelLabel(wheelNumber); color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontCaption }
                     Label {
                         text: "判定: " + normalizedResult()
                         color: normalizedResult() === "OK" ? Theme.ok : Theme.danger
@@ -142,7 +142,7 @@ Page {
                             RowLayout {
                                 anchors.fill: parent
                                 Text { text: "架号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
-                                Text { text: "轮号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                                Text { text: "轮位 / 轮名称"; Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                                 Text { text: "判定"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                                 Text { text: "计数"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                             }
@@ -169,7 +169,7 @@ Page {
                                 RowLayout {
                                     anchors.fill: parent
                                     Text { text: "#" + parent.parent.modelData.rack; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? Theme.accent : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
-                                    Text { text: String(root.wheelNumber); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: appController.wheelLabel(root.wheelNumber); Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: root.normalizedResult(); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: root.normalizedResult() === "OK" ? Theme.ok : Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: parent.parent.modelData.count; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                 }
@@ -294,7 +294,7 @@ Page {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onDoubleClicked: {
-                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ 轮 #" + slot + " ╎ " + receivedAtText)
+                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ " + appController.wheelLabel(wheelId) + " ╎ " + receivedAtText)
                                     }
                                 }
                             }

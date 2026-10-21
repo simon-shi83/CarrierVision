@@ -166,8 +166,8 @@ Page {
                                 font.weight: Theme.fontMedium
                             }
                             Text {
-                                text: "轮号"
-                                Layout.preferredWidth: 44
+                                text: "轮位 / 轮名称"
+                                Layout.preferredWidth: 136
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Theme.textSoft
                                 font.family: Theme.fontSans
@@ -281,8 +281,8 @@ Page {
                                     font.pixelSize: Theme.fontBody
                                 }
                                 Text {
-                                    text: String(wheelId)
-                                    Layout.preferredWidth: 44
+                                    text: appController.wheelLabel(wheelId)
+                                    Layout.preferredWidth: 136
                                     horizontalAlignment: Text.AlignHCenter
                                     color: Theme.text
                                     font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
@@ -344,8 +344,8 @@ Page {
                                     var item = appController.searchImagesModel.get(index)
                                     if (item && item.fileUrl) {
                                         var cId = (item.carrierId !== undefined && item.carrierId > 0) ? item.carrierId : item.rack
-                                        var wId = (item.wheelId !== undefined) ? item.wheelId : item.slot
-                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ 轮 #" + wId + " ╎ " + item.receivedAtText)
+                                        var wId = item.wheelId
+                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ " + appController.wheelLabel(wId) + " ╎ " + item.receivedAtText)
                                     }
                                 }
                             }
@@ -404,7 +404,7 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                         }
@@ -469,13 +469,13 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                             onDoubleClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ 轮 #" + item.wheelId + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
                                 }
                             }
                         }

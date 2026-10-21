@@ -326,7 +326,7 @@ Rectangle {
             text: cardRoot.wheelsInfo
             color: cardRoot.result === 0 ? Theme.danger : Theme.ok
             font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-            font.pixelSize: Theme.fontMicro
+            font.pixelSize: Theme.fontCaption
             font.weight: Theme.fontMedium
             elide: Label.ElideRight
         }
@@ -338,6 +338,9 @@ Rectangle {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         cursorShape: cardRoot.hasImage ? Qt.PointingHandCursor : Qt.ArrowCursor
+        ToolTip.visible: containsMouse && cardRoot.wheelsInfo.length > 0
+        ToolTip.delay: 600
+        ToolTip.text: cardRoot.wheelsInfo
         onClicked: {
             if (cardRoot.hasImage) {
                 const title = cardRoot.serial.length > 0 ? cardRoot.serial : cardRoot.fileName

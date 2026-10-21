@@ -6,6 +6,7 @@
 #include "network/TcpDataReceiver.h"
 #include "ingest/IngestCoordinator.h"
 #include "common/StorageMonitor.h"
+#include "common/WheelIdentity.h"
 
 #include <QFile>
 #include <QObject>
@@ -75,6 +76,17 @@ public:
     ImageListModel *currentImagesModel();
     ImageListModel *searchImagesModel();
 
+    // 接收原始轮号；唯有 wheelRawId 接收操作员输入的显示轮位。
+    Q_INVOKABLE int wheelPosition(const QVariant &raw) const { return WheelIdentity::position(raw); }
+    Q_INVOKABLE int wheelRawId(const QVariant &position) const { return WheelIdentity::rawId(position); }
+    Q_INVOKABLE int wheelTypeIndex(const QVariant &raw) const { return WheelIdentity::typeIndex(raw); }
+    Q_INVOKABLE QString wheelTypeName(const QVariant &raw) const { return WheelIdentity::typeName(raw); }
+    Q_INVOKABLE QString wheelTagName(const QVariant &raw) const { return WheelIdentity::tagName(raw); }
+    Q_INVOKABLE int wheelFromTagName(const QString &name) const { return WheelIdentity::rawForTag(name); }
+    Q_INVOKABLE QString wheelLabel(const QVariant &raw) const { return WheelIdentity::label(raw); }
+    Q_INVOKABLE QString wheelCsvIdentity(const QVariant &raw) const { return WheelIdentity::csvIdentity(raw); }
+
+    // 所有查询/跨页跳转参数始终是原始轮号，0 表示不筛选轮位。
     Q_INVOKABLE void searchPaged(const QString &startText, const QString &endText, const QString &serialKeyword, int rackNumber, const QString &wheelNo, const QString &resultFilter, int page, int pageSize);
     Q_INVOKABLE void alertSearchPaged(const QString &startText, const QString &endText,
                                       int rackNumber, const QString &wheelNo,

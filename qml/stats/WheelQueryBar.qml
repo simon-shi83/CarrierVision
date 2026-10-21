@@ -30,13 +30,13 @@ Rectangle {
     function generateCsv() {
         var arr = appController.gearSumResult
         if (!arr || arr.length === 0) return ""
-        var csv = "轮号,ok数,ng数\n"
+        var csv = "wheel_id,position_no,wheel_type,type_index,ok数,ng数\n"
         for (var i = 0; i < arr.length; i++) {
             var r = arr[i]
-            var wheel = (r.wheel !== undefined) ? r.wheel : (i + root.wheelOffset)
+            var wheel = r.wheel
             var ok = (r.ok !== undefined) ? r.ok : 0
             var ng = (r.ng !== undefined) ? r.ng : 0
-            csv += String(wheel) + "," + String(ok) + "," + String(ng) + "\n"
+            csv += appController.wheelCsvIdentity(wheel) + "," + String(ok) + "," + String(ng) + "\n"
         }
         return csv
     }
@@ -110,7 +110,7 @@ Rectangle {
                     delegate: Button {
                         required property int index
                         property int wheelNumber: index + root.wheelOffset
-                        text: String(wheelNumber)
+                        text: String(appController.wheelPosition(wheelNumber))
                         checkable: true
                         checked: root.selectedTurns.indexOf(wheelNumber) !== -1
                         Layout.preferredWidth: root.isWalkWheel ? 28 : 26

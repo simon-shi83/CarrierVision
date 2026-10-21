@@ -1,3 +1,4 @@
+#include "common/WheelIdentity.h"
 #include "data/SearchService.h"
 
 #include "common/AgcUtils.h"
@@ -128,6 +129,7 @@ QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir
         QString imageName;
         QString imagePath;
         QStringList wheels;
+        QVariantList wheelIds;
     };
 
     QVariantList out;
@@ -176,8 +178,9 @@ QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir
                     }
                     const int result = rows.value(2).toInt();
                     if (result == 0) camera.result = 0;
-                    camera.wheels.prepend(QStringLiteral("轮%1 %2 %3mm")
-                                              .arg(rows.value(1).toInt())
+                    camera.wheelIds.prepend(rows.value(1));
+                    camera.wheels.prepend(QStringLiteral("%1 %2 %3mm")
+                                              .arg(WheelIdentity::label(rows.value(1)))
                                               .arg(result ? QStringLiteral("OK") : QStringLiteral("NG"))
                                               .arg(rows.value(6).toDouble(), 0, 'f', 1));
                 }
@@ -198,6 +201,7 @@ QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir
             image.insert(QStringLiteral("time"), camera.time);
             image.insert(QStringLiteral("fileName"), QFileInfo(camera.imageName).fileName());
             image.insert(QStringLiteral("wheels"), camera.wheels);
+            image.insert(QStringLiteral("wheelIds"), camera.wheelIds);
             QString path;
             if (camera.hasRecord) {
                 ++cameraCount;
@@ -258,7 +262,7 @@ RecordFilter buildRecordFilter(const QString &startText, const QString &endText,
         }
         if (!wheelNumbers.isEmpty())
             filter.where << QStringLiteral("wheel_id IN (%1)").arg(wheelNumbers.join(','));
-    } else if (!wheelToken.isEmpty()) {
+    } else if (!wheelToken.isEmpty() && wheelToken != QStringLiteral("0")) {
         bool ok = false;
         const int wheel = wheelToken.toInt(&ok);
         if (ok && wheel >= 1 && wheel <= 16) {

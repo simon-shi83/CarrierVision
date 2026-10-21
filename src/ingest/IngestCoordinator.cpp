@@ -1,3 +1,4 @@
+#include "common/WheelIdentity.h"
 #include "ingest/IngestCoordinator.h"
 
 #include <QFile>
@@ -77,8 +78,8 @@ QVector<ImageItem> buildStationCards(const ImageIngest::BatchData &batch,
             card.lower_tolerance = wheel.lowerTolerance;
         }
 
-        const QString description = QStringLiteral("轮%1: %2mm (%3)")
-                                        .arg(wheel.wheelId)
+        const QString description = QStringLiteral("%1: %2mm (%3)")
+                                        .arg(WheelIdentity::label(wheel.wheelId))
                                         .arg(wheel.actualDistance, 0, 'f', 1)
                                         .arg(wheel.result ? "OK" : "NG");
         card.wheelsInfo = card.wheelsInfo.isEmpty() ? description

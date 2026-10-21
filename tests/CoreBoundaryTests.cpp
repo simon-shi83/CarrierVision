@@ -3,6 +3,9 @@
 #include <QSqlQuery>
 
 #include "common/AgcUtils.h"
+#include "common/WheelIdentity.h"
+#include "data/WeeklyReport.h"
+#include <limits>
 #include "data/DbSchema.h"
 #include "app/ImageListModel.h"
 #include "data/StatsService.h"
@@ -20,6 +23,92 @@ class CoreBoundaryTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void wheelIdentityKeepsPhysicalWheelAndRejectsInvalidValues()
+    {
+        for (int index = 1; index <= 8; ++index) {
+            QCOMPARE(WheelIdentity::position(index), index + 8);
+            QCOMPARE(WheelIdentity::position(index + 8), index);
+            QCOMPARE(WheelIdentity::typeIndex(index), index);
+            QCOMPARE(WheelIdentity::typeIndex(index + 8), index);
+            QCOMPARE(WheelIdentity::label(index), QStringLiteral("轮位%1/驱动轮%2").arg(index + 8).arg(index));
+            QCOMPARE(WheelIdentity::label(index + 8), QStringLiteral("轮位%1/走行轮%1").arg(index));
+        }
+        for (int raw = 1; raw <= 16; ++raw) {
+            QCOMPARE(WheelIdentity::rawId(WheelIdentity::position(raw)), raw);
+            QCOMPARE(WheelIdentity::rawForTag(WheelIdentity::tagName(raw)), raw);
+            QCOMPARE(WheelIdentity::position(QString::number(raw)), WheelIdentity::position(raw));
+        }
+        const QVariantList invalid = {QVariant(), 0, 17, -1, 1.5, true, QString(), QStringLiteral("1x"),
+                                      std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()};
+        for (const auto &value : invalid) {
+            QCOMPARE(WheelIdentity::position(value), 0);
+            QCOMPARE(WheelIdentity::rawId(value), 0);
+            QCOMPARE(WheelIdentity::typeIndex(value), 0);
+            QVERIFY(WheelIdentity::tagName(value).isEmpty());
+        }
+        QCOMPARE(WheelIdentity::csvIdentity(1), QStringLiteral("1,9,drive,1"));
+        QCOMPARE(WheelIdentity::csvIdentity(9), QStringLiteral("9,1,walk,1"));
+        for (const QString &name : {QString(), QStringLiteral("相机1"), QStringLiteral("驱动轮9"),
+                                    QStringLiteral("走行轮0"), QStringLiteral("走行轮1abc")})
+            QCOMPARE(WheelIdentity::rawForTag(name), 0);
+    }
+
+    void displayUpgradeKeepsCalibrationKeysAndWeeklyGroups()
+    {
+        const QString connectionName = QStringLiteral("wheel-upgrade");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+            db.setDatabaseName(QStringLiteral(":memory:"));
+            QVERIFY(db.open());
+            QVERIFY(DBSchema::ensureAllTables(db));
+            const QVariantList standards = {101, 102, 103, 104, 105, 106, 107, 108};
+            QVERIFY(SettingsStore::saveRackWheelDistances(db, 3, standards));
+            const QVariantList loaded = SettingsStore::rackWheelDistances(db, 3);
+            QCOMPARE(loaded.size(), 8);
+            QCOMPARE(loaded.first().toString(), QStringLiteral("101.00"));
+            QCOMPARE(loaded.last().toString(), QStringLiteral("108.00"));
+            QSqlQuery q(db);
+            QVERIFY(q.exec("SELECT standard_distance FROM carrier_wheel_norm WHERE carrier_id=3 AND wheel_id=9"));
+            QVERIFY(q.next());
+            QCOMPARE(q.value(0).toDouble(), 10.0); // 走行轮原始键未被标定覆盖
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES"
+                           "('2026-09-07 10:00:00',3,1,1,1,'drive.png'),"
+                           "('2026-09-07 10:00:00',3,2,9,0,'walk.png')"));
+            QVERIFY(WeeklyReport::generateForWeek(db, QDate(2026, 9, 7)));
+            QVERIFY(q.exec("SELECT drivers_filename,deformed_filename FROM weekly_reports"));
+            QVERIFY(q.next());
+            const QDir dataDir(QCoreApplication::applicationDirPath() + QStringLiteral("/data"));
+            QFile drive(dataDir.filePath(q.value(0).toString()));
+            QFile walk(dataDir.filePath(q.value(1).toString()));
+            QVERIFY(drive.open(QIODevice::ReadOnly));
+            QVERIFY(walk.open(QIODevice::ReadOnly));
+            const QByteArray driveCsv = drive.readAll();
+            const QByteArray walkCsv = walk.readAll();
+            QVERIFY(driveCsv.startsWith("carrier_id,wheel_id,position_no,wheel_type,type_index,"));
+            QVERIFY(driveCsv.contains("3,1,9,drive,1,1,0,1,0.0000"));
+            QVERIFY(walkCsv.contains("3,9,1,walk,1,0,1,1,1.0000"));
+            QVERIFY(!driveCsv.contains(",walk,"));
+            QVERIFY(!walkCsv.contains(",drive,"));
+            drive.close();
+            walk.close();
+            // 已有周报不因显示升级被覆盖或重复登记。
+            QVERIFY(drive.open(QIODevice::Append));
+            drive.write("legacy-preserved");
+            drive.close();
+            QVERIFY(WeeklyReport::generateForWeek(db, QDate(2026, 9, 7)));
+            QVERIFY(drive.open(QIODevice::ReadOnly));
+            QVERIFY(drive.readAll().endsWith("legacy-preserved"));
+            drive.close();
+            QVERIFY(q.exec("SELECT COUNT(*) FROM weekly_reports"));
+            QVERIFY(q.next());
+            QCOMPARE(q.value(0).toInt(), 1);
+            QVERIFY(drive.remove());
+            QVERIFY(walk.remove());
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connectionName);
+    }
+
     void modelRejectsOutOfRangeSlots()
     {
         ImageListModel model;
@@ -221,6 +310,22 @@ private slots:
             const QString start = QStringLiteral("2026-09-04");
             const QString end = QStringLiteral("2026-09-04");
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QString())), 16);
+            QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QStringLiteral("0"))), 16);
+            // 操作员轮位只在入口转换一次；记录与图片仍以原始轮号查询。
+            for (int position : {1, 8, 9, 16}) {
+                const int raw = WheelIdentity::rawId(position);
+                auto filter = SearchService::buildRecordFilter(start, end, 2, QString::number(raw));
+                int total = 0;
+                QVector<ImageItem> items;
+                QVERIFY(SearchService::queryRecordPage(db, QStringLiteral("record"), filter, 1, 10,
+                                                       archive.path(), QString(), total, items));
+                QCOMPARE(total, 1);
+                QCOMPARE(items.first().wheelId, raw);
+                QCOMPARE(items.first().slot, raw);
+                QCOMPARE(items.first().fileName, raw == 1 ? QStringLiteral("present.png")
+                                                          : QStringLiteral("missing_%1.png").arg(raw));
+                QCOMPARE(items.first().result, raw == 5 ? 0 : 1);
+            }
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QStringLiteral("DRIVE"))), 8);
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QStringLiteral("WALK"))), 8);
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QStringLiteral("1, 3,99"))), 2);
@@ -418,7 +523,7 @@ private slots:
         QCOMPARE(cards.size(), 12);
         QCOMPARE(cards.at(0).result, 0);                 // 同一相机任一轮 NG 则整卡 NG
         QCOMPARE(cards.at(0).wheelId, 1);                // 卡片取该相机第一条轮数据
-        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮1: 121.0mm (OK) ╎ 轮2: 122.0mm (NG)"));
+        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮位9/驱动轮1: 121.0mm (OK) ╎ 轮位10/驱动轮2: 122.0mm (NG)"));
         QVERIFY(cards.at(0).filePath.isEmpty());
         QCOMPARE(cards.at(1).result, 1);
         QCOMPARE(cards.at(1).filePath, dir.filePath(QStringLiteral("Cam01.PNG")));
@@ -540,6 +645,10 @@ private slots:
             QCOMPARE(cam2.value("cameraId").toInt(), 2);
             QCOMPARE(cam2.value("result").toInt(), 0);
             QCOMPARE(cam2.value("wheels").toStringList().size(), 2);
+            QCOMPARE(cam2.value("wheelIds").toList(), QVariantList({2, 12}));
+            QCOMPARE(cam2.value("wheels").toStringList(),
+                     QStringList({QStringLiteral("轮位10/驱动轮2 OK 122.0mm"),
+                                  QStringLiteral("轮位4/走行轮4 NG 132.0mm")}));
             QVERIFY(cam2.value("hasImage").toBool());
             QCOMPARE(cam2.value("time").toString(), QStringLiteral("2026-09-04 10:00:00"));
             QVERIFY(images.at(6).toMap().value("hasRecord").toBool());

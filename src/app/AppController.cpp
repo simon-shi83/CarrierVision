@@ -986,6 +986,7 @@ ImageListModel *AppController::searchImagesModel()
 
 int AppController::latestRackWheelImageRack() const
 {
+    QMutexLocker locker(&m_dbMutex);
     const QSqlDatabase db = QSqlDatabase::database();
     if (!db.isValid() || !db.isOpen()) {
         return 0;
@@ -998,11 +999,11 @@ int AppController::latestRackWheelImageRack() const
         FROM record
         WHERE createtime = (
             SELECT createtime FROM record
-            WHERE +result = 1 AND +distance > 0 AND +wheel_id BETWEEN 1 AND 16
+            WHERE +result = 1 AND +distance > 0 AND +wheel_id BETWEEN 1 AND 8
             ORDER BY createtime DESC LIMIT 1)
           AND result = 1
           AND distance > 0
-          AND wheel_id BETWEEN 1 AND 16
+          AND wheel_id BETWEEN 1 AND 8
         ORDER BY rowid DESC
         LIMIT 1
     )")) || !query.next()) {
@@ -1015,6 +1016,7 @@ int AppController::latestRackWheelImageRack() const
 
 int AppController::latestRackWheelTotalPages(int rackNumber) const
 {
+    QMutexLocker locker(&m_dbMutex);
     if (rackNumber < 1) return 0;
     QSqlDatabase db = QSqlDatabase::database();
     if (!db.isValid() || !db.isOpen()) return 0;
@@ -1024,7 +1026,7 @@ int AppController::latestRackWheelTotalPages(int rackNumber) const
             SELECT wheel_id AS w, COUNT(*) AS cnt
             FROM record
             WHERE carrier_id = :rack AND result = 1 AND distance > 0
-              AND wheel_id BETWEEN 1 AND 16
+              AND wheel_id BETWEEN 1 AND 8
             GROUP BY wheel_id
         )
     )");
@@ -1045,6 +1047,7 @@ void AppController::loadLatestRackWheelImages(int rackNumber)
 
 void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
 {
+    QMutexLocker locker(&m_dbMutex);
     QVector<ImageItem> items;
     if (rackNumber < 1) {
         m_searchImagesModel.clear();
@@ -1072,7 +1075,7 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
             queryError = q.lastError().text();
             LOG_ERROR("loadLatestRackWheelImagesPage 预处理 SQL 失败: {}", queryError.toStdString());
         } else {
-            for (int slot = 1; slot <= 16; ++slot) {
+            for (int slot = 1; slot <= 8; ++slot) {
                 const int wheel = slot;
                 q.bindValue(QStringLiteral(":rack"), rackNumber);
                 q.bindValue(QStringLiteral(":wheel"), wheel);

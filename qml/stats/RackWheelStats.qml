@@ -23,11 +23,7 @@ Page {
     }
 
     function displayWheel(wheel) {
-        if (wheelType === 1) {
-            if (wheel >= 9 && wheel <= 16) return wheel - 8;
-            return Math.max(1, wheel);
-        }
-        return wheel;
+        return appController.wheelLabel(wheel);
     }
 
     property int statsRequestId: -1
@@ -114,7 +110,7 @@ Page {
                         font.pixelSize: Theme.fontCaption
                     }
                     Item { Layout.fillWidth: true }
-                    Label { text: wheelTypeName + " (1 ~ 8)"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
+                    Label { text: wheelTypeName + (wheelType === 1 ? "（轮位1～8）" : "（轮位9～16）"); color: Theme.muted; font.pixelSize: Theme.fontCaption }
                 }
             }
 
@@ -146,7 +142,7 @@ Page {
                             RowLayout {
                                 anchors.fill: parent
                                 Text { text: "架号"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
-                                Text { text: "轮位"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                                Text { text: "轮位"; Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                                 Text { text: "判定"; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                                 Text { text: "计数"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                             }
@@ -173,7 +169,7 @@ Page {
                                 RowLayout {
                                     anchors.fill: parent
                                     Text { text: "#" + parent.parent.modelData.rack; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
-                                    Text { text: "轮 " + root.displayWheel(Number(parent.parent.modelData.wheel)); Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? (root.wheelType === 1 ? Theme.walkWheel : Theme.accent) : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: root.displayWheel(Number(parent.parent.modelData.wheel)); Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? (root.wheelType === 1 ? Theme.walkWheel : Theme.accent) : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: parent.parent.modelData.result; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: root.normalizedResult() === "OK" ? Theme.ok : Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: parent.parent.modelData.count; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                 }
@@ -210,7 +206,7 @@ Page {
                         RowLayout {
                             Layout.fillWidth: true
                             Label {
-                                text: selectedWheel > 0 ? "架号 #" + rackNumber + " · " + wheelTypeName + " " + displayWheel(selectedWheel) + " 的检测原图" : "检测原图"
+                                text: selectedWheel > 0 ? "架号 #" + rackNumber + " · " + displayWheel(selectedWheel) + " 的检测原图" : "检测原图"
                                 color: Theme.text
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
@@ -298,7 +294,7 @@ Page {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onDoubleClicked: {
-                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ 轮 #" + slot + " ╎ " + receivedAtText)
+                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ " + appController.wheelLabel(wheelId) + " ╎ " + receivedAtText)
                                     }
                                 }
                             }

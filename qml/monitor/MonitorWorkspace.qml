@@ -60,16 +60,14 @@ Item {
                 "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time)
     }
 
-    readonly property var wheelRows: [
-        { label: "驱动 1", wheel: 1, isDrive: true }, { label: "驱动 2", wheel: 2, isDrive: true },
-        { label: "驱动 3", wheel: 3, isDrive: true }, { label: "驱动 4", wheel: 4, isDrive: true },
-        { label: "驱动 5", wheel: 5, isDrive: true }, { label: "驱动 6", wheel: 6, isDrive: true },
-        { label: "驱动 7", wheel: 7, isDrive: true }, { label: "驱动 8", wheel: 8, isDrive: true },
-        { label: "走行 9", wheel: 9, isDrive: false }, { label: "走行 10", wheel: 10, isDrive: false },
-        { label: "走行 11", wheel: 11, isDrive: false }, { label: "走行 12", wheel: 12, isDrive: false },
-        { label: "走行 13", wheel: 13, isDrive: false }, { label: "走行 14", wheel: 14, isDrive: false },
-        { label: "走行 15", wheel: 15, isDrive: false }, { label: "走行 16", wheel: 16, isDrive: false }
-    ]
+    readonly property var wheelRows: {
+        var rows = [];
+        for (var positionNo = 1; positionNo <= 16; ++positionNo) {
+            var raw = appController.wheelRawId(positionNo);
+            rows.push({label: appController.wheelLabel(raw), wheel: raw, isDrive: raw <= 8});
+        }
+        return rows;
+    }
     readonly property var wheelColumns: wheelRows
 
     Component.onCompleted: refreshStatus()
@@ -187,7 +185,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 1
 
-                    readonly property real wheelHeaderWidth: Math.max(76, Math.min(92, Math.floor(width * 0.055)))
+                    readonly property real wheelHeaderWidth: Math.max(112, Math.min(132, Math.floor(width * 0.08)))
                     readonly property real headerHeight: Math.max(26, Math.min(30, Math.floor(height * 0.045)))
                     readonly property int totalBodyRows: root.wheelRows.length + 1 // 16 轮位 + 1 采集总计 = 17 行
                     readonly property real rowHeight: (height - headerHeight) / totalBodyRows
@@ -339,7 +337,8 @@ Item {
                                             Text {
                                                 anchors.centerIn: parent
                                                 anchors.horizontalCenterOffset: 2
-                                                text: wheelRowItem.wheelLabel
+                                                text: wheelRowItem.wheelLabel.replace("/", "\n")
+                                                horizontalAlignment: Text.AlignHCenter
                                                 color: wheelRowItem.isRowHovered
                                                     ? Theme.accent
                                                     : (wheelRowItem.isDrive ? Theme.driveWheel : Theme.walkWheel)

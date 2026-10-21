@@ -8,7 +8,7 @@ Page {
     anchors.fill: parent
     background: Rectangle { color: "transparent" }
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
+    // 轮系类别：false 为驱动轮（9～16）, true 为走行轮（1～8）
     property bool isWalkWheel: false
 
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
@@ -75,9 +75,11 @@ Page {
         spacing: 10
 
         // 顶部复合查询栏 + 驱动/走行轮类别切换胶囊
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 10
+            columns: root.width < 1400 ? 1 : 2
+            columnSpacing: Theme.space2
+            rowSpacing: Theme.space2
 
             WheelQueryBar {
                 id: gearBar
@@ -95,6 +97,7 @@ Page {
 
             // 驱动轮 / 走行轮类别切换控件
             Rectangle {
+                Layout.alignment: Qt.AlignRight
                 Layout.preferredHeight: 52
                 implicitWidth: wheelTypeSwitchRow.implicitWidth + 12
                 radius: Theme.radiusSmall
@@ -124,7 +127,7 @@ Page {
                             spacing: 5
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
                             Text {
-                                text: "驱动轮 (1~8)"
+                                text: "驱动轮（9～16）"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                                 font.weight: (!root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
@@ -163,7 +166,7 @@ Page {
                             spacing: 5
                             Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
                             Text {
-                                text: "走行轮 (1~8)"
+                                text: "走行轮（1～8）"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontCaption
                                 font.weight: (root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
@@ -215,7 +218,7 @@ Page {
                     }
 
                     Label {
-                        text: root.wheelTypeName + " (轮 1 ~ 8) 合格与异常对比直方图"
+                        text: root.wheelTypeName + (root.isWalkWheel ? "（轮位1～8）" : "（轮位9～16）") + "合格与异常对比直方图"
                         color: Theme.text
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontTitle
@@ -439,9 +442,9 @@ Page {
 
                                         Text {
                                             anchors.centerIn: parent
-                                            text: "轮 " + (index + 1)
+                                            text: "轮位" + appController.wheelPosition(index + gearBar.wheelOffset)
                                             font.family: Theme.fontSans
-                                            font.pixelSize: Theme.fontMicro
+                                            font.pixelSize: Theme.fontCaption
                                             font.weight: Theme.fontMedium
                                             color: root.currentThemeColor
                                         }
@@ -463,7 +466,7 @@ Page {
         width: Math.min(1080, root.width * 0.92)
         height: Math.min(820, root.height * 0.85)
         anchors.centerIn: parent
-        title: root.wheelTypeName + " #" + root.detailWheel + " ╎ " + root.detailResult + " 判定 ╎ 50 架数据下钻明细"
+        title: appController.wheelLabel(root.detailWheel) + " ╎ " + root.detailResult + " 判定 ╎ 50 架数据下钻明细"
 
         background: Rectangle {
             radius: Theme.radiusMedium

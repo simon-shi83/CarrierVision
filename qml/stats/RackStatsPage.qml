@@ -43,14 +43,14 @@ Page {
     }
 
     function generateCsv() {
-        var csv = "架号,合格数,不合格数,不良率(%)\n"
+        var csv = "wheel_type,position_range,架号,合格数,不合格数,不良率(%)\n"
         for (var i = 0; i < 50; ++i) {
             var row = dataModel && dataModel[i] ? dataModel[i] : {}
             var rack = Number(row.rack) || (i + 1)
             var ok = Number(row.ok) || 0
             var ng = Number(row.ng) || 0
             var loss = Number(row.loss) || 0
-            csv += rack + "," + ok + "," + ng + "," + loss.toFixed(1) + "\n"
+            csv += (root.isWalkWheel ? "walk,1～8," : "drive,9～16,") + rack + "," + ok + "," + ng + "," + loss.toFixed(1) + "\n"
         }
         return csv
     }
@@ -129,7 +129,7 @@ Page {
                 id: dateBar
                 Layout.fillWidth: true
                 wheelType: root.wheelTypeIndex
-                exportCsvContent: root.generateRackCsv()
+                exportCsvContent: root.generateCsv()
                 onSearchClicked: function(startDate, endDate) {
                     root.requestStats(startDate, endDate)
                     root.loadStats(startDate, endDate)
@@ -496,16 +496,16 @@ Page {
                             width: detailPlot.width / 8
                             height: detailPlot.height
                             x: index * width
-                            readonly property real plotHeight: Math.max(0, height - 44)
+                            readonly property real plotHeight: Math.max(0, height - 60)
 
-                            Rectangle { width: parent.width * 0.22; height: (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.left: parent.left; anchors.leftMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 26; color: Theme.ok; radius: 2 }
-                            Rectangle { width: parent.width * 0.22; height: (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 26; color: Theme.danger; radius: 2 }
-                            Rectangle { width: parent.width * 0.22; height: (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; anchors.right: parent.right; anchors.rightMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 26; color: Theme.warn; radius: 2 }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.left: parent.left; anchors.leftMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.ok; radius: 2 }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.danger; radius: 2 }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; anchors.right: parent.right; anchors.rightMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.warn; radius: 2 }
 
-                            Text { text: String(root.detailOkCounts[index]); visible: root.detailOkCounts[index] > 0; anchors.horizontalCenter: parent.left; anchors.horizontalCenterOffset: parent.width * 0.21; anchors.bottom: parent.bottom; anchors.bottomMargin: 30 + (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.ok; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
-                            Text { text: String(root.detailNgCounts[index]); visible: root.detailNgCounts[index] > 0; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 30 + (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
-                            Text { text: Number(root.detailLossRates[index]).toFixed(1) + "%"; visible: root.detailLossRates[index] > 0; anchors.horizontalCenter: parent.right; anchors.horizontalCenterOffset: -parent.width * 0.21; anchors.bottom: parent.bottom; anchors.bottomMargin: 30 + (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.warn; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
-                            Text { text: "轮 " + (index + 1); anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 4; color: Theme.text; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                            Text { text: String(root.detailOkCounts[index]); visible: root.detailOkCounts[index] > 0; anchors.horizontalCenter: parent.left; anchors.horizontalCenterOffset: parent.width * 0.21; anchors.bottom: parent.bottom; anchors.bottomMargin: 46 + (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.ok; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
+                            Text { text: String(root.detailNgCounts[index]); visible: root.detailNgCounts[index] > 0; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 46 + (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
+                            Text { text: Number(root.detailLossRates[index]).toFixed(1) + "%"; visible: root.detailLossRates[index] > 0; anchors.horizontalCenter: parent.right; anchors.horizontalCenterOffset: -parent.width * 0.21; anchors.bottom: parent.bottom; anchors.bottomMargin: 46 + (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.warn; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
+                            Text { text: appController.wheelLabel(root.currentWheelTokens[index]).replace("/", "\n"); anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 4; color: Theme.text; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                     }
                 }
