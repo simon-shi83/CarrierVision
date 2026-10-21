@@ -47,7 +47,7 @@ jobs:
       - name: Build Project
         shell: pwsh
         run: |
-          cmake --build build --config Release --parallel
+          cmake --build build --config Release -j8
 
       - name: Run Tests
         shell: pwsh
@@ -55,6 +55,24 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           ctest --test-dir build --build-config Release --output-on-failure
+          $cvTestExitCode = $LASTEXITCODE
+          if ($cvTestExitCode -ne 0) {
+            if (Test-Path build/WheelSelectionTests.txt) {
+              Get-Content build/WheelSelectionTests.txt
+            }
+            exit $cvTestExitCode
+          }
+
+      - name: Upload Test Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-test-logs
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/WheelSelectionTests.txt
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Deploy Windows Package
         shell: pwsh

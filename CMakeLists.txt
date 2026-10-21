@@ -458,6 +458,8 @@ if(BUILD_TESTING)
         src/common/AgcUtils.cpp src/common/AgcUtils.h
         src/common/AppLogger.cpp src/common/AppLogger.h)
     target_include_directories(CarrierVisionWheelSelectionTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    # 交互测试通过 CTest 运行；Windows 上也保留控制台和文件日志。
+    set_target_properties(CarrierVisionWheelSelectionTests PROPERTIES WIN32_EXECUTABLE FALSE)
     target_include_directories(CarrierVisionWheelSelectionTests SYSTEM PRIVATE "${CARRIERVISION_THIRD_PARTY_DIR}")
     target_link_libraries(CarrierVisionWheelSelectionTests PRIVATE Qt6::Test Qt6::Qml Qt6::Quick Qt6::QuickControls2)
     qt_add_qml_module(CarrierVisionWheelSelectionTests
@@ -488,10 +490,13 @@ if(BUILD_TESTING)
             assets/icons/icon_close.svg
             assets/icons/icon_camera.svg
             assets/icons/icon_eye.svg)
-    add_test(NAME CarrierVisionWheelSelectionTests COMMAND CarrierVisionWheelSelectionTests)
+    add_test(NAME CarrierVisionWheelSelectionTests COMMAND CarrierVisionWheelSelectionTests
+        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/WheelSelectionTests.txt,txt")
 endif()
 
 if(BUILD_TESTING)
     set_tests_properties(CarrierVisionBoundaryTests CarrierVisionReleaseTests CarrierVisionQmlSmoke CarrierVisionWheelSelectionTests
                          PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    # 此测试验证绑定/查询身份，不依赖 GPU；避免无显示设备的 CI 选择 D3D/OpenGL。
+    set_property(TEST CarrierVisionWheelSelectionTests APPEND PROPERTY ENVIRONMENT "QT_QUICK_BACKEND=software")
 endif()
