@@ -16,8 +16,8 @@ using namespace std;
 
 namespace WeeklyReport {
 
-static const array<int,8> DRIVERS = {1,2,3,4,5,6,7,8};
-static const array<int,8> DEFORMED = {9,10,11,12,13,14,15,16};
+static const array<int,8> DRIVERS = {9,10,11,12,13,14,15,16};  // 驱动轮：轮位 9～16
+static const array<int,8> DEFORMED = {1,2,3,4,5,6,7,8};        // 走行轮：轮位 1～8
 static const array<int,50> RACKS = [](){ array<int,50> a{}; for(int i=0;i<50;i++) a[i]=i+1; return a;}();
 
 static QString ensureOutDir(){

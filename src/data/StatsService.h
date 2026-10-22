@@ -10,7 +10,7 @@
 // 因此既可在主线程同步调用，也可在后台线程池中执行。
 namespace StatsService {
 
-// 各架合格/不合格汇总（50 行），wheelLow~wheelHigh 为轮号范围：驱动轮 1~8，走行轮 9~16
+// 各架合格/不合格汇总（50 行），wheelLow~wheelHigh 为轮位范围：走行轮 1~8，驱动轮 9~16
 QVariantList wheelGroupRackStats(const QSqlDatabase &db, const QString &startDate, const QString &endDate,
                                  int wheelLow, int wheelHigh);
 QVariantList rackWheelMonitorStatus(const QSqlDatabase &db);

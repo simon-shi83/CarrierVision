@@ -7,7 +7,7 @@ Item {
     implicitWidth: 180
     implicitHeight: 36
 
-    // 数字令牌始终是原始轮号；0 表示不筛选，不能回退成驱动轮整组。
+    // 数字令牌就是轮位；0 表示不筛选，不能回退成驱动轮整组。
     property string selectionToken: "DRIVE"
     readonly property string displayText: selectionToken === "0" ? "全部轮位"
                                       : selectionToken === "DRIVE" ? "全选（驱动轮）"

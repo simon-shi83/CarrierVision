@@ -116,13 +116,16 @@ private slots:
 
     void wheelIdentityKeepsPhysicalWheelAndRejectsInvalidValues()
     {
+        // 协议口径：wheelId 就是轮位，1～8 走行轮、9～16 驱动轮，不做偏移
         for (int index = 1; index <= 8; ++index) {
-            QCOMPARE(WheelIdentity::position(index), index + 8);
-            QCOMPARE(WheelIdentity::position(index + 8), index);
+            QCOMPARE(WheelIdentity::position(index), index);
+            QCOMPARE(WheelIdentity::position(index + 8), index + 8);
             QCOMPARE(WheelIdentity::typeIndex(index), index);
             QCOMPARE(WheelIdentity::typeIndex(index + 8), index);
-            QCOMPARE(WheelIdentity::label(index), QStringLiteral("轮位%1/驱动轮%2").arg(index + 8).arg(index));
-            QCOMPARE(WheelIdentity::label(index + 8), QStringLiteral("轮位%1/走行轮%1").arg(index));
+            QCOMPARE(WheelIdentity::typeName(index), QStringLiteral("走行轮"));
+            QCOMPARE(WheelIdentity::typeName(index + 8), QStringLiteral("驱动轮"));
+            QCOMPARE(WheelIdentity::label(index), QStringLiteral("轮位%1/走行轮%1").arg(index));
+            QCOMPARE(WheelIdentity::label(index + 8), QStringLiteral("轮位%1/驱动轮%2").arg(index + 8).arg(index));
         }
         for (int raw = 1; raw <= 16; ++raw) {
             QCOMPARE(WheelIdentity::rawId(WheelIdentity::position(raw)), raw);
@@ -137,8 +140,8 @@ private slots:
             QCOMPARE(WheelIdentity::typeIndex(value), 0);
             QVERIFY(WheelIdentity::tagName(value).isEmpty());
         }
-        QCOMPARE(WheelIdentity::csvIdentity(1), QStringLiteral("1,9,drive,1"));
-        QCOMPARE(WheelIdentity::csvIdentity(9), QStringLiteral("9,1,walk,1"));
+        QCOMPARE(WheelIdentity::csvIdentity(1), QStringLiteral("1,1,walk,1"));
+        QCOMPARE(WheelIdentity::csvIdentity(9), QStringLiteral("9,9,drive,1"));
         for (const QString &name : {QString(), QStringLiteral("相机1"), QStringLiteral("驱动轮9"),
                                     QStringLiteral("走行轮0"), QStringLiteral("走行轮1abc")})
             QCOMPARE(WheelIdentity::rawForTag(name), 0);
@@ -159,12 +162,15 @@ private slots:
             QCOMPARE(loaded.first().toString(), QStringLiteral("101.00"));
             QCOMPARE(loaded.last().toString(), QStringLiteral("108.00"));
             QSqlQuery q(db);
-            QVERIFY(q.exec("SELECT standard_distance FROM carrier_wheel_norm WHERE carrier_id=3 AND wheel_id=9"));
+            QVERIFY(q.exec("SELECT standard_distance FROM carrier_wheel_norm WHERE carrier_id=3 AND wheel_id=16"));
             QVERIFY(q.next());
-            QCOMPARE(q.value(0).toDouble(), 10.0); // 走行轮原始键未被标定覆盖
+            QCOMPARE(q.value(0).toDouble(), 108.0); // 驱动轮8 保存在轮位 16
+            QVERIFY(q.exec("SELECT standard_distance FROM carrier_wheel_norm WHERE carrier_id=3 AND wheel_id=1"));
+            QVERIFY(q.next());
+            QCOMPARE(q.value(0).toDouble(), 10.0); // 走行轮轮位未被标定覆盖
             QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,camera_id,wheel_id,result,imagename) VALUES"
-                           "('2026-09-07 10:00:00',3,1,1,1,'drive.png'),"
-                           "('2026-09-07 10:00:00',3,2,9,0,'walk.png')"));
+                           "('2026-09-07 10:00:00',3,1,9,1,'drive.png'),"
+                           "('2026-09-07 10:00:00',3,2,1,0,'walk.png')"));
             QVERIFY(WeeklyReport::generateForWeek(db, QDate(2026, 9, 7)));
             QVERIFY(q.exec("SELECT drivers_filename,deformed_filename FROM weekly_reports"));
             QVERIFY(q.next());
@@ -176,8 +182,8 @@ private slots:
             const QByteArray driveCsv = drive.readAll();
             const QByteArray walkCsv = walk.readAll();
             QVERIFY(driveCsv.startsWith("carrier_id,wheel_id,position_no,wheel_type,type_index,"));
-            QVERIFY(driveCsv.contains("3,1,9,drive,1,1,0,1,0.0000"));
-            QVERIFY(walkCsv.contains("3,9,1,walk,1,0,1,1,1.0000"));
+            QVERIFY(driveCsv.contains("3,9,9,drive,1,1,0,1,0.0000"));
+            QVERIFY(walkCsv.contains("3,1,1,walk,1,0,1,1,1.0000"));
             QVERIFY(!driveCsv.contains(",walk,"));
             QVERIFY(!walkCsv.contains(",drive,"));
             drive.close();
@@ -305,24 +311,28 @@ private slots:
             const QString start = QStringLiteral("2026-09-04");
             const QString end = QStringLiteral("2026-09-05");
 
-            const QVariantList drive = StatsService::wheelGroupRackStats(db, start, end, 1, 8);
-            QCOMPARE(drive.size(), 50);
-            QCOMPARE(drive.at(2).toMap().value("ok").toLongLong(), 1);
-            QCOMPARE(drive.at(2).toMap().value("ng").toLongLong(), 1);
-            QCOMPARE(drive.at(2).toMap().value("loss").toDouble(), 50.0);
-            QCOMPARE(drive.at(4).toMap().value("ng").toLongLong(), 1);
-
-            const QVariantList walk = StatsService::wheelGroupRackStats(db, start, end, 9, 16);
+            const QVariantList walk = StatsService::wheelGroupRackStats(db, start, end, 1, 8);
+            QCOMPARE(walk.size(), 50);
+            QCOMPARE(walk.at(2).toMap().value("ok").toLongLong(), 1);
             QCOMPARE(walk.at(2).toMap().value("ng").toLongLong(), 1);
-            QCOMPARE(walk.at(2).toMap().value("ok").toLongLong(), 0);
+            QCOMPARE(walk.at(2).toMap().value("loss").toDouble(), 50.0);
+            QCOMPARE(walk.at(4).toMap().value("ng").toLongLong(), 1);
+
+            const QVariantList drive = StatsService::wheelGroupRackStats(db, start, end, 9, 16);
+            QCOMPARE(drive.size(), 50);
+            QCOMPARE(drive.at(2).toMap().value("ng").toLongLong(), 1);
+            QCOMPARE(drive.at(2).toMap().value("ok").toLongLong(), 0);
 
             const QVariantList byRack = StatsService::wheelRackResultStats(db, start, end, 1, QStringLiteral("NG"));
             QCOMPARE(byRack.at(4).toMap().value("count").toInt(), 1);
             QCOMPARE(byRack.at(4).toMap().value("percent").toDouble(), 100.0);
 
+            const QVariantList driveSlots = StatsService::rackWheelResultStats(db, start, end, 3, QStringLiteral("NG"), 0);
+            QCOMPARE(driveSlots.size(), 8);
+            QCOMPARE(driveSlots.at(1).toMap().value("wheel").toInt(), 10);
+            QCOMPARE(driveSlots.at(1).toMap().value("count").toInt(), 1);
             const QVariantList walkSlots = StatsService::rackWheelResultStats(db, start, end, 3, QStringLiteral("NG"), 1);
-            QCOMPARE(walkSlots.size(), 8);
-            QCOMPARE(walkSlots.at(1).toMap().value("wheel").toInt(), 10);
+            QCOMPARE(walkSlots.at(1).toMap().value("wheel").toInt(), 2);
             QCOMPARE(walkSlots.at(1).toMap().value("count").toInt(), 1);
 
             const QVariantList photos = StatsService::rackPhotoCounts(db);
@@ -341,9 +351,9 @@ private slots:
             QCOMPARE(gear.at(0).toMap().value("ok").toInt(), 1);
             QCOMPARE(gear.at(0).toMap().value("ng").toInt(), 1);
             QCOMPARE(gear.at(1).toMap().value("ng").toInt(), 1);
-            const QVariantList walkGear = StatsService::gearSum(db, start, end, QString(), {9, 10, 11, 12, 13, 14, 15, 16});
-            QCOMPARE(walkGear.at(1).toMap().value("wheel").toInt(), 10);
-            QCOMPARE(walkGear.at(1).toMap().value("ng").toInt(), 1);
+            const QVariantList driveGear = StatsService::gearSum(db, start, end, QString(), {9, 10, 11, 12, 13, 14, 15, 16});
+            QCOMPARE(driveGear.at(1).toMap().value("wheel").toInt(), 10);
+            QCOMPARE(driveGear.at(1).toMap().value("ng").toInt(), 1);
             const QVariantList rackGear = StatsService::gearSum(db, start, end, QStringLiteral("3"), {});
             QCOMPARE(rackGear.at(0).toMap().value("ok").toInt(), 1);
             QCOMPARE(rackGear.at(0).toMap().value("ng").toInt(), 0);
@@ -356,6 +366,7 @@ private slots:
             const QVariant viaRun = StatsService::run(db, QStringLiteral("driveWheelRackStats"), {start, end}, &known);
             QVERIFY(known);
             QCOMPARE(viaRun.toList(), drive);
+            QCOMPARE(StatsService::run(db, QStringLiteral("walkingWheelRackStats"), {start, end}, &known).toList(), walk);
             db.close();
         }
         QSqlDatabase::removeDatabase(connectionName);
@@ -402,7 +413,7 @@ private slots:
             const QString end = QStringLiteral("2026-09-04");
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QString())), 16);
             QCOMPARE(count(SearchService::buildRecordFilter(start, end, 0, QStringLiteral("0"))), 16);
-            // 操作员轮位只在入口转换一次；记录与图片仍以原始轮号查询。
+            // 操作员输入的轮位直接作为查询键；记录与图片按同一轮位查询。
             for (int position : {1, 8, 9, 16}) {
                 const int raw = WheelIdentity::rawId(position);
                 auto filter = SearchService::buildRecordFilter(start, end, 2, QString::number(raw));
@@ -614,7 +625,7 @@ private slots:
         QCOMPARE(cards.size(), 12);
         QCOMPARE(cards.at(0).result, 0);                 // 同一相机任一轮 NG 则整卡 NG
         QCOMPARE(cards.at(0).wheelId, 1);                // 卡片取该相机第一条轮数据
-        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮位9/驱动轮1: 121.0mm (OK) ╎ 轮位10/驱动轮2: 122.0mm (NG)"));
+        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮位1/走行轮1: 121.0mm (OK) ╎ 轮位2/走行轮2: 122.0mm (NG)"));
         QVERIFY(cards.at(0).filePath.isEmpty());
         QCOMPARE(cards.at(1).result, 1);
         QCOMPARE(cards.at(1).filePath, dir.filePath(QStringLiteral("Cam01.PNG")));
@@ -738,8 +749,8 @@ private slots:
             QCOMPARE(cam2.value("wheels").toStringList().size(), 2);
             QCOMPARE(cam2.value("wheelIds").toList(), QVariantList({2, 12}));
             QCOMPARE(cam2.value("wheels").toStringList(),
-                     QStringList({QStringLiteral("轮位10/驱动轮2 OK 122.0mm"),
-                                  QStringLiteral("轮位4/走行轮4 NG 132.0mm")}));
+                     QStringList({QStringLiteral("轮位2/走行轮2 OK 122.0mm"),
+                                  QStringLiteral("轮位12/驱动轮4 NG 132.0mm")}));
             QVERIFY(cam2.value("hasImage").toBool());
             QCOMPARE(cam2.value("time").toString(), QStringLiteral("2026-09-04 10:00:00"));
             QVERIFY(images.at(6).toMap().value("hasRecord").toBool());

@@ -40,7 +40,7 @@ bool setMaintenancePassword(QSqlDatabase &db, const QString &currentSettingsPass
 // 当前设置密码或维护口令任一正确时，才将设置密码重置为默认
 bool resetSettingsPasswordAuthorized(QSqlDatabase &db, const QString &password);
 
-// 架号 1..50 的 8 个驱动轮标准轮距（字符串，两位小数），缺失为 "0"
+// 架号 1..50 的 8 个驱动轮（轮位 9..16）标准轮距（字符串，两位小数），缺失为 "0"；下标 0..7 对应驱动轮 1..8
 QVariantList rackWheelDistances(QSqlDatabase &db, int rackNumber);
 // 全部为非负数字时才在一个事务中写入
 bool saveRackWheelDistances(QSqlDatabase &db, int rackNumber, const QVariantList &distances);

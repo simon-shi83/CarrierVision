@@ -214,8 +214,8 @@ QVariantList rackWheelDistances(QSqlDatabase &db, int rackNumber)
     if (q.exec()) {
         while (q.next()) {
             const int wheel = q.value(0).toInt();
-            if (wheel >= 1 && wheel <= 8)
-                distances[wheel - 1] = QString::number(q.value(1).toDouble(), 'f', 2);
+            if (wheel >= 9 && wheel <= 16)
+                distances[wheel - 9] = QString::number(q.value(1).toDouble(), 'f', 2);
         }
     }
     return distances;
@@ -245,7 +245,7 @@ bool saveRackWheelDistances(QSqlDatabase &db, int rackNumber, const QVariantList
     )");
     for (int wheel = 0; wheel < values.size(); ++wheel) {
         q.bindValue(0, rackNumber);
-        q.bindValue(1, wheel + 1);
+        q.bindValue(1, wheel + 9); // 驱动轮 N 对应轮位 N+8
         q.bindValue(2, values.at(wheel));
         if (!q.exec()) {
             LOG_ERROR("保存载具轮标准距离失败: 架号={}, 轮号={}, 错误={}",

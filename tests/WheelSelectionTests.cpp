@@ -89,7 +89,7 @@ private slots:
         }
         QObject *toggle = selector->findChild<QObject *>(QStringLiteral("wheelSelectorButton"));
         QVERIFY(toggle);
-        // 弹窗中每个显示轮位按钮提交一次映射后的原始编号。
+        // 弹窗中每个轮位按钮提交该轮位本身（不做偏移）。
         for (int pos = 1; pos <= 16; ++pos) {
             QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
             QCoreApplication::processEvents();
@@ -116,8 +116,9 @@ private slots:
         QCOMPARE(metric->property("metricValue").toString(), WheelIdentity::label(QVariant()));
         inspectItem.insert("wheelId", 1);
         inspect->setProperty("currentItemObject", inspectItem);
-        QCOMPARE(metric->property("metricValue").toString(), QStringLiteral("轮位9/驱动轮1"));
-        // 真实 ImageListModel 把 slot 暴露成相机号：轮2和轮8不能被错放到相机1/6列。
+        QCOMPARE(metric->property("metricValue").toString(), QStringLiteral("轮位1/走行轮1"));
+        // 真实 ImageListModel 把 slot 暴露成相机号：驱动轮2（轮位10）和驱动轮8（轮位16）不能被错放到相机1/6列；
+        // 走行轮（轮位1）不属于标定对象。
         QTemporaryDir imageDir;
         QVERIFY(imageDir.isValid());
         const QString calibrationPath = imageDir.filePath(QStringLiteral("calibration.png"));
@@ -125,12 +126,12 @@ private slots:
         calibrationImage.fill(Qt::blue);
         QVERIFY(calibrationImage.save(calibrationPath));
         QVector<ImageItem> calibrationItems;
-        for (int raw : {2, 8, 9}) {
+        for (int raw : {10, 16, 1}) {
             ImageItem item;
             item.carrierId = 3;
             item.wheelId = raw;
             item.slot = raw;
-            item.cameraId = raw == 2 ? 1 : (raw == 8 ? 6 : 7);
+            item.cameraId = raw == 10 ? 1 : (raw == 16 ? 6 : 7);
             item.distance = 120.0 + raw / 10.0;
             item.filePath = calibrationPath;
             item.fileName = QStringLiteral("raw%1.png").arg(raw);
@@ -146,11 +147,11 @@ private slots:
         const QVariantList measured = calibration->property("databaseDistanceValues").toList();
         QCOMPARE(measured.size(), 8);
         QCOMPARE(measured[0].toString(), QStringLiteral("0"));
-        QCOMPARE(measured[1].toDouble(), 120.2);
-        QCOMPARE(measured[7].toDouble(), 120.8);
+        QCOMPARE(measured[1].toDouble(), 121.0);
+        QCOMPARE(measured[7].toDouble(), 121.6);
         const QVariantList wheelImages = calibration->property("wheelImages").toList();
-        QCOMPARE(wheelImages[1].toMap().value("wheelId").toInt(), 2);
-        QCOMPARE(wheelImages[7].toMap().value("wheelId").toInt(), 8);
+        QCOMPARE(wheelImages[1].toMap().value("wheelId").toInt(), 10);
+        QCOMPARE(wheelImages[7].toMap().value("wheelId").toInt(), 16);
         auto *calibrationRoot = qobject_cast<QQuickItem *>(calibration.data());
         QVERIFY(calibrationRoot);
         calibrationRoot->setParentItem(window.contentItem());
@@ -169,8 +170,8 @@ private slots:
             QVariant csv;
             QVERIFY(QMetaObject::invokeMethod(csvBar.data(), "generateCsv", Q_RETURN_ARG(QVariant, csv)));
             QVERIFY(csv.toString().startsWith(QStringLiteral("wheel_id,position_no,wheel_type,type_index,")));
-            QVERIFY(csv.toString().contains(QStringLiteral("1,9,drive,1,2,1\n")));
-            QVERIFY(csv.toString().contains(QStringLiteral("9,1,walk,1,1,3\n")));
+            QVERIFY(csv.toString().contains(QStringLiteral("1,1,walk,1,2,1\n")));
+            QVERIFY(csv.toString().contains(QStringLiteral("9,9,drive,1,1,3\n")));
         }
     }
 };

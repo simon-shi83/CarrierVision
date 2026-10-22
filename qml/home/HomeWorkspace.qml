@@ -29,7 +29,7 @@ Page {
             return driveWheels;
         }
         var arr = [];
-        for (var i = 1; i <= 8; i++) {
+        for (var i = 9; i <= 16; i++) {
             arr.push({
                 wheel: i,
                 result: -1,
@@ -45,7 +45,7 @@ Page {
             return walkingWheels;
         }
         var arr2 = [];
-        for (var j = 9; j <= 16; j++) {
+        for (var j = 1; j <= 8; j++) {
             arr2.push({
                 wheel: j,
                 result: -1,
@@ -56,7 +56,7 @@ Page {
         return arr2;
     }
 
-    // 当前选中的轮号 (1~8 驱动轮, 9~16 走行轮, 0 未选中)
+    // 当前选中的轮位 (1~8 走行轮, 9~16 驱动轮, 0 未选中)
     property int selectedWheel: 0
 
     // 将轮号转换为 3D 标签名称

@@ -87,32 +87,32 @@ Page {
         { name: "相机3",  node: cam2_6, station: "右侧工位", desc: "顶部正交点检" }
     ]
 
-    // 驱动轮数据列表 (3D 视图中白色轮组，对应点检驱动轮 1 ~ 8)
+    // 驱动轮数据列表 (3D 视图中白色轮组，驱动轮 1 ~ 8 对应轮位 9 ~ 16)
     readonly property var driveWheelList: [
         // 左侧工位
-        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: appController.wheelLabel(1) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: appController.wheelLabel(2) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: appController.wheelLabel(5) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: appController.wheelLabel(6) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" },
+        { name: "驱动轮1", node: dw1, station: "左侧工位", desc: appController.wheelLabel(9) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮2", node: dw2, station: "左侧工位", desc: appController.wheelLabel(10) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮5", node: dw5, station: "左侧工位", desc: appController.wheelLabel(13) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮6", node: dw6, station: "左侧工位", desc: appController.wheelLabel(14) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: appController.wheelLabel(3) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
-        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: appController.wheelLabel(4) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
-        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: appController.wheelLabel(7) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
-        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: appController.wheelLabel(8) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" }
+        { name: "驱动轮3", node: dw3, station: "右侧工位", desc: appController.wheelLabel(11) + " (前外侧)", color: Theme.driveWheel, quadrant: "前外", rail: "外轨" },
+        { name: "驱动轮4", node: dw4, station: "右侧工位", desc: appController.wheelLabel(12) + " (后外侧)", color: Theme.driveWheel, quadrant: "后外", rail: "外轨" },
+        { name: "驱动轮7", node: dw7, station: "右侧工位", desc: appController.wheelLabel(15) + " (前内侧)", color: Theme.driveWheel, quadrant: "前内", rail: "内轨" },
+        { name: "驱动轮8", node: dw8, station: "右侧工位", desc: appController.wheelLabel(16) + " (后内侧)", color: Theme.driveWheel, quadrant: "后内", rail: "内轨" }
     ]
 
-    // 走行轮数据列表 (3D 视图中灰色轮组，对应 wheelId 9 ~ 16)
+    // 走行轮数据列表 (3D 视图中灰色轮组，走行轮 1 ~ 8 对应轮位 1 ~ 8)
     readonly property var walkWheelList: [
         // 左侧工位
-        { name: "走行轮1", node: ww1, station: "左侧工位", desc: appController.wheelLabel(9) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
-        { name: "走行轮2", node: ww2, station: "左侧工位", desc: appController.wheelLabel(10) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
-        { name: "走行轮5", node: ww5, station: "左侧工位", desc: appController.wheelLabel(13) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
-        { name: "走行轮6", node: ww6, station: "左侧工位", desc: appController.wheelLabel(14) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" },
+        { name: "走行轮1", node: ww1, station: "左侧工位", desc: appController.wheelLabel(1) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮2", node: ww2, station: "左侧工位", desc: appController.wheelLabel(2) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮5", node: ww5, station: "左侧工位", desc: appController.wheelLabel(5) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮6", node: ww6, station: "左侧工位", desc: appController.wheelLabel(6) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" },
         // 右侧工位
-        { name: "走行轮3", node: ww3, station: "右侧工位", desc: appController.wheelLabel(11) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
-        { name: "走行轮4", node: ww4, station: "右侧工位", desc: appController.wheelLabel(12) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
-        { name: "走行轮7", node: ww7, station: "右侧工位", desc: appController.wheelLabel(15) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
-        { name: "走行轮8", node: ww8, station: "右侧工位", desc: appController.wheelLabel(16) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" }
+        { name: "走行轮3", node: ww3, station: "右侧工位", desc: appController.wheelLabel(3) + " (前外侧)", color: Theme.walkWheel, quadrant: "前外", rail: "外轨" },
+        { name: "走行轮4", node: ww4, station: "右侧工位", desc: appController.wheelLabel(4) + " (后外侧)", color: Theme.walkWheel, quadrant: "后外", rail: "外轨" },
+        { name: "走行轮7", node: ww7, station: "右侧工位", desc: appController.wheelLabel(7) + " (前内侧)", color: Theme.walkWheel, quadrant: "前内", rail: "内轨" },
+        { name: "走行轮8", node: ww8, station: "右侧工位", desc: appController.wheelLabel(8) + " (后内侧)", color: Theme.walkWheel, quadrant: "后内", rail: "内轨" }
     ]
 
     // 风格色彩方案 (黑/白 双主题体系)。界面色（文字、强调、卡片、分割线）与 Theme 同值；

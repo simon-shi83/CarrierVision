@@ -15,7 +15,7 @@ Page {
     property var wheelRows: []
     property int selectedWheel: 0
 
-    readonly property int firstWheel: wheelType === 1 ? 9 : 1
+    readonly property int firstWheel: wheelType === 1 ? 1 : 9
     readonly property string wheelTypeName: wheelType === 1 ? "走行轮" : "驱动轮"
 
     function normalizedResult() {

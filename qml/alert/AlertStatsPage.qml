@@ -94,7 +94,7 @@ Page {
             resetImage()
         }
         wheelRequestId = appController.requestAlertOperation("groups", queryStart, queryEnd,
-                                                             rack, root.isWalkWheel ? 9 : 1, 1)
+                                                             rack, root.isWalkWheel ? 1 : 9, 1)
     }
 
     function applyWheelStatistics(stats) {

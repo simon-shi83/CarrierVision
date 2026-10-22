@@ -196,8 +196,8 @@ QVariantMap homepageCurrentDetection(const QSqlDatabase &db, int preferredRack)
         item.insert(QStringLiteral("passRate"), 0.0);
         return item;
     };
-    for (int wheel = 1; wheel <= 8; ++wheel) driveWheels.append(placeholder(wheel));
-    for (int wheel = 9; wheel <= 16; ++wheel) walkingWheels.append(placeholder(wheel));
+    for (int wheel = 1; wheel <= 8; ++wheel) walkingWheels.append(placeholder(wheel));
+    for (int wheel = 9; wheel <= 16; ++wheel) driveWheels.append(placeholder(wheel));
 
     QSqlQuery latestQuery(db);
     latestQuery.prepare(QStringLiteral(
@@ -225,8 +225,8 @@ QVariantMap homepageCurrentDetection(const QSqlDatabase &db, int preferredRack)
             item.insert(QStringLiteral("result"), latestQuery.value(1).toInt());
             item.insert(QStringLiteral("time"), latestQuery.value(2).toString());
 
-            if (wheel >= 1 && wheel <= 8) driveWheels[wheel - 1] = item;
-            else if (wheel >= 9 && wheel <= 16) walkingWheels[wheel - 9] = item;
+            if (wheel >= 1 && wheel <= 8) walkingWheels[wheel - 1] = item;
+            else if (wheel >= 9 && wheel <= 16) driveWheels[wheel - 9] = item;
         }
     }
 
@@ -328,7 +328,7 @@ QVariantList rackWheelResultStats(const QSqlDatabase &db, const QString &startDa
     if (rackNumber < 1 || rackNumber > 50 || !usable(db)) return out;
 
     const bool isOk = resultType.compare(QStringLiteral("OK"), Qt::CaseInsensitive) == 0;
-    const int firstWheel = wheelType == 0 ? 1 : 9;
+    const int firstWheel = wheelType == 0 ? 9 : 1; // 0 驱动轮 9～16，1 走行轮 1～8
 
     QVector<int> slotCounts(8, 0);
     QSqlQuery query(db);
@@ -471,9 +471,9 @@ QVariant run(const QSqlDatabase &db, const QString &kind, const QVariantList &ar
     QVariant result;
 
     if (kind == QLatin1String("driveWheelRackStats") && need(2)) {
-        result = wheelGroupRackStats(db, arg(0).toString(), arg(1).toString(), 1, 8);
-    } else if (kind == QLatin1String("walkingWheelRackStats") && need(2)) {
         result = wheelGroupRackStats(db, arg(0).toString(), arg(1).toString(), 9, 16);
+    } else if (kind == QLatin1String("walkingWheelRackStats") && need(2)) {
+        result = wheelGroupRackStats(db, arg(0).toString(), arg(1).toString(), 1, 8);
     } else if (kind == QLatin1String("rackWheelMonitorStatus")) {
         result = rackWheelMonitorStatus(db);
     } else if (kind == QLatin1String("rackPhotoCounts")) {

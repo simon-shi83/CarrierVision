@@ -76,7 +76,7 @@ public:
     ImageListModel *currentImagesModel();
     ImageListModel *searchImagesModel();
 
-    // 接收原始轮号；唯有 wheelRawId 接收操作员输入的显示轮位。
+    // wheelId 就是轮位（1～8 走行轮，9～16 驱动轮）；以下接口统一按轮位取名称与类别。
     Q_INVOKABLE int wheelPosition(const QVariant &raw) const { return WheelIdentity::position(raw); }
     Q_INVOKABLE int wheelRawId(const QVariant &position) const { return WheelIdentity::rawId(position); }
     Q_INVOKABLE int wheelTypeIndex(const QVariant &raw) const { return WheelIdentity::typeIndex(raw); }
@@ -86,7 +86,7 @@ public:
     Q_INVOKABLE QString wheelLabel(const QVariant &raw) const { return WheelIdentity::label(raw); }
     Q_INVOKABLE QString wheelCsvIdentity(const QVariant &raw) const { return WheelIdentity::csvIdentity(raw); }
 
-    // 所有查询/跨页跳转参数始终是原始轮号，0 表示不筛选轮位。
+    // 所有查询/跨页跳转参数始终是轮位，0 表示不筛选轮位。
     Q_INVOKABLE void searchPaged(const QString &startText, const QString &endText, const QString &serialKeyword, int rackNumber, const QString &wheelNo, const QString &resultFilter, int page, int pageSize);
     Q_INVOKABLE void alertSearchPaged(const QString &startText, const QString &endText,
                                       int rackNumber, const QString &wheelNo,

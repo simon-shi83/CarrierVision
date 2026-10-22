@@ -733,13 +733,13 @@ QVariantList AppController::weeklyReports()
 QVariantList AppController::driveWheelRackStats(const QString &startDate, const QString &endDate)
 {
     QMutexLocker locker(&m_dbMutex);
-    return StatsService::wheelGroupRackStats(QSqlDatabase::database(), startDate, endDate, 1, 8);
+    return StatsService::wheelGroupRackStats(QSqlDatabase::database(), startDate, endDate, 9, 16);
 }
 
 QVariantList AppController::walkingWheelRackStats(const QString &startDate, const QString &endDate)
 {
     QMutexLocker locker(&m_dbMutex);
-    return StatsService::wheelGroupRackStats(QSqlDatabase::database(), startDate, endDate, 9, 16);
+    return StatsService::wheelGroupRackStats(QSqlDatabase::database(), startDate, endDate, 1, 8);
 }
 
 QVariantList AppController::rackWheelMonitorStatus() const
@@ -1015,11 +1015,11 @@ int AppController::latestRackWheelImageRack() const
         FROM record
         WHERE createtime = (
             SELECT createtime FROM record
-            WHERE +result = 1 AND +distance > 0 AND +wheel_id BETWEEN 1 AND 8
+            WHERE +result = 1 AND +distance > 0 AND +wheel_id BETWEEN 9 AND 16
             ORDER BY createtime DESC LIMIT 1)
           AND result = 1
           AND distance > 0
-          AND wheel_id BETWEEN 1 AND 8
+          AND wheel_id BETWEEN 9 AND 16
         ORDER BY rowid DESC
         LIMIT 1
     )")) || !query.next()) {
@@ -1042,7 +1042,7 @@ int AppController::latestRackWheelTotalPages(int rackNumber) const
             SELECT wheel_id AS w, COUNT(*) AS cnt
             FROM record
             WHERE carrier_id = :rack AND result = 1 AND distance > 0
-              AND wheel_id BETWEEN 1 AND 8
+              AND wheel_id BETWEEN 9 AND 16
             GROUP BY wheel_id
         )
     )");
@@ -1091,8 +1091,8 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
             queryError = q.lastError().text();
             LOG_ERROR("loadLatestRackWheelImagesPage 预处理 SQL 失败: {}", queryError.toStdString());
         } else {
-            for (int slot = 1; slot <= 8; ++slot) {
-                const int wheel = slot;
+            // 标定对象是驱动轮，轮位 9～16
+            for (int wheel = 9; wheel <= 16; ++wheel) {
                 q.bindValue(QStringLiteral(":rack"), rackNumber);
                 q.bindValue(QStringLiteral(":wheel"), wheel);
                 if (!q.exec()) {
@@ -1106,8 +1106,8 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                     if (!item.receivedAt.isValid()) item.receivedAt = QDateTime::fromString(q.value(1).toString(), Qt::ISODate);
                     item.carrierId = q.value(2).toInt();
                     item.rack = item.carrierId;
-                    item.wheelId = slot;
-                    item.slot = slot;
+                    item.wheelId = wheel;
+                    item.slot = wheel;
                     item.cameraId = q.value(4).toInt();
                     item.result = q.value(5).toInt();
                     item.fileName = QFileInfo(q.value(6).toString().trimmed()).fileName();

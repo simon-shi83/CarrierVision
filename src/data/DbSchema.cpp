@@ -242,7 +242,7 @@ static void migrateLegacyFiles(QSqlDatabase &db) {
                                         else if (wheel["distance"].is_string()) dist = QString::fromStdString(wheel["distance"].get<std::string>()).toInt();
                                     }
                                     qNorm.bindValue(0, rno);
-                                    qNorm.bindValue(1, wno);
+                                    qNorm.bindValue(1, wno + 8); // 旧 JSON 的 wheelno 是驱动轮序号，驱动轮位于轮位 9～16
                                     qNorm.bindValue(2, dist);
                                     qNorm.exec();
                                 }

@@ -10,13 +10,13 @@ Page {
 
     signal requestStats(string startDate, string endDate)
 
-    // 轮系类别：false 为驱动轮 (1~8), true 为走行轮 (9~16)
+    // 轮系类别：false 为驱动轮（轮位 9～16）, true 为走行轮（轮位 1～8）
     property bool isWalkWheel: false
 
     readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
     readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
     readonly property int wheelTypeIndex: isWalkWheel ? 1 : 0
-    readonly property var currentWheelTokens: isWalkWheel ? [9, 10, 11, 12, 13, 14, 15, 16] : [1, 2, 3, 4, 5, 6, 7, 8]
+    readonly property var currentWheelTokens: isWalkWheel ? [1, 2, 3, 4, 5, 6, 7, 8] : [9, 10, 11, 12, 13, 14, 15, 16]
 
     property var dataModel: []
     property int detailRack: 0
@@ -80,7 +80,7 @@ Page {
             var wheel = Number(row.wheel)
             if (root.isWalkWheel) {
                 var idx = -1
-                if (wheel >= 9 && wheel <= 16) idx = wheel - 9
+                if (wheel >= 1 && wheel <= 8) idx = wheel - 1
                 if (idx < 0 || idx >= 8) continue
                 oks[idx] += Number(row.ok) || 0
                 ngs[idx] += Number(row.ng) || 0
@@ -89,7 +89,7 @@ Page {
                 maximum = Math.max(maximum, oks[idx], ngs[idx], losses[idx])
             } else {
                 var index = -1
-                if (wheel >= 1 && wheel <= 8) index = wheel - 1
+                if (wheel >= 9 && wheel <= 16) index = wheel - 9
                 if (index < 0 || index >= 8) continue
                 oks[index] += Number(row.ok) || 0
                 ngs[index] += Number(row.ng) || 0

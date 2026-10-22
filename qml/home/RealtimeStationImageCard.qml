@@ -305,19 +305,6 @@ Rectangle {
             }
         }
 
-        // 序列号 / 文件名标签
-        Label {
-            Layout.fillWidth: true
-            Layout.leftMargin: 4
-            Layout.rightMargin: 4
-            text: cardRoot.serial.length > 0 ? cardRoot.serial : (cardRoot.fileName.length > 0 ? cardRoot.fileName : "待采集")
-            color: cardRoot.serial.length > 0 ? Theme.accent : Theme.textSoft
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontCaption
-            font.weight: Theme.fontMedium
-            elide: Label.ElideMiddle
-        }
-
         Label {
             Layout.fillWidth: true
             Layout.leftMargin: 4

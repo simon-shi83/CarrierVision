@@ -64,7 +64,7 @@ Item {
         var rows = [];
         for (var positionNo = 1; positionNo <= 16; ++positionNo) {
             var raw = appController.wheelRawId(positionNo);
-            rows.push({label: appController.wheelLabel(raw), wheel: raw, isDrive: raw <= 8});
+            rows.push({label: appController.wheelLabel(raw), wheel: raw, isDrive: raw >= 9});
         }
         return rows;
     }

@@ -4,7 +4,8 @@
 #include <QVariant>
 #include <cmath>
 
-// 原始轮号始终是 TCP/数据库查询键；显示轮位只用于界面与导出。
+// 协议口径（2026-10-22 确认）：TCP wheelId 就是轮位，1～8 为走行轮、9～16 为驱动轮。
+// 原始轮号与显示轮位相同；position/rawId 仅保留为统一入口，不做偏移。
 namespace WheelIdentity {
 
 inline int validId(const QVariant &value)
@@ -20,7 +21,7 @@ inline int validId(const QVariant &value)
 inline int position(const QVariant &rawWheelId)
 {
     const int raw = validId(rawWheelId);
-    return raw == 0 ? 0 : (raw <= 8 ? raw + 8 : raw - 8);
+    return raw;
 }
 
 inline int rawId(const QVariant &positionNo) { return position(positionNo); }
@@ -34,7 +35,7 @@ inline int typeIndex(const QVariant &rawWheelId)
 inline QString typeName(const QVariant &rawWheelId)
 {
     const int raw = validId(rawWheelId);
-    return raw == 0 ? QString() : (raw <= 8 ? QStringLiteral("驱动轮") : QStringLiteral("走行轮"));
+    return raw == 0 ? QString() : (raw <= 8 ? QStringLiteral("走行轮") : QStringLiteral("驱动轮"));
 }
 
 inline QString tagName(const QVariant &rawWheelId)
@@ -60,7 +61,7 @@ inline QString csvIdentity(const QVariant &rawWheelId)
 {
     const int raw = validId(rawWheelId);
     return raw ? QStringLiteral("%1,%2,%3,%4").arg(raw).arg(position(raw))
-                     .arg(raw <= 8 ? QStringLiteral("drive") : QStringLiteral("walk")).arg(typeIndex(raw))
+                     .arg(raw <= 8 ? QStringLiteral("walk") : QStringLiteral("drive")).arg(typeIndex(raw))
                : QStringLiteral(",,,");
 }
 

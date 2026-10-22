@@ -250,9 +250,9 @@ RecordFilter buildRecordFilter(const QString &startText, const QString &endText,
 
     const QString wheelToken = wheelNo.trimmed();
     if (wheelToken == QStringLiteral("DRIVE")) {
-        filter.where << QStringLiteral("wheel_id BETWEEN 1 AND 8");
-    } else if (wheelToken == QStringLiteral("WALK")) {
         filter.where << QStringLiteral("wheel_id BETWEEN 9 AND 16");
+    } else if (wheelToken == QStringLiteral("WALK")) {
+        filter.where << QStringLiteral("wheel_id BETWEEN 1 AND 8");
     } else if (wheelToken.contains(',')) {
         QStringList wheelNumbers;
         for (const QString &part : wheelToken.split(',', Qt::SkipEmptyParts)) {
@@ -349,7 +349,7 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
         || rack < 1 || rack > 50 || wheel < 1 || wheel > 16 || page < 1)
         return fail(QStringLiteral("报警操作参数无效，请检查日期、架号和轮位"));
     auto filter = buildRecordFilter(start, end, rack, kind == QLatin1String("groups")
-                                    ? (wheel <= 8 ? QStringLiteral("DRIVE") : QStringLiteral("WALK"))
+                                    ? (wheel <= 8 ? QStringLiteral("WALK") : QStringLiteral("DRIVE"))
                                     : QString::number(wheel));
     filter.where << QStringLiteral("result = 0");
     QSqlQuery query(db);
@@ -358,7 +358,7 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
             filter.bind(query);
             if (query.exec()) return true;
         }
-        LOG_ERROR("报警操作查询失败，架号={}，原始轮号={}，操作={}: {}",
+        LOG_ERROR("报警操作查询失败，架号={}，轮位={}，操作={}: {}",
                   rack, wheel, kind.toStdString(), query.lastError().text().toStdString());
         return false;
     };
@@ -366,11 +366,11 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
         filter.where << QStringLiteral("is_handled = 0 AND is_false_alarm = 0");
         const QString column = kind == QLatin1String("handled") ? QStringLiteral("is_handled") : QStringLiteral("is_false_alarm");
         if (!execute(QStringLiteral("UPDATE record SET %1 = 1").arg(column) + filter.clause())) {
-            LOG_ERROR("报警处置失败，架号={}，原始轮号={}: {}", rack, wheel, query.lastError().text().toStdString());
+            LOG_ERROR("报警处置失败，架号={}，轮位={}: {}", rack, wheel, query.lastError().text().toStdString());
             return fail(QStringLiteral("保存处置状态失败，请查看日志"));
         }
         const qint64 affected = query.numRowsAffected();
-        LOG_INFO("报警处置完成，架号={}，原始轮号={}，操作={}，日期={} 至 {}，更新记录={}",
+        LOG_INFO("报警处置完成，架号={}，轮位={}，操作={}，日期={} 至 {}，更新记录={}",
                  rack, wheel, kind == QLatin1String("handled") ? "已处理（已换轮）" : "误报",
                  start.toStdString(), end.toStdString(), affected);
         return {{QStringLiteral("ok"), true}, {QStringLiteral("affected"), affected}};

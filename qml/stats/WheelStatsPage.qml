@@ -65,7 +65,7 @@ Page {
         if (!appController) return
         var turns = []
         for (var k = 1; k <= 8; ++k) {
-            turns.push(root.isWalkWheel ? (k + 8) : k)
+            turns.push(root.isWalkWheel ? k : (k + 8))
         }
         appController.gearSumQuery(gearBar.startDate, gearBar.endDate, gearBar.rackno > 0 ? gearBar.rackno.toString() : "", turns)
     }
@@ -302,14 +302,14 @@ Page {
                                 var ng = Number(row.ng) || Number(row.ngCount) || 0
 
                                 if (root.isWalkWheel) {
-                                    if (w >= 9 && w <= 16) {
-                                        oks[w - 9] = ok
-                                        ngs[w - 9] = ng
-                                    }
-                                } else {
                                     if (w >= 1 && w <= 8) {
                                         oks[w - 1] = ok
                                         ngs[w - 1] = ng
+                                    }
+                                } else {
+                                    if (w >= 9 && w <= 16) {
+                                        oks[w - 9] = ok
+                                        ngs[w - 9] = ng
                                     }
                                 }
                             }
@@ -357,7 +357,7 @@ Page {
                                     readonly property real plotHeight: Math.max(0, height - 46)
                                     readonly property real okBarH: (chartArea.okCounts[index] / chartArea.maxCount) * plotHeight
                                     readonly property real ngBarH: (chartArea.ngCounts[index] / chartArea.maxCount) * plotHeight
-                                    readonly property int actualWheelNumber: root.isWalkWheel ? (index + 9) : (index + 1)
+                                    readonly property int actualWheelNumber: root.isWalkWheel ? (index + 1) : (index + 9)
 
                                     // OK 柱
                                     Rectangle {
