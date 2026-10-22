@@ -390,8 +390,10 @@ Item {
                                                 // 状态微晶指示点
                                                 Rectangle {
                                                     anchors.centerIn: parent
-                                                    width: isCellHovered ? 9 : 7
-                                                    height: isCellHovered ? 9 : 7
+                                                    width: cellRect.cellState && cellRect.cellState.result === 0
+                                                        ? (isCellHovered ? 18 : 14)
+                                                        : (isCellHovered ? 9 : 7)
+                                                    height: width
                                                     radius: width / 2
                                                     visible: cellRect.cellState !== undefined
                                                     color: cellRect.cellState && cellRect.cellState.result === 1 ? Theme.ok : Theme.danger

@@ -8,12 +8,6 @@ Page {
     anchors.fill: parent
     background: Rectangle { color: "transparent" }
 
-    // 轮系类别：false 为驱动轮（9～16）, true 为走行轮（1～8）
-    property bool isWalkWheel: false
-    readonly property color currentThemeColor: isWalkWheel ? Theme.walkWheel : Theme.driveWheel
-    readonly property string wheelTypeName: isWalkWheel ? "走行轮" : "驱动轮"
-    readonly property int wheelTypeIndex: isWalkWheel ? 1 : 0
-
     property var rackRows: []
     property var wheelRows: []
     property int selectedRack: 0
@@ -47,8 +41,12 @@ Page {
                                                                   selectedRack, wheel, 1)
     }
 
+    function refreshRackCounts() {
+        rackRequestId = appController.requestAlertOperation("racks", queryStart, queryEnd, 0, 0, 1)
+    }
+
     function loadRackStatistics() {
-        if (!appController || !appController.requestStats)
+        if (!appController || !appController.requestAlertOperation)
             return
         queryStart = dateBar.startDate
         queryEnd = dateBar.endDate
@@ -59,9 +57,7 @@ Page {
         selectedWheel = 0
         wheelRows = []
         resetImage()
-        rackRequestId = appController.requestStats(
-            root.isWalkWheel ? "walkingWheelRackStats" : "driveWheelRackStats",
-            [queryStart, queryEnd])
+        refreshRackCounts()
     }
 
     function applyRackStatistics(stats) {
@@ -69,15 +65,16 @@ Page {
         var maxVal = 1
         for (var i = 0; i < stats.length; ++i) {
             var row = stats[i]
-            var count = Number(row.ng)
+            var count = Number(row.count)
             if (count > 0) {
-                rows.push({ rack: Number(row.rack), count: count })
+                rows.push({ rack: Number(row.rack), count: count,
+                            pending: Number(row.pending), handled: Number(row.handled) })
                 if (count > maxVal) maxVal = count
             }
         }
         maxRackNg = maxVal
         rackRows = rows
-        selectedRack = 0
+        if (selectedRack > 0) return
         selectedWheel = 0
         wheelRows = []
         resetImage()
@@ -94,7 +91,7 @@ Page {
             resetImage()
         }
         wheelRequestId = appController.requestAlertOperation("groups", queryStart, queryEnd,
-                                                             rack, root.isWalkWheel ? 1 : 9, 1)
+                                                             rack, 0, 1)
     }
 
     function applyWheelStatistics(stats) {
@@ -106,16 +103,17 @@ Page {
 
     Connections {
         target: appController
-        function onStatsReady(requestId, kind, result) {
-            if (requestId === root.rackRequestId)
-                root.applyRackStatistics(result || [])
-        }
         function onAlertOperationFinished(requestId, result) {
-            if (requestId === root.dispositionRequestId) {
+            if (requestId === root.rackRequestId) {
+                root.rackRequestId = -1
+                if (result.ok) root.applyRackStatistics(result.rows || [])
+                else root.operationMessage = result.error
+            } else if (requestId === root.dispositionRequestId) {
                 root.dispositionRequestId = -1
                 root.operationMessage = result.ok
                     ? "已保存，本次处置 " + result.affected + " 条异常记录"
                     : result.error
+                if (result.ok) root.refreshRackCounts()
                 if (root.selectedRack > 0) root.loadWheelStatistics(root.selectedRack, true)
             } else if (requestId === root.wheelRequestId) {
                 root.wheelRequestId = -1
@@ -145,10 +143,10 @@ Page {
     }
 
     function generateCsv() {
-        var csv = "wheel_type,position_range,轮系类别,架号,NG数量\n"
-        var prefix = (root.isWalkWheel ? "walk,1～8," : "drive,9～16,") + root.wheelTypeName + ","
+        var csv = "wheel_type,position_range,轮系类别,架号,NG数量,未处理频次,已处理频次\n"
+        var prefix = "all,1～16,全部轮位,"
         for (var i = 0; i < rackRows.length; ++i)
-            csv += prefix + rackRows[i].rack + "," + rackRows[i].count + "\n"
+            csv += prefix + rackRows[i].rack + "," + rackRows[i].count + "," + rackRows[i].pending + "," + rackRows[i].handled + "\n"
         return csv
     }
 
@@ -156,7 +154,7 @@ Page {
         anchors.fill: parent
         spacing: 10
 
-        // 顶栏：日期查询栏 + 驱动/走行轮类别切换胶囊
+        // 顶栏：日期查询栏（全部轮位）
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
@@ -165,7 +163,7 @@ Page {
                 id: dateBar
                 defaultRangeDays: 7
                 Layout.fillWidth: true
-                wheelType: root.wheelTypeIndex
+                wheelType: -1
                 exportCsvContent: root.generateCsv()
                 onSearchClicked: function(startDate, endDate) {
                     root.loadRackStatistics()
@@ -173,99 +171,6 @@ Page {
                 onResetClicked: root.loadRackStatistics()
             }
 
-            // 驱动 / 走行轮类别切换胶囊
-            Rectangle {
-                Layout.preferredHeight: 52
-                implicitWidth: wheelTypeSwitchRow.implicitWidth + 12
-                radius: Theme.radiusSmall
-                color: Theme.surface
-                border.color: Theme.border
-                border.width: 1
-
-                Row {
-                    id: wheelTypeSwitchRow
-                    anchors.centerIn: parent
-                    spacing: 4
-
-                    // 驱动轮
-                    Rectangle {
-                        width: 96
-                        height: 38
-                        radius: Theme.radiusMicro
-                        color: !root.isWalkWheel ? Theme.driveWheelSoft : (btnDriveMouse.containsMouse ? Theme.surfaceAlt : "transparent")
-                        border.width: 1
-                        border.color: !root.isWalkWheel ? Theme.driveWheel : "transparent"
-
-                        Behavior on color { ColorAnimation { duration: Theme.animFast } }
-                        Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
-                            Text {
-                                text: "驱动轮（9～16）"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontCaption
-                                font.weight: (!root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
-                                color: !root.isWalkWheel ? Theme.driveWheel : Theme.textSoft
-                            }
-                        }
-
-                        MouseArea {
-                            id: btnDriveMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (root.isWalkWheel) {
-                                    root.isWalkWheel = false
-                                    root.loadRackStatistics()
-                                }
-                            }
-                        }
-                    }
-
-                    // 走行轮
-                    Rectangle {
-                        width: 106
-                        height: 38
-                        radius: Theme.radiusMicro
-                        color: root.isWalkWheel ? Theme.walkWheelSoft : (btnWalkMouse.containsMouse ? Theme.surfaceAlt : "transparent")
-                        border.width: 1
-                        border.color: root.isWalkWheel ? Theme.walkWheel : "transparent"
-
-                        Behavior on color { ColorAnimation { duration: Theme.animFast } }
-                        Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
-                            Text {
-                                text: "走行轮（1～8）"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontCaption
-                                font.weight: (root.isWalkWheel) ? Theme.fontMedium : Theme.fontRegular
-                                color: root.isWalkWheel ? Theme.walkWheel : Theme.textSoft
-                            }
-                        }
-
-                        MouseArea {
-                            id: btnWalkMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (!root.isWalkWheel) {
-                                    root.isWalkWheel = true
-                                    root.loadRackStatistics()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         RowLayout {
@@ -275,7 +180,7 @@ Page {
 
             // 1. 架号 NG 汇总栏
             Rectangle {
-                Layout.preferredWidth: 220
+                Layout.preferredWidth: 300
                 Layout.fillHeight: true
                 radius: Theme.radiusMedium
                 color: Theme.surface
@@ -291,7 +196,7 @@ Page {
                         Layout.fillWidth: true
                         Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
                         Label {
-                            text: root.wheelTypeName + " · 架号异常"
+                            text: "架号异常"
                             color: Theme.text
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontBody
@@ -310,7 +215,8 @@ Page {
                             anchors.leftMargin: 8
                             anchors.rightMargin: 8
                             Text { text: "架号"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
-                            Text { text: "NG 频次"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.danger; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                            Text { text: "未处理频次"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
+                            Text { text: "已处理频次"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignHCenter; font.weight: Theme.fontMedium; color: Theme.textSoft; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                     }
 
@@ -380,7 +286,7 @@ Page {
                                 }
 
                                 Rectangle {
-                                    Layout.preferredWidth: 44
+                                    Layout.preferredWidth: 80
                                     Layout.preferredHeight: 22
                                     radius: Theme.radiusPill
                                     color: Theme.dangerSoft
@@ -389,12 +295,22 @@ Page {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: parent.parent.parent.modelData.count
+                                        text: parent.parent.parent.modelData.pending
                                         color: Theme.danger
                                         font.weight: Theme.fontMedium
                                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                         font.pixelSize: Theme.fontCaption
                                     }
+                                }
+                                Text {
+                                    text: parent.parent.modelData.handled
+                                    Layout.preferredWidth: 80
+                                    horizontalAlignment: Text.AlignHCenter
+                                    color: Theme.text
+                                    font.weight: Theme.fontMedium
+                                    font.family: Theme.fontSans
+                                    font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
                             }
 
@@ -459,7 +375,7 @@ Page {
                         Layout.fillWidth: true
                         Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
                         Label {
-                            text: selectedRack > 0 ? "架 #" + selectedRack + " · " + root.wheelTypeName + "异常" : root.wheelTypeName + "异常统计"
+                            text: selectedRack > 0 ? "架 #" + selectedRack + " · 异常统计" : "异常统计"
                             color: Theme.text
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontBody

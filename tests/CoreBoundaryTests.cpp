@@ -23,6 +23,55 @@ class CoreBoundaryTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void alertRackCountsTrackDispositionsAcrossAllWheels()
+    {
+        const QString connection = QStringLiteral("AlertRackCountsTest");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connection);
+            db.setDatabaseName(":memory:");
+            QVERIFY(db.open());
+            QVERIFY(DBSchema::ensureAllTables(db));
+            QSqlQuery q(db);
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,wheel_id,result,imagename) VALUES"
+                           "('2026-10-20 12:00:00',3,1,0,'walk.png'),"
+                           "('2026-10-20 12:00:00',3,9,0,'drive.png'),"
+                           "('2026-10-20 12:00:00',3,9,0,'drive2.png'),"
+                           "('2026-10-20 12:00:00',4,16,0,'other.png'),"
+                           "('2026-10-19 12:00:00',3,1,0,'outside.png'),"
+                           "('2026-10-20 12:00:00',3,2,1,'ok.png')"));
+            auto operation = [&](const QString &kind, int rack, int wheel) {
+                return SearchService::alertOperation(db, kind, "2026-10-20", "2026-10-20",
+                                                     rack, wheel, 1, "", "");
+            };
+            auto racks = operation("racks", 0, 0);
+            QVERIFY(racks.value("ok").toBool());
+            auto rows = racks.value("rows").toList();
+            QCOMPARE(rows.size(), 2);
+            QCOMPARE(rows[0].toMap().value("rack").toInt(), 3);
+            QCOMPARE(rows[0].toMap().value("pending").toInt(), 3);
+            QCOMPARE(rows[0].toMap().value("handled").toInt(), 0);
+            auto groups = operation("groups", 3, 0).value("rows").toList();
+            QCOMPARE(groups.size(), 2);
+            QCOMPARE(groups[0].toMap().value("wheel").toInt(), 1);
+            QCOMPARE(groups[1].toMap().value("wheel").toInt(), 9);
+            QCOMPARE(operation("handled", 3, 9).value("affected").toInt(), 2);
+            rows = operation("racks", 0, 0).value("rows").toList();
+            QCOMPARE(rows[0].toMap().value("pending").toInt(), 1);
+            QCOMPARE(rows[0].toMap().value("handled").toInt(), 2);
+            QCOMPARE(rows[0].toMap().value("count").toInt(), 3);
+            QCOMPARE(rows[1].toMap().value("pending").toInt(), 1);
+            QCOMPARE(operation("falseAlarm", 3, 1).value("affected").toInt(), 1);
+            rows = operation("racks", 0, 0).value("rows").toList();
+            QCOMPARE(rows[0].toMap().value("pending").toInt(), 0);
+            QCOMPARE(rows[0].toMap().value("handled").toInt(), 2);
+            QCOMPARE(rows[0].toMap().value("falseAlarm").toInt(), 1);
+            QVERIFY(!operation("handled", 3, 0).value("ok").toBool());
+            QVERIFY(!operation("image", 3, 0).value("ok").toBool());
+            QVERIFY(!operation("groups", 0, 0).value("ok").toBool());
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+
     void alertDispositionIsBoundedFinalAndPreservesDetection()
     {
         const QString connection = QStringLiteral("AlertDispositionTest");

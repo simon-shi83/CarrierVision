@@ -345,10 +345,13 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
     };
     const QDateTime from = AgcUtils::parseFlexibleDateTime(start, false);
     const QDateTime to = AgcUtils::parseFlexibleDateTime(end, true);
+    const bool rackSummary = kind == QLatin1String("racks");
+    const bool allWheels = rackSummary || (kind == QLatin1String("groups") && wheel == 0);
     if (!db.isOpen() || !from.isValid() || !to.isValid() || from > to
-        || rack < 1 || rack > 50 || wheel < 1 || wheel > 16 || page < 1)
+        || rack < (rackSummary ? 0 : 1) || rack > 50
+        || wheel < (allWheels ? 0 : 1) || wheel > 16 || page < 1)
         return fail(QStringLiteral("报警操作参数无效，请检查日期、架号和轮位"));
-    auto filter = buildRecordFilter(start, end, rack, kind == QLatin1String("groups")
+    auto filter = buildRecordFilter(start, end, rack, allWheels ? QString() : kind == QLatin1String("groups")
                                     ? (wheel <= 8 ? QStringLiteral("WALK") : QStringLiteral("DRIVE"))
                                     : QString::number(wheel));
     filter.where << QStringLiteral("result = 0");
@@ -375,15 +378,17 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
                  start.toStdString(), end.toStdString(), affected);
         return {{QStringLiteral("ok"), true}, {QStringLiteral("affected"), affected}};
     }
-    if (kind == QLatin1String("groups")) {
+    if (rackSummary || kind == QLatin1String("groups")) {
+        const QString groupColumn = rackSummary ? QStringLiteral("carrier_id") : QStringLiteral("wheel_id");
         if (!execute(QStringLiteral(
-                "SELECT wheel_id, COUNT(*), SUM(is_handled), SUM(is_false_alarm), "
-                "SUM(CASE WHEN is_handled=0 AND is_false_alarm=0 THEN 1 ELSE 0 END) FROM record")
-                + filter.clause() + QStringLiteral(" GROUP BY wheel_id ORDER BY wheel_id")))
+                "SELECT %1, COUNT(*), SUM(is_handled), SUM(is_false_alarm), "
+                "SUM(CASE WHEN is_handled=0 AND is_false_alarm=0 THEN 1 ELSE 0 END) FROM record").arg(groupColumn)
+                + filter.clause() + QStringLiteral(" GROUP BY %1 ORDER BY %2%1")
+                    .arg(groupColumn, rackSummary ? QStringLiteral("COUNT(*) DESC, ") : QString())))
             return fail(QStringLiteral("读取轮位处置状态失败"));
         QVariantList rows;
         while (query.next()) {
-            rows.append(QVariantMap{{QStringLiteral("wheel"), query.value(0)},
+            rows.append(QVariantMap{{rackSummary ? QStringLiteral("rack") : QStringLiteral("wheel"), query.value(0)},
                                     {QStringLiteral("count"), query.value(1)},
                                     {QStringLiteral("handled"), query.value(2)},
                                     {QStringLiteral("falseAlarm"), query.value(3)},

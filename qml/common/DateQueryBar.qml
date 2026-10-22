@@ -14,7 +14,7 @@ Rectangle {
     // 对外属性
     property string startDate: startDateField.dateString
     property string endDate: endDateField.dateString
-    // 查询类型 0:驱动轮 / 1:走行轮
+    // 查询类型 0:驱动轮 / 1:走行轮 / -1:全部轮位
     property int wheelType: 0
     property alias sheeltype: root.wheelType // 兼容历史别名
     property string exportCsvContent: ""
@@ -151,7 +151,7 @@ Rectangle {
                 if (visible) {
                     var startText = root.startDate ? root.startDate.replace(/-/g, "") : "";
                     var endText = root.endDate ? root.endDate.replace(/-/g, "") : "";
-                    var typeText = root.wheelType === 1 ? "走行轮" : "驱动轮";
+                    var typeText = root.wheelType === -1 ? "全部轮位" : (root.wheelType === 1 ? "走行轮" : "驱动轮");
                     fileNameInput.text = typeText + "_" + startText + "_" + endText + ".csv";
                 }
             }

@@ -108,6 +108,17 @@ Item {
         return "CAM " + (cameraId < 10 ? "0" : "") + cameraId
     }
 
+    function wheelLabels(image) {
+        var labels = []
+        var wheelIds = image && image.wheelIds ? image.wheelIds : []
+        for (var i = 0; i < wheelIds.length; ++i) {
+            var label = appController.wheelLabel(wheelIds[i])
+            if (labels.indexOf(label) < 0)
+                labels.push(label)
+        }
+        return labels.join("\n")
+    }
+
     function openImage(rack, image) {
         if (!image || !image.hasImage)
             return
@@ -515,30 +526,36 @@ Item {
                                         }
                                     }
 
-                                    // 左上角相机号
+                                    // 左上角显示该图像关联的轮位，多轮共图时逐行显示
                                     Rectangle {
+                                        visible: wheelLabel.text.length > 0
                                         anchors.top: parent.top
                                         anchors.left: parent.left
                                         anchors.margins: Theme.space1
-                                        height: 18
-                                        width: camLabel.implicitWidth + Theme.space2
+                                        height: wheelLabel.implicitHeight + Theme.space1
+                                        width: Math.min(wheelLabel.implicitWidth + Theme.space2,
+                                                        parent.width - Theme.space1 * 3
+                                                        - (tile.hasRecord ? resultBadge.width : 0))
                                         radius: Theme.radiusMicro
                                         color: Theme.overlayFill
 
                                         Text {
-                                            id: camLabel
+                                            id: wheelLabel
                                             anchors.centerIn: parent
-                                            text: root.cameraLabel(tile.index + 1)
+                                            width: parent.width - Theme.space2
+                                            text: root.wheelLabels(tile.image)
+                                            wrapMode: Text.Wrap
                                             color: Theme.text
                                             font.family: Theme.fontSans
                                             font.features: Theme.fontFeaturesTabular
-                                            font.pixelSize: Theme.fontMicro
+                                            font.pixelSize: Theme.fontCaption
                                             font.weight: Theme.fontMedium
                                         }
                                     }
 
                                     // 右上角判定
                                     Rectangle {
+                                        id: resultBadge
                                         visible: tile.hasRecord
                                         anchors.top: parent.top
                                         anchors.right: parent.right
