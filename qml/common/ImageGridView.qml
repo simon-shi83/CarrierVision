@@ -162,11 +162,11 @@ Rectangle {
                             Text {
                                 id: rackSlotTxt
                                 anchors.centerIn: parent
-                                text: (itemData && itemData.rack !== undefined && itemData.slot !== undefined) ? ("架 #" + itemData.rack + " ╎ " + appController.wheelLabel(itemData.wheelId)) : ""
+                                text: (itemData && itemData.rack !== undefined && itemData.slot !== undefined) ? ("架 #" + itemData.rack + " · " + appController.wheelLabel(itemData.wheelId)) : ""
                                 color: Theme.textSoft
                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.weight: Theme.fontMedium
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
 

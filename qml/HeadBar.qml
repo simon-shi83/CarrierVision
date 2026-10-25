@@ -175,7 +175,7 @@ Rectangle {
                             Rectangle {
                                 width: 6
                                 height: 6
-                                radius: 3
+                                radius: Theme.radiusPill
                                 color: root.masterStatusColor
 
                                 SequentialAnimation on opacity {
@@ -200,7 +200,7 @@ Rectangle {
                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontMicro
                                 font.letterSpacing: Theme.letterSpacingWide
-                                font.weight: Theme.fontBold
+                                font.weight: Theme.fontMedium
                                 color: root.masterStatusColor
                             }
                         }
@@ -339,7 +339,7 @@ Rectangle {
                             visible: topSearchInput.text.length > 0
                             Layout.preferredWidth: 18
                             Layout.preferredHeight: 18
-                            radius: 9
+                            radius: Theme.radiusPill
                             color: clearMouse.containsMouse ? Theme.pressed : "transparent"
                             Layout.alignment: Qt.AlignVCenter
 
@@ -378,9 +378,9 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: "Ctrl+K"
                                 color: Theme.muted
-                                font.family: Theme.fontMono
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.fontBold
+                                font.weight: Theme.fontMedium
                             }
                         }
                     }
@@ -637,21 +637,10 @@ Rectangle {
                                 defaultOrder: 18
                             },
                             {
-                                cmdId: "ws_settings_calib",
-                                wsIndex: 7,
-                                subAction: 0,
-                                title: "系统设置：基准标定与相机映射",
-                                subtitle: "12 通道相机物理通道与标准槽位几何标定",
-                                category: "工程配置",
-                                icon: "icon_camera",
-                                defaultOrder: 19
-                            },
-                            {
                                 cmdId: "ws_settings_config",
                                 wsIndex: 7,
-                                subAction: 1,
-                                title: "系统设置：系统配置与网络服务",
-                                subtitle: "通信端口、FTP 根目录、超期清理与管理员密码",
+                                title: "系统设置：系统配置",
+                                subtitle: "显示偏好、相机映射、通信服务、存储清理与访问安全",
                                 category: "系统设置",
                                 icon: "nav_settings",
                                 defaultOrder: 20
@@ -931,8 +920,8 @@ Rectangle {
                                 text: topSearchInput.text.length > 0 ? "检索结果 (按高频与匹配度优先)" : "常用工控指令 (高频优先排列)"
                                 color: Theme.muted
                                 font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.fontBold
+                                font.pixelSize: Theme.fontCaption
+                                font.weight: Theme.fontMedium
                                 font.letterSpacing: Theme.letterSpacingWide
                                 Layout.fillWidth: true
                             }
@@ -964,7 +953,7 @@ Rectangle {
                                 width: ListView.view.width
                                 height: 46
                                 radius: Theme.radiusMicro
-                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.pressed : "transparent"
+                                color: searchDropdownPopup.selectedIndex === index ? Theme.activeSubtle : (cmdMouse.containsMouse ? Theme.hover : "transparent")
                                 border.color: searchDropdownPopup.selectedIndex === index ? Theme.selectedBorder : "transparent"
                                 border.width: searchDropdownPopup.selectedIndex === index ? 1 : 0
 
@@ -984,12 +973,12 @@ Rectangle {
                                         Layout.preferredWidth: 28
                                         Layout.preferredHeight: 28
                                         radius: Theme.radiusMicro
-                                        color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.activeSubtle : Theme.surfaceAlt
+                                        color: cmdMouse.containsMouse && !(searchDropdownPopup.selectedIndex === index) ? Theme.pressed : Theme.surfaceAlt
 
                                         AppIcon {
                                             anchors.centerIn: parent
                                             name: modelData.icon || "nav_search"
-                                            color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.accent : Theme.textSoft
+                                            color: searchDropdownPopup.selectedIndex === index ? Theme.accent : (cmdMouse.containsMouse ? Theme.text : Theme.textSoft)
                                             size: 14
                                         }
                                     }
@@ -1004,7 +993,7 @@ Rectangle {
 
                                             Text {
                                                 text: modelData.title
-                                                color: (searchDropdownPopup.selectedIndex === index || cmdMouse.containsMouse) ? Theme.accent : Theme.text
+                                                color: searchDropdownPopup.selectedIndex === index ? Theme.accent : Theme.text
                                                 font.family: Theme.fontSans
                                                 font.pixelSize: Theme.fontCaption
                                                 font.weight: Theme.fontMedium
@@ -1016,7 +1005,7 @@ Rectangle {
                                                 visible: searchDropdownPopup.getUsageCount(modelData.cmdId) >= 4
                                                 Layout.preferredHeight: 14
                                                 implicitWidth: freqText.implicitWidth + 8
-                                                radius: 3
+                                                radius: Theme.radiusMicro
                                                 color: Theme.surfaceAlt
                                                 border.color: Theme.borderMuted
                                                 border.width: 1
@@ -1028,7 +1017,7 @@ Rectangle {
                                                     color: Theme.muted
                                                     font.family: Theme.fontSans
                                                     font.pixelSize: Theme.fontMicro
-                                                    font.weight: Theme.fontBold
+                                                    font.weight: Theme.fontMedium
                                                 }
                                             }
                                         }
@@ -1247,13 +1236,13 @@ Rectangle {
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
                     radius: Theme.radiusMicro
-                    color: winCloseMouse.containsMouse ? Theme.dangerSoft : "transparent"
+                    color: winCloseMouse.containsMouse ? Theme.pressed : "transparent"
 
                     AppIcon {
                         anchors.centerIn: parent
                         name: "icon_close"
                         size: 14
-                        color: winCloseMouse.containsMouse ? Theme.danger : Theme.textSoft
+                        color: winCloseMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
                     MouseArea {

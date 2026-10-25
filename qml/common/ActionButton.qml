@@ -5,69 +5,45 @@ Button {
     id: buttonRoot
 
     // ===== 样式属性配置 =====
-    property string variant: "primary" // "primary" | "secondary" | "danger" | "success" | "outline"
+    // primary：页面主操作（强调色）；secondary：普通操作；danger：不可撤销操作的确认
+    property string variant: "primary" // "primary" | "secondary" | "danger"
     property int btnRadius: Theme.radiusSmall
-    property color accentColor: Theme.accent
-    property color bgColor: {
-        if (variant === "secondary") return Theme.surfaceAlt
-        if (variant === "danger") return Theme.danger
-        if (variant === "success") return Theme.ok
-        if (variant === "outline") return "transparent"
-        return Theme.accent
-    }
-    property color hoverColor: {
-        if (variant === "secondary") return Theme.pressed
-        if (variant === "danger") return Theme.danger
-        if (variant === "success") return Theme.ok
-        if (variant === "outline") return Theme.activeSubtle
-        return Theme.accent
-    }
-    property color textColor: {
-        if (variant === "outline") return Theme.accent
-        if (variant === "secondary") return Theme.text
-        return Theme.textOnAccent
-    }
-    property color hoverTextColor: {
-        return Theme.textOnAccent
-    }
-    property color borderColor: {
-        if (variant === "outline") return Theme.accent
-        if (variant === "secondary") return Theme.border
-        return "transparent"
-    }
+
+    readonly property bool solid: variant !== "secondary"
+    readonly property color bgColor: variant === "danger" ? Theme.danger
+                                     : (variant === "secondary" ? Theme.surfaceAlt : Theme.accent)
+    readonly property color pressedColor: variant === "danger" ? Theme.dangerPressed
+                                          : (variant === "secondary" ? Theme.pressed : Theme.accentPressed)
+    readonly property color textColor: solid ? Theme.textOnAccent : Theme.text
 
     property bool isHovered: false
 
     implicitHeight: 36
-    implicitWidth: Math.max(72, contentText.implicitWidth + 24)
+    implicitWidth: Math.max(72, contentText.implicitWidth + Theme.space5)
     padding: 0
 
     background: Rectangle {
-        id: bgRect
         radius: buttonRoot.btnRadius
-        color: !buttonRoot.enabled 
-            ? Theme.surface 
-            : (buttonRoot.down 
-                ? Qt.darker(buttonRoot.hoverColor, 1.2) 
-                : (buttonRoot.isHovered ? buttonRoot.hoverColor : buttonRoot.bgColor))
-        
-        border.width: 1
-        border.color: !buttonRoot.enabled 
-            ? Theme.borderMuted 
-            : (buttonRoot.isHovered 
-                ? (buttonRoot.variant === "danger" ? Theme.danger : Theme.borderStrong) 
-                : buttonRoot.borderColor)
+        color: !buttonRoot.enabled
+            ? Theme.surfaceAlt
+            : (buttonRoot.down
+                ? buttonRoot.pressedColor
+                : (buttonRoot.isHovered && !buttonRoot.solid ? Theme.hover : buttonRoot.bgColor))
+
+        border.width: buttonRoot.solid && buttonRoot.enabled ? 0 : 1
+        border.color: !buttonRoot.enabled
+            ? Theme.borderMuted
+            : (buttonRoot.isHovered ? Theme.borderStrong : Theme.border)
 
         Behavior on color { ColorAnimation { duration: Theme.animFast } }
         Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
 
-        // 柔和光晕层
+        // 实底按钮的悬停叠加层：只改变明度，不引入新的色相
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
-            color: buttonRoot.isHovered ? (buttonRoot.variant === "danger" ? Theme.dangerSoft : Theme.hover) : "transparent"
-            visible: buttonRoot.enabled
-            Behavior on color { ColorAnimation { duration: Theme.animFast } }
+            color: Theme.solidHoverOverlay
+            visible: buttonRoot.enabled && buttonRoot.solid && buttonRoot.isHovered && !buttonRoot.down
         }
     }
 
@@ -77,11 +53,10 @@ Button {
         font.family: Theme.fontSans
         font.pixelSize: Theme.fontBody
         font.weight: Theme.fontMedium
-        color: !buttonRoot.enabled 
-            ? Theme.disabled 
-            : (buttonRoot.isHovered ? buttonRoot.hoverTextColor : buttonRoot.textColor)
+        color: buttonRoot.enabled ? buttonRoot.textColor : Theme.disabled
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
 
         Behavior on color { ColorAnimation { duration: Theme.animFast } }
     }

@@ -568,7 +568,7 @@ Page {
 
                                 Rectangle {
                                     anchors.centerIn: parent
-                                    width: 64; height: 20; radius: 10
+                                    width: 64; height: 20; radius: Theme.radiusPill
                                     color: {
                                         if (parent.lvl === "ERROR" || parent.lvl === "CRITICAL") return Theme.dangerSoft
                                         if (parent.lvl === "WARN" || parent.lvl === "WARNING") return Theme.warnSoft
@@ -635,7 +635,7 @@ Page {
                             readonly property bool isHovered: rowHoverHandler.hovered || hovered || copied
                             visible: opacity > 0
                             opacity: isHovered ? 1.0 : 0.0
-                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
 
                             property bool copied: false
                             Timer {
@@ -732,8 +732,8 @@ Page {
         property string logDetail: ""
 
         background: Rectangle {
-            color: Theme.surface
-            radius: Theme.radiusSmall
+            color: Theme.surfaceFloating
+            radius: Theme.radiusLarge
             border.color: Theme.border
             border.width: 1
         }
@@ -742,7 +742,7 @@ Page {
             width: parent.width
             height: 44
             color: Theme.surfaceAlt
-            radius: Theme.radiusSmall
+            radius: Theme.radiusLarge
 
             RowLayout {
                 anchors.fill: parent
@@ -753,7 +753,7 @@ Page {
                 Rectangle {
                     width: 3
                     height: 14
-                    radius: 1.5
+                    radius: Theme.radiusPill
                     color: Theme.borderStrong
                 }
 

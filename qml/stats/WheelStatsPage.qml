@@ -125,7 +125,7 @@ Page {
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
+                            Rectangle { width: 6; height: 6; radius: Theme.radiusPill; color: Theme.driveWheel }
                             Text {
                                 text: "驱动轮（9～16）"
                                 font.family: Theme.fontSans
@@ -164,7 +164,7 @@ Page {
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
+                            Rectangle { width: 6; height: 6; radius: Theme.radiusPill; color: Theme.walkWheel }
                             Text {
                                 text: "走行轮（1～8）"
                                 font.family: Theme.fontSans
@@ -213,7 +213,7 @@ Page {
                     Rectangle {
                         width: 4
                         height: 18
-                        radius: 2
+                        radius: Theme.radiusPill
                         color: root.currentThemeColor
                     }
 
@@ -231,12 +231,12 @@ Page {
                         spacing: 16
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 12; height: 12; radius: 3; color: Theme.ok }
+                            Rectangle { width: 12; height: 12; radius: Theme.radiusMicro / 2; color: Theme.ok }
                             Label { text: "OK 正常"; color: Theme.ok; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 12; height: 12; radius: 3; color: Theme.danger }
+                            Rectangle { width: 12; height: 12; radius: Theme.radiusMicro / 2; color: Theme.danger }
                             Label { text: "NG 异常"; color: Theme.danger; font.family: Theme.fontSans; font.pixelSize: Theme.fontCaption }
                         }
                         Rectangle {
@@ -256,7 +256,7 @@ Page {
                                     text: "轻触直方柱下钻架号明细"
                                     color: Theme.muted
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                 }
                             }
                         }
@@ -368,7 +368,7 @@ Page {
                                         anchors.bottomMargin: 30
                                         anchors.left: parent.left
                                         radius: Theme.radiusMicro
-                                        color: okMouse.containsMouse ? Theme.ok : Theme.ok
+                                        color: Theme.ok
                                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                                         MouseArea {
@@ -390,7 +390,7 @@ Page {
                                         anchors.bottomMargin: 30
                                         anchors.right: parent.right
                                         radius: Theme.radiusMicro
-                                        color: ngMouse.containsMouse ? Theme.danger : Theme.danger
+                                        color: Theme.danger
                                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                                         MouseArea {
@@ -466,10 +466,10 @@ Page {
         width: Math.min(1080, root.width * 0.92)
         height: Math.min(820, root.height * 0.85)
         anchors.centerIn: parent
-        title: appController.wheelLabel(root.detailWheel) + " ╎ " + root.detailResult + " 判定 ╎ 50 架数据下钻明细"
+        title: appController.wheelLabel(root.detailWheel) + " · " + root.detailResult + " 判定 · 50 架数据下钻明细"
 
         background: Rectangle {
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             color: Theme.surfaceFloating
             border.width: 1
             border.color: Theme.border
@@ -485,7 +485,7 @@ Page {
         footer: Rectangle {
             implicitHeight: 52
             color: Theme.surfaceAlt
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             RowLayout {
                 anchors.fill: parent
                 anchors.rightMargin: 16

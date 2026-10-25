@@ -32,7 +32,7 @@ Dialog {
     signal confirmed()
 
     background: Rectangle {
-        radius: Theme.radiusMedium
+        radius: Theme.radiusLarge
         color: Theme.surfaceFloating
         border.width: 1
         border.color: Theme.border
@@ -41,12 +41,12 @@ Dialog {
     header: Rectangle {
         implicitHeight: 68
         color: Theme.surfaceAlt
-        radius: Theme.radiusMedium
+        radius: Theme.radiusLarge
 
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
-            height: 12
+            height: Theme.radiusLarge
             color: parent.color
         }
 
@@ -59,7 +59,7 @@ Dialog {
             Rectangle {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
-                radius: 18
+                radius: Theme.radiusPill
                 color: dialog.accentBgColor
                 border.color: dialog.accentColor
                 border.width: 1
@@ -107,7 +107,7 @@ Dialog {
                     }
                 }
                 background: Rectangle {
-                    radius: 14
+                    radius: Theme.radiusPill
                     color: parent.hovered ? Theme.pressed : "transparent"
                 }
             }
@@ -187,12 +187,12 @@ Dialog {
     footer: Rectangle {
         implicitHeight: 58
         color: Theme.surfaceAlt
-        radius: Theme.radiusMedium
+        radius: Theme.radiusLarge
 
         Rectangle {
             anchors.top: parent.top
             width: parent.width
-            height: 12
+            height: Theme.radiusLarge
             color: parent.color
         }
 

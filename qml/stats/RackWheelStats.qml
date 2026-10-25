@@ -164,12 +164,12 @@ Page {
                                 radius: Theme.radiusMicro
                                 color: selected ? Theme.pressed : (wheelMouse.containsMouse ? Theme.surfaceAlt : "transparent")
                                 border.width: 1
-                                border.color: selected ? (root.wheelType === 1 ? Theme.walkWheel : Theme.accent) : "transparent"
+                                border.color: selected ? Theme.accent : "transparent"
 
                                 RowLayout {
                                     anchors.fill: parent
                                     Text { text: "#" + parent.parent.modelData.rack; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: Theme.textSoft; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
-                                    Text { text: root.displayWheel(Number(parent.parent.modelData.wheel)); Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? (root.wheelType === 1 ? Theme.walkWheel : Theme.accent) : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
+                                    Text { text: root.displayWheel(Number(parent.parent.modelData.wheel)); Layout.preferredWidth: 136; horizontalAlignment: Text.AlignHCenter; color: parent.parent.selected ? Theme.accent : Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: parent.parent.modelData.result; Layout.preferredWidth: 60; horizontalAlignment: Text.AlignHCenter; color: root.normalizedResult() === "OK" ? Theme.ok : Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                     Text { text: parent.parent.modelData.count; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; color: Theme.text; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular }
                                 }
@@ -294,7 +294,7 @@ Page {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onDoubleClicked: {
-                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ " + appController.wheelLabel(wheelId) + " ╎ " + receivedAtText)
+                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " · " + appController.wheelLabel(wheelId) + " · " + receivedAtText)
                                     }
                                 }
                             }

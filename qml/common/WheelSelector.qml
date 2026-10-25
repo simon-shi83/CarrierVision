@@ -81,8 +81,6 @@ Item {
                 text: "全部轮位"
                 Layout.fillWidth: true
                 variant: root.selectionToken === "0" ? "primary" : "secondary"
-                hoverColor: Theme.hover
-                hoverTextColor: Theme.text
                 onClicked: root.select("0")
             }
             Repeater {
@@ -97,8 +95,6 @@ Item {
                         text: group.walking ? "走行轮全选（轮位1～8）" : "驱动轮全选（轮位9～16）"
                         Layout.fillWidth: true
                         variant: root.selectionToken === group.modelData ? "primary" : "secondary"
-                        hoverColor: Theme.hover
-                        hoverTextColor: Theme.text
                         onClicked: root.select(group.modelData)
                     }
                     RowLayout {

@@ -7,28 +7,15 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QDir>
-#include <QTemporaryDir>
-#include <QImage>
 #include <QFontDatabase>
 #include "common/WheelIdentity.h"
-#include "app/ImageListModel.h"
 
 // 仅提供映射和隔离测试数据，加载真实查询组件以验证 QML 传参契约。
 class IdentityContext final : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QVariantList gearSumResult MEMBER rows CONSTANT)
-    Q_PROPERTY(QObject *searchImagesModel READ searchModel CONSTANT)
-    Q_PROPERTY(QString searchSummary MEMBER summary CONSTANT)
 public:
-    ImageListModel model;
-    QString summary;
-    QObject *searchModel() { return &model; }
-    Q_INVOKABLE int latestRackWheelImageRack() const { return 3; }
-    Q_INVOKABLE int latestRackWheelTotalPages(int) const { return 1; }
-    Q_INVOKABLE void loadLatestRackWheelImages(int) {}
-    Q_INVOKABLE void loadLatestRackWheelImagesPage(int, int) {}
-    Q_INVOKABLE QVariantList rackWheelDistances(int) const { return {10, 10, 10, 10, 10, 10, 10, 10}; }
     QVariantList rows{{QVariantMap{{"wheel", 1}, {"ok", 2}, {"ng", 1}}},
                       {QVariantMap{{"wheel", 9}, {"ok", 1}, {"ng", 3}}}};
     Q_INVOKABLE bool isDarkMode() const { return qEnvironmentVariable("CV_UI_SNAPSHOT_THEME") == QStringLiteral("dark"); }
@@ -38,8 +25,6 @@ public:
     Q_INVOKABLE QString wheelCsvIdentity(const QVariant &raw) const { return WheelIdentity::csvIdentity(raw); }
 signals:
     void slotUpdated(int slot);
-    void searchSummaryChanged();
-    void latestRackLoadFinished(int count, const QString &dbPath);
 };
 
 class WheelSelectionTests final : public QObject
@@ -117,51 +102,6 @@ private slots:
         inspectItem.insert("wheelId", 1);
         inspect->setProperty("currentItemObject", inspectItem);
         QCOMPARE(metric->property("metricValue").toString(), QStringLiteral("轮位1/走行轮1"));
-        // 真实 ImageListModel 把 slot 暴露成相机号：驱动轮2（轮位10）和驱动轮8（轮位16）不能被错放到相机1/6列；
-        // 走行轮（轮位1）不属于标定对象。
-        QTemporaryDir imageDir;
-        QVERIFY(imageDir.isValid());
-        const QString calibrationPath = imageDir.filePath(QStringLiteral("calibration.png"));
-        QImage calibrationImage(32, 32, QImage::Format_RGB32);
-        calibrationImage.fill(Qt::blue);
-        QVERIFY(calibrationImage.save(calibrationPath));
-        QVector<ImageItem> calibrationItems;
-        for (int raw : {10, 16, 1}) {
-            ImageItem item;
-            item.carrierId = 3;
-            item.wheelId = raw;
-            item.slot = raw;
-            item.cameraId = raw == 10 ? 1 : (raw == 16 ? 6 : 7);
-            item.distance = 120.0 + raw / 10.0;
-            item.filePath = calibrationPath;
-            item.fileName = QStringLiteral("raw%1.png").arg(raw);
-            calibrationItems.append(item);
-        }
-        identity.model.setItems(calibrationItems);
-        QCOMPARE(identity.model.get(0).value("slot").toInt(), 1);
-        QQmlComponent calibrationComponent(&engine);
-        calibrationComponent.setData("import CarrierVisionWheelTests\nCalibrationPage {}", QUrl());
-        QScopedPointer<QObject> calibration(calibrationComponent.create());
-        QVERIFY2(calibration, qPrintable(calibrationComponent.errorString()));
-        QVERIFY(QMetaObject::invokeMethod(calibration.data(), "rebuildWheelImages"));
-        const QVariantList measured = calibration->property("databaseDistanceValues").toList();
-        QCOMPARE(measured.size(), 8);
-        QCOMPARE(measured[0].toString(), QStringLiteral("0"));
-        QCOMPARE(measured[1].toDouble(), 121.0);
-        QCOMPARE(measured[7].toDouble(), 121.6);
-        const QVariantList wheelImages = calibration->property("wheelImages").toList();
-        QCOMPARE(wheelImages[1].toMap().value("wheelId").toInt(), 10);
-        QCOMPARE(wheelImages[7].toMap().value("wheelId").toInt(), 16);
-        auto *calibrationRoot = qobject_cast<QQuickItem *>(calibration.data());
-        QVERIFY(calibrationRoot);
-        calibrationRoot->setParentItem(window.contentItem());
-        calibrationRoot->setWidth(1280);
-        calibrationRoot->setHeight(800);
-        QQuickItem *image = findItem(calibrationRoot, QStringLiteral("calibrationImage2"));
-        QVERIFY(image);
-        QCOMPARE(image->property("source").toUrl(), QUrl::fromLocalFile(calibrationPath));
-        QTRY_COMPARE(image->property("status").toInt(), 1); // Image.Ready：真实文件可解码
-
         for (const QString &type : {QStringLiteral("WheelQueryBar"), QStringLiteral("DateQueryBar")}) {
             QQmlComponent csvComponent(&engine);
             csvComponent.setData((QStringLiteral("import CarrierVisionWheelTests\n") + type + QStringLiteral(" {}")).toUtf8(), QUrl());

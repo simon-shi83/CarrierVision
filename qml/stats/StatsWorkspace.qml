@@ -106,7 +106,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 3
                             height: delegateRoot.isSelected ? parent.height - 18 : 0
-                            radius: 2
+                            radius: Theme.radiusMicro
                             color: Theme.borderStrong
                             visible: delegateRoot.isSelected
                             Behavior on height {

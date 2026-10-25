@@ -165,7 +165,7 @@ Page {
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.driveWheel }
+                            Rectangle { width: 6; height: 6; radius: Theme.radiusPill; color: Theme.driveWheel }
                             Text {
                                 text: "驱动轮 (50架)"
                                 font.family: Theme.fontSans
@@ -204,7 +204,7 @@ Page {
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 5
-                            Rectangle { width: 6; height: 6; radius: 3; color: Theme.walkWheel }
+                            Rectangle { width: 6; height: 6; radius: Theme.radiusPill; color: Theme.walkWheel }
                             Text {
                                 text: "走行轮 (50架)"
                                 font.family: Theme.fontSans
@@ -248,7 +248,7 @@ Page {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    Rectangle { width: 4; height: 18; radius: 2; color: root.currentThemeColor }
+                    Rectangle { width: 4; height: 18; radius: Theme.radiusPill; color: root.currentThemeColor }
                     Label {
                         text: root.wheelTypeName + " (50 架全景) 点检统计与损耗率分布"
                         color: Theme.text
@@ -261,20 +261,20 @@ Page {
                         spacing: 16
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 10; height: 10; radius: 2; color: Theme.ok }
+                            Rectangle { width: 10; height: 10; radius: Theme.radiusMicro / 2; color: Theme.ok }
                             Label { text: "OK 正常"; color: Theme.ok; font.pixelSize: Theme.fontCaption }
                         }
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 10; height: 10; radius: 2; color: Theme.danger }
+                            Rectangle { width: 10; height: 10; radius: Theme.radiusMicro / 2; color: Theme.danger }
                             Label { text: "NG 异常"; color: Theme.danger; font.pixelSize: Theme.fontCaption }
                         }
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 10; height: 10; radius: 2; color: Theme.warn }
+                            Rectangle { width: 10; height: 10; radius: Theme.radiusMicro / 2; color: Theme.warn }
                             Label { text: "损耗率 (%)"; color: Theme.warn; font.pixelSize: Theme.fontCaption }
                         }
-                        Label { text: "双击柱体下钻架轮明细"; color: Theme.muted; font.pixelSize: Theme.fontMicro }
+                        Label { text: "双击柱体下钻架轮明细"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                     }
                 }
 
@@ -347,7 +347,7 @@ Page {
                                     anchors.bottom: parent.bottom
                                     anchors.bottomMargin: 22
                                     color: Theme.ok
-                                    radius: 2
+                                    radius: Theme.radiusMicro
                                     MouseArea {
                                         anchors.fill: parent
                                         hoverEnabled: true
@@ -363,7 +363,7 @@ Page {
                                     anchors.bottom: parent.bottom
                                     anchors.bottomMargin: 22
                                     color: Theme.danger
-                                    radius: 2
+                                    radius: Theme.radiusMicro
                                     MouseArea {
                                         anchors.fill: parent
                                         hoverEnabled: true
@@ -380,7 +380,7 @@ Page {
                                     anchors.bottom: parent.bottom
                                     anchors.bottomMargin: 22
                                     color: Theme.warn
-                                    radius: 2
+                                    radius: Theme.radiusMicro
                                 }
 
                                 Text {
@@ -413,10 +413,10 @@ Page {
         width: Math.min(1180, root.width * 0.94)
         height: Math.min(680, root.height * 0.88)
         anchors.centerIn: parent
-        title: "架号 #" + root.detailRack + " ╎ " + root.detailResult + " 判定 ╎ " + root.wheelTypeName + "明细"
+        title: "架号 #" + root.detailRack + " · " + root.detailResult + " 判定 · " + root.wheelTypeName + "明细"
 
         background: Rectangle {
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             color: Theme.surfaceFloating
             border.width: 1
             border.color: Theme.border
@@ -433,7 +433,7 @@ Page {
         footer: Rectangle {
             implicitHeight: 52
             color: Theme.surfaceAlt
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             RowLayout {
                 anchors.fill: parent
                 anchors.rightMargin: 16
@@ -453,13 +453,13 @@ Page {
         id: detailDialog
         parent: Overlay.overlay
         modal: true
-        title: "架号 #" + root.detailRack + " ╎ " + root.wheelTypeName + " 8 轮直方明细"
+        title: "架号 #" + root.detailRack + " · " + root.wheelTypeName + " 8 轮直方明细"
         width: Math.min(920, root.width * 0.84)
         height: Math.min(580, root.height * 0.80)
         anchors.centerIn: parent
 
         background: Rectangle {
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             color: Theme.surfaceFloating
             border.width: 1
             border.color: Theme.border
@@ -498,9 +498,9 @@ Page {
                             x: index * width
                             readonly property real plotHeight: Math.max(0, height - 60)
 
-                            Rectangle { width: parent.width * 0.22; height: (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.left: parent.left; anchors.leftMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.ok; radius: 2 }
-                            Rectangle { width: parent.width * 0.22; height: (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.danger; radius: 2 }
-                            Rectangle { width: parent.width * 0.22; height: (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; anchors.right: parent.right; anchors.rightMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.warn; radius: 2 }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.left: parent.left; anchors.leftMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.ok; radius: Theme.radiusMicro }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.danger; radius: Theme.radiusMicro }
+                            Rectangle { width: parent.width * 0.22; height: (root.detailLossRates[index] / root.detailMaxValue) * parent.plotHeight; anchors.right: parent.right; anchors.rightMargin: parent.width * 0.10; anchors.bottom: parent.bottom; anchors.bottomMargin: 42; color: Theme.warn; radius: Theme.radiusMicro }
 
                             Text { text: String(root.detailOkCounts[index]); visible: root.detailOkCounts[index] > 0; anchors.horizontalCenter: parent.left; anchors.horizontalCenterOffset: parent.width * 0.21; anchors.bottom: parent.bottom; anchors.bottomMargin: 46 + (root.detailOkCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.ok; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }
                             Text { text: String(root.detailNgCounts[index]); visible: root.detailNgCounts[index] > 0; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 46 + (root.detailNgCounts[index] / root.detailMaxValue) * parent.plotHeight; color: Theme.danger; font.weight: Theme.fontMedium; font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular; font.pixelSize: Theme.fontMicro }

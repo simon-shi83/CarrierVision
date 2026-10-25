@@ -68,6 +68,8 @@ QtObject {
     readonly property color accent: isDark ? "#4cc9e6" : "#0369a1"
     readonly property color accentPressed: isDark ? "#38b2cf" : "#075985"
     readonly property color accentSoft: isDark ? "#10262e" : "#e0f2fe"
+    // 强调色、状态色实底按钮的悬停叠加层（中性明度变化，不改变色相）
+    readonly property color solidHoverOverlay: isDark ? Qt.rgba(0.0, 0.0, 0.0, 0.10) : Qt.rgba(1.0, 1.0, 1.0, 0.12)
 
     // 状态色只表达状态，不用于标题、普通标签和装饰描边。
     // danger 只用于 NG、故障报警和不可撤销操作的确认。
@@ -78,6 +80,7 @@ QtObject {
     readonly property color warnSoft: isDark ? "#2b1e06" : "#fef3c7"
     readonly property color warnBorder: isDark ? Qt.rgba(0.90, 0.64, 0.23, 0.40) : Qt.rgba(0.71, 0.33, 0.04, 0.30)
     readonly property color danger: isDark ? "#f26d6d" : "#b91c1c"
+    readonly property color dangerPressed: isDark ? "#dc5a5a" : "#991b1b"
     readonly property color dangerSoft: isDark ? "#331215" : "#fee2e2"
     readonly property color dangerBorder: isDark ? Qt.rgba(0.95, 0.43, 0.43, 0.40) : Qt.rgba(0.73, 0.11, 0.11, 0.30)
 
@@ -136,4 +139,6 @@ QtObject {
     readonly property int animFast: 140
     readonly property int animNormal: 220
     readonly property int animSlow: 320
+    // 循环呼吸、闪烁类指示动画的半周期
+    readonly property int animPulse: 800
 }

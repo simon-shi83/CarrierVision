@@ -407,7 +407,7 @@ Window {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: (delegateRoot.itemSelected && itemBg.width > 24) ? (itemBg.width - 24) : 0
                             height: 2
-                            radius: 1
+                            radius: Theme.radiusPill
                             color: Theme.accent
                             visible: delegateRoot.itemSelected
 
@@ -442,7 +442,7 @@ Window {
                                 text: delegateRoot.itemTitle
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontBody
-                                font.weight: delegateRoot.itemSelected ? Theme.fontBold : Theme.fontRegular
+                                font.weight: delegateRoot.itemSelected ? Theme.fontMedium : Theme.fontRegular
                                 color: delegateRoot.itemSelected ? Theme.text : (delegateRoot.itemHovered ? Theme.text : Theme.textSoft)
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
@@ -465,7 +465,7 @@ Window {
                             z: 10
                             height: 18
                             width: Math.max(26, badgeText.implicitWidth + 8)
-                            radius: 9
+                            radius: Theme.radiusPill
                             color: delegateRoot.isWarning ? Theme.danger : Theme.accent
                             border.width: 1.5
                             border.color: Theme.isDark ? Theme.surface : Theme.textOnAccent
@@ -482,7 +482,7 @@ Window {
                                 text: delegateRoot.countdownText
                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontMicro
-                                font.weight: Theme.fontBold
+                                font.weight: Theme.fontMedium
                                 color: Theme.textOnAccent
                             }
                         }

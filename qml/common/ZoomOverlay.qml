@@ -105,7 +105,7 @@ Item {
         if (newSrc.length === 0) return
 
         var newTitle = (obj.serial && obj.serial.length > 0) ? obj.serial : (obj.fileName || ("CAM " + (activeSlotIndex + 1)))
-        var newSubtitle = "工位相机 #" + (activeSlotIndex + 1) + " ╎ " + (obj.receivedAtText || "")
+        var newSubtitle = "工位相机 #" + (activeSlotIndex + 1) + " · " + (obj.receivedAtText || "")
 
         titleText = newTitle
         subtitleText = newSubtitle
@@ -359,14 +359,14 @@ Item {
                             Rectangle {
                                 width: 6
                                 height: 6
-                                radius: 3
+                                radius: Theme.radiusPill
                                 color: Theme.ok
 
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
                                     running: root.visible && root.activeSlotIndex >= 0
-                                    NumberAnimation { from: 1.0; to: 0.2; duration: 700 }
-                                    NumberAnimation { from: 0.2; to: 1.0; duration: 700 }
+                                    NumberAnimation { from: 1.0; to: 0.2; duration: Theme.animPulse }
+                                    NumberAnimation { from: 0.2; to: 1.0; duration: Theme.animPulse }
                                 }
                             }
 
@@ -374,7 +374,7 @@ Item {
                                 text: "实时监控联动"
                                 color: Theme.text
                                 font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                                 font.weight: Theme.fontMedium
                             }
                         }
@@ -382,7 +382,7 @@ Item {
                 }
 
                 Label {
-                    text: root.subtitleText + " ╎ 缩放率: " + Math.round(root.userZoom * 100) + "% (滚轮平滑缩放 / 拖拽平移)"
+                    text: root.subtitleText + " · 缩放率: " + Math.round(root.userZoom * 100) + "% (滚轮平滑缩放 / 拖拽平移)"
                     color: Theme.textSoft
                     font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                     font.pixelSize: Theme.fontCaption

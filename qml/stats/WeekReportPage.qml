@@ -23,7 +23,7 @@ Page {
                 Layout.fillWidth: true
                 spacing: 8
 
-                Rectangle { width: 4; height: 18; radius: 2; color: Theme.borderStrong }
+                Rectangle { width: 4; height: 18; radius: Theme.radiusPill; color: Theme.borderStrong }
 
                 Label {
                     text: "统计周报历史归档一览"
@@ -52,7 +52,7 @@ Page {
                             text: "支持轻触或双击文件直接调取打开"
                             color: Theme.muted
                             font.family: Theme.fontSans
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
                 }
@@ -150,7 +150,7 @@ Page {
                                     text: "打开"
                                     color: Theme.driveWheel
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                     font.weight: Theme.fontMedium
                                     visible: driverMouse.containsMouse
                                 }
@@ -207,7 +207,7 @@ Page {
                                     text: "打开"
                                     color: Theme.walkWheel
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                     font.weight: Theme.fontMedium
                                     visible: deformMouse.containsMouse
                                 }

@@ -247,11 +247,10 @@ Rectangle {
                     radius: Theme.radiusMicro
                     color: prevMouse.containsMouse ? Theme.pressed : "transparent"
 
-                    Text {
+                    AppIcon {
                         anchors.centerIn: parent
-                        text: "‹"
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Theme.fontMedium
+                        name: "icon_chevron_left"
+                        size: 16
                         color: prevMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
@@ -282,11 +281,10 @@ Rectangle {
                     radius: Theme.radiusMicro
                     color: nextMouse.containsMouse ? Theme.pressed : "transparent"
 
-                    Text {
+                    AppIcon {
                         anchors.centerIn: parent
-                        text: "›"
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Theme.fontMedium
+                        name: "icon_chevron_right"
+                        size: 16
                         color: nextMouse.containsMouse ? Theme.text : Theme.textSoft
                     }
 
@@ -317,7 +315,7 @@ Rectangle {
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontMicro
                             font.weight: Theme.fontMedium
-                            color: (index >= 5) ? Theme.walkWheel : Theme.muted
+                            color: (index >= 5) ? Theme.textSoft : Theme.muted
                         }
                     }
                 }

@@ -331,7 +331,7 @@ Rectangle {
                     Layout.preferredHeight: 18
                     Layout.alignment: Qt.AlignVCenter
                     color: dismissMouse.containsMouse ? Theme.hover : "transparent"
-                    radius: 9
+                    radius: Theme.radiusPill
                     z: 10
 
                     AppIcon {
@@ -421,7 +421,7 @@ Rectangle {
                         }
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontCaption
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                     }
                     Text {
                         text: statusBar.operationalMessageText
@@ -435,7 +435,7 @@ Rectangle {
                         text: "点击可一键复制该条信息至剪贴板"
                         color: Theme.text
                         font.family: Theme.fontSans
-                        font.pixelSize: Theme.fontMicro
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }
@@ -553,7 +553,7 @@ Rectangle {
                     Rectangle {
                         width: 6
                         height: 6
-                        radius: 3
+                        radius: Theme.radiusPill
                         color: statusBar.tcpRunning ? Theme.ok : Theme.warn
                     }
 
@@ -561,7 +561,7 @@ Rectangle {
                         text: "TCP :" + statusBar.tcpPort + (statusBar.tcpClientCount > 0 ? (" (" + statusBar.tcpClientCount + "连)") : "")
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         font.pixelSize: Theme.fontMicro
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                         color: statusBar.tcpRunning ? Theme.ok : Theme.warn
                     }
                 }
@@ -587,20 +587,20 @@ Rectangle {
                             text: "TCP 数据接收服务 (检测数据流)"
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
-                            font.weight: Theme.fontBold
+                            font.weight: Theme.fontMedium
                             color: Theme.text
                         }
                         Text {
                             text: "服务状态: " + (statusBar.tcpRunning ? "正常监听中" : "服务未就绪")
                             color: statusBar.tcpRunning ? Theme.ok : Theme.warn
                             font.family: Theme.fontSans
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                         }
                         Text {
                             text: "监听端口: " + statusBar.tcpPort + " · 活跃客户端: " + statusBar.tcpClientCount
                             color: Theme.textSoft
                             font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
                 }
@@ -643,7 +643,7 @@ Rectangle {
                     Rectangle {
                         width: 6
                         height: 6
-                        radius: 3
+                        radius: Theme.radiusPill
                         color: statusBar.ftpRunning ? Theme.ok : Theme.warn
                     }
 
@@ -651,7 +651,7 @@ Rectangle {
                         text: "FTP :" + statusBar.ftpPort + (statusBar.ftpClientCount > 0 ? (" (" + statusBar.ftpClientCount + "连)") : "")
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         font.pixelSize: Theme.fontMicro
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                         color: statusBar.ftpRunning ? Theme.ok : Theme.warn
                     }
                 }
@@ -677,20 +677,20 @@ Rectangle {
                             text: "FTP 图像上传接收服务"
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontCaption
-                            font.weight: Theme.fontBold
+                            font.weight: Theme.fontMedium
                             color: Theme.text
                         }
                         Text {
                             text: "服务状态: " + (statusBar.ftpRunning ? "正常运行中" : "服务未就绪")
                             color: statusBar.ftpRunning ? Theme.ok : Theme.warn
                             font.family: Theme.fontSans
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                         }
                         Text {
                             text: "监听端口: " + statusBar.ftpPort + " · 活跃上传客户端: " + statusBar.ftpClientCount
                             color: Theme.textSoft
                             font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
                 }
@@ -716,7 +716,7 @@ Rectangle {
                         color: Theme.text
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         font.pixelSize: Theme.fontMicro
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                     }
 
                     Text {
@@ -786,7 +786,7 @@ Rectangle {
                     text: "00:00:00"
                     font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                     font.pixelSize: Theme.fontMicro
-                    font.weight: Theme.fontBold
+                    font.weight: Theme.fontMedium
                     color: Theme.text
                     Layout.alignment: Qt.AlignVCenter
                 }
@@ -813,14 +813,14 @@ Rectangle {
                         text: "工控机系统时间 (本地标准时间)"
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontCaption
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                         color: Theme.text
                     }
                     Text {
                         text: "当前日期: " + statusDateText.text + " " + statusTimeText.text
                         color: Theme.text
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                        font.pixelSize: Theme.fontMicro
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }

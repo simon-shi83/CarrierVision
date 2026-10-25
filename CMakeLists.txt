@@ -192,8 +192,6 @@ qt_add_qml_module(CarrierVision
 
         # 系统设置
         qml/settings/SettingsWorkspace.qml
-        qml/settings/CalibrationPage.qml
-        qml/settings/SystemConfigPage.qml
 
 
     RESOURCES
@@ -240,6 +238,11 @@ qt_add_qml_module(CarrierVision
         assets/icons/icon_check_circle.svg
         assets/icons/icon_user.svg
         assets/icons/icon_arrow_down.svg
+        assets/icons/icon_chevron_left.svg
+        assets/icons/icon_chevron_right.svg
+        assets/icons/icon_chevron_down.svg
+        assets/icons/icon_plus.svg
+        assets/icons/icon_minus.svg
 )
 
 target_link_libraries(CarrierVision PRIVATE
@@ -479,14 +482,15 @@ if(BUILD_TESTING)
             qml/common/DateQueryBar.qml
             qml/stats/WheelQueryBar.qml
             qml/home/StationImageInspectDialog.qml
-            qml/common/ZoomOverlay.qml
-            qml/settings/CalibrationPage.qml)
+            qml/common/ZoomOverlay.qml)
     qt_add_resources(CarrierVisionWheelSelectionTests wheel_test_icons
         PREFIX "/qt/qml/CarrierVision"
         FILES
             assets/icons/icon_arrow_down.svg
             assets/icons/icon_calendar.svg
             assets/icons/icon_check_circle.svg
+            assets/icons/icon_chevron_left.svg
+            assets/icons/icon_chevron_right.svg
             assets/icons/icon_close.svg
             assets/icons/icon_camera.svg
             assets/icons/icon_eye.svg)

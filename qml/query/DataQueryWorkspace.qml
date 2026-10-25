@@ -436,7 +436,7 @@ Item {
                                         if (item && item.fileUrl) {
                                             var cId = (item.carrierId !== undefined && item.carrierId > 0) ? item.carrierId : item.rack;
                                             var wId = item.wheelId;
-                                            inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ " + appController.wheelLabel(wId) + " ╎ " + item.receivedAtText);
+                                            inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " · " + appController.wheelLabel(wId) + " · " + item.receivedAtText);
                                         }
                                     }
                                 }
@@ -535,7 +535,7 @@ Item {
                             Rectangle {
                                 width: 3
                                 height: 14
-                                radius: 1.5
+                                radius: Theme.radiusPill
                                 color: Theme.borderStrong
                             }
                             Label {
@@ -561,9 +561,9 @@ Item {
                                     anchors.centerIn: parent
                                     spacing: 4
                                     Text {
-                                        text: "滚轮缩放 ╎ 拖拽平移 ╎ 双击切换"
+                                        text: "滚轮缩放 · 拖拽平移 · 双击切换"
                                         font.family: Theme.fontSans
-                                        font.pixelSize: Theme.fontMicro
+                                        font.pixelSize: Theme.fontCaption
                                         color: Theme.muted
                                     }
                                 }
@@ -584,7 +584,7 @@ Item {
                                     implicitWidth: zoomPctText.implicitWidth + 16
                                     radius: Theme.radiusPill
                                     color: zoomResetMouse.containsMouse ? Theme.hover : Theme.fieldFill
-                                    border.color: previewCard.userZoom > 1.05 ? Theme.accent : Theme.borderMuted
+                                    border.color: previewCard.userZoom > 1.05 ? Theme.borderStrong : Theme.borderMuted
                                     border.width: 1
 
                                     Text {
@@ -594,7 +594,7 @@ Item {
                                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                         font.pixelSize: Theme.fontCaption
                                         font.weight: Theme.fontMedium
-                                        color: previewCard.userZoom > 1.05 ? Theme.accent : Theme.textSoft
+                                        color: previewCard.userZoom > 1.05 ? Theme.text : Theme.textSoft
                                     }
 
                                     MouseArea {
@@ -613,7 +613,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
-                                    radius: 12
+                                    radius: Theme.radiusPill
                                     color: zoomOutBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
                                     border.color: Theme.borderMuted
                                     border.width: 1
@@ -641,7 +641,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
-                                    radius: 12
+                                    radius: Theme.radiusPill
                                     color: zoomInBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
                                     border.color: Theme.borderMuted
                                     border.width: 1
@@ -669,7 +669,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
-                                    radius: 12
+                                    radius: Theme.radiusPill
                                     color: resetBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
                                     border.color: Theme.borderMuted
                                     border.width: 1
@@ -802,7 +802,7 @@ Item {
                             text: (root.searchModelEpoch >= 0 && root.currentSelectedItem()) ? ("文件路径: " + (root.currentSelectedItem().filePath || "")) : "未选择项目"
                             color: Theme.muted
                             font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontMicro
+                            font.pixelSize: Theme.fontCaption
                             elide: Text.ElideMiddle
                         }
                     }

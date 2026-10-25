@@ -345,7 +345,7 @@ Page {
                                     if (item && item.fileUrl) {
                                         var cId = (item.carrierId !== undefined && item.carrierId > 0) ? item.carrierId : item.rack
                                         var wId = item.wheelId
-                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " ╎ " + appController.wheelLabel(wId) + " ╎ " + item.receivedAtText)
+                                        inspectViewer.openViewer(item.fileUrl, item.fileName, "载具 #" + cId + " · " + appController.wheelLabel(wId) + " · " + item.receivedAtText)
                                     }
                                 }
                             }
@@ -382,7 +382,7 @@ Page {
                         Rectangle {
                             width: 3
                             height: 14
-                            radius: 1.5
+                            radius: Theme.radiusPill
                             color: Theme.borderStrong
                         }
                         Label {
@@ -404,7 +404,7 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " · " + appController.wheelLabel(item.wheelId) + " · " + item.receivedAtText) : "")
                                 }
                             }
                         }
@@ -469,13 +469,13 @@ Page {
                             onClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " · " + appController.wheelLabel(item.wheelId) + " · " + item.receivedAtText) : "")
                                 }
                             }
                             onDoubleClicked: {
                                 if (preview.selectedFileUrl !== "") {
                                     var item = root.currentSelectedItem()
-                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " ╎ " + appController.wheelLabel(item.wheelId) + " ╎ " + item.receivedAtText) : "")
+                                    inspectViewer.openViewer(preview.selectedFileUrl, item ? item.fileName : "检测原图", item ? ("架 #" + item.rack + " · " + appController.wheelLabel(item.wheelId) + " · " + item.receivedAtText) : "")
                                 }
                             }
                         }
@@ -487,7 +487,7 @@ Page {
                         text: (root.searchModelEpoch >= 0 && root.currentSelectedItem()) ? ("文件路径: " + (root.currentSelectedItem().filePath || "")) : "未选择项目"
                         color: Theme.muted
                         font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontMicro
+                        font.pixelSize: Theme.fontCaption
                         elide: Text.ElideMiddle
                     }
                 }

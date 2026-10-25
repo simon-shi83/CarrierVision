@@ -122,10 +122,10 @@ Item {
     function openImage(rack, image) {
         if (!image || !image.hasImage)
             return
-        var detail = (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time
+        var detail = (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time
         if (image.wheels && image.wheels.length > 0)
-            detail += " ╎ " + image.wheels.join(" ╎ ")
-        imagePreview.openViewer(image.fileUrl, "架号 #" + rack + " ╎ " + cameraLabel(image.cameraId), detail)
+            detail += " · " + image.wheels.join(" · ")
+        imagePreview.openViewer(image.fileUrl, "架号 #" + rack + " · " + cameraLabel(image.cameraId), detail)
     }
 
     Component.onCompleted: refresh()
@@ -173,7 +173,7 @@ Item {
                 Rectangle {
                     width: 4
                     height: 18
-                    radius: 2
+                    radius: Theme.radiusPill
                     color: Theme.borderStrong
                 }
 
@@ -187,8 +187,8 @@ Item {
 
                 Label {
                     Layout.leftMargin: Theme.space2
-                    text: "有记录 " + root.recordedRackCount + " / " + root.rackCount + " 架 ╎ NG "
-                          + root.ngRackCount + " 架 ╎ 图像 " + root.imageTotal + " 张"
+                    text: "有记录 " + root.recordedRackCount + " / " + root.rackCount + " 架 · NG "
+                          + root.ngRackCount + " 架 · 图像 " + root.imageTotal + " 张"
                     color: Theme.textSoft
                     font.family: Theme.fontSans
                     font.features: Theme.fontFeaturesTabular
@@ -331,9 +331,9 @@ Item {
                             ToolTip.delay: 300
                             ToolTip.text: !chip.group || chip.group.cameraCount === 0
                                           ? "架号 #" + chip.rack + "：暂无检测记录"
-                                          : "架号 #" + chip.rack + " ╎ " + chip.group.time
+                                          : "架号 #" + chip.rack + " · " + chip.group.time
                                             + "\n图像 " + chip.group.imageCount + " / " + root.cameraCount
-                                            + " ╎ NG 相机 " + chip.group.ngCount
+                                            + " · NG 相机 " + chip.group.ngCount
 
                             MouseArea {
                                 id: chipMouse

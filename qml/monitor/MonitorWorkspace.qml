@@ -56,8 +56,8 @@ Item {
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath)
                 ? "file:///" + normalizedPath : normalizedPath
         imagePreview.openViewer(sourceUrl,
-                "架号 #" + rackNumber + " ╎ " + wheelLabel,
-                "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time)
+                "架号 #" + rackNumber + " · " + wheelLabel,
+                "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time)
     }
 
     readonly property var wheelRows: {
@@ -105,12 +105,12 @@ Item {
                 Rectangle {
                     width: 4
                     height: 18
-                    radius: 2
+                    radius: Theme.radiusPill
                     color: Theme.borderStrong
                 }
 
                 Label {
-                    text: "16 轮位 × 50 架 全景遥测热力矩阵"
+                    text: "50 架 16 轮位全景遥测热力矩阵"
                     color: Theme.text
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontTitle
@@ -124,19 +124,19 @@ Item {
 
                     RowLayout {
                         spacing: 4
-                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.ok }
+                        Rectangle { width: 8; height: 8; radius: Theme.radiusPill; color: Theme.ok }
                         Label { text: "OK 正常"; color: Theme.ok; font.pixelSize: Theme.fontCaption }
                     }
 
                     RowLayout {
                         spacing: 4
-                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.danger }
+                        Rectangle { width: 8; height: 8; radius: Theme.radiusPill; color: Theme.danger }
                         Label { text: "NG 异常"; color: Theme.danger; font.pixelSize: Theme.fontCaption }
                     }
 
                     RowLayout {
                         spacing: 4
-                        Rectangle { width: 8; height: 8; radius: 4; color: Theme.muted }
+                        Rectangle { width: 8; height: 8; radius: Theme.radiusPill; color: Theme.muted }
                         Label { text: "无记录"; color: Theme.muted; font.pixelSize: Theme.fontCaption }
                     }
                 }
@@ -256,7 +256,7 @@ Item {
                                         color: rackHeaderCol.isColHovered ? Theme.text : Theme.textSoft
                                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                         font.weight: (rackHeaderCol.isColHovered) ? Theme.fontMedium : Theme.fontRegular
-                                        font.pixelSize: Math.max(9, Math.min(Theme.fontCaption, Math.floor(tableContainer.colWidth * 0.38)))
+                                        font.pixelSize: tableContainer.colWidth >= 32 ? Theme.fontCaption : Theme.fontMicro
                                     }
 
                                     ToolTip.visible: colHeaderMouse.containsMouse
@@ -340,7 +340,7 @@ Item {
                                                 text: wheelRowItem.wheelLabel.replace("/", "\n")
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: wheelRowItem.isRowHovered
-                                                    ? Theme.accent
+                                                    ? Theme.text
                                                     : (wheelRowItem.isDrive ? Theme.driveWheel : Theme.walkWheel)
                                                 font.family: Theme.fontSans
                                                 font.weight: Theme.fontMedium
@@ -382,7 +382,7 @@ Item {
                                                         : (cellState.result === 1 ? Theme.okSoft : Theme.dangerSoft))
 
                                                 border.color: isCellHovered
-                                                    ? Theme.accent
+                                                    ? Theme.text
                                                     : (isCrosshair ? Theme.borderStrong : Theme.borderMuted)
                                                 border.width: isCellHovered ? 2 : 1
                                                 z: isCellHovered ? 3 : (isCrosshair ? 1 : 0)
@@ -406,15 +406,15 @@ Item {
                                                     SequentialAnimation on opacity {
                                                         loops: Animation.Infinite
                                                         running: cellRect.cellState ? (cellRect.cellState.result === 0) : false
-                                                        NumberAnimation { from: 1.0; to: 0.3; duration: 600; easing.type: Easing.InOutQuad }
-                                                        NumberAnimation { from: 0.3; to: 1.0; duration: 600; easing.type: Easing.InOutQuad }
+                                                        NumberAnimation { from: 1.0; to: 0.3; duration: Theme.animPulse; easing.type: Easing.InOutQuad }
+                                                        NumberAnimation { from: 0.3; to: 1.0; duration: Theme.animPulse; easing.type: Easing.InOutQuad }
                                                     }
                                                 }
 
                                                 ToolTip.visible: cellMouse.containsMouse && Boolean(cellRect.cellState)
                                                 ToolTip.text: cellRect.cellState
                                                               ? ("架号: #" + cellRect.rackNumber
-                                                                    + " ╎ " + cellRect.wheelLabel
+                                                                    + " · " + cellRect.wheelLabel
                                                                     + "\n判定: " + (cellRect.cellState.result === 1 ? "OK 正常" : "NG 异常")
                                                                     + "\n检测时间: " + cellRect.cellState.time
                                                                     + "\n单击直接查看检测原图")
@@ -503,14 +503,14 @@ Item {
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: summaryCell.count
-                                                color: summaryCell.count > 0 ? Theme.accent : Theme.muted
+                                                color: summaryCell.count > 0 ? Theme.text : Theme.muted
                                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                                font.pixelSize: Math.max(9, Math.min(Theme.fontCaption, Math.floor(tableContainer.colWidth * 0.38)))
+                                                font.pixelSize: tableContainer.colWidth >= 32 ? Theme.fontCaption : Theme.fontMicro
                                                 font.weight: (summaryCell.count > 0) ? Theme.fontMedium : Theme.fontRegular
                                             }
 
                                             ToolTip.visible: summaryCellMouse.containsMouse
-                                            ToolTip.text: "架号 #" + summaryCell.rackNumber + " ╎ 累计采集照片: " + summaryCell.count + " 张"
+                                            ToolTip.text: "架号 #" + summaryCell.rackNumber + " · 累计采集照片: " + summaryCell.count + " 张"
 
                                             MouseArea {
                                                 id: summaryCellMouse
@@ -548,7 +548,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            radius: Theme.radiusMedium
+            radius: Theme.radiusLarge
             color: Theme.surfaceFloating
             border.width: 1
             border.color: Theme.border
@@ -567,7 +567,7 @@ Item {
                 Rectangle {
                     width: 4
                     height: 18
-                    radius: 2
+                    radius: Theme.radiusPill
                     color: Theme.borderStrong
                 }
 
@@ -576,7 +576,7 @@ Item {
                     color: Theme.text
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontTitle
-                    font.weight: Theme.fontBold
+                    font.weight: Theme.fontMedium
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
                 }

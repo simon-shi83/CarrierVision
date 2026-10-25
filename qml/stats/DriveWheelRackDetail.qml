@@ -294,7 +294,7 @@ Page {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onDoubleClicked: {
-                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " ╎ " + appController.wheelLabel(wheelId) + " ╎ " + receivedAtText)
+                                        inspectViewer.openViewer(fileUrl, fileName, "架 #" + rack + " · " + appController.wheelLabel(wheelId) + " · " + receivedAtText)
                                     }
                                 }
                             }

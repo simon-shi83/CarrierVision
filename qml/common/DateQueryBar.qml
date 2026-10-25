@@ -141,7 +141,7 @@ Rectangle {
             standardButtons: Dialog.Ok | Dialog.Cancel
 
             background: Rectangle {
-                radius: Theme.radiusMedium
+                radius: Theme.radiusLarge
                 color: Theme.surfaceFloating
                 border.color: Theme.border
                 border.width: 1

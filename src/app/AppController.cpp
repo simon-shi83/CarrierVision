@@ -1565,7 +1565,7 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
             }
         }
         if (!cards[i].wheelsInfo.isEmpty())
-            totalWheels += cards[i].wheelsInfo.count(QStringLiteral(" ╎ ")) + 1;
+            totalWheels += cards[i].wheelsInfo.count(QStringLiteral(" · ")) + 1;
     }
     m_currentImagesModel.setItems(cards);
 

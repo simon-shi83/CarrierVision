@@ -674,7 +674,7 @@ private slots:
         QCOMPARE(cards.size(), 12);
         QCOMPARE(cards.at(0).result, 0);                 // 同一相机任一轮 NG 则整卡 NG
         QCOMPARE(cards.at(0).wheelId, 1);                // 卡片取该相机第一条轮数据
-        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮位1/走行轮1: 121.0mm (OK) ╎ 轮位2/走行轮2: 122.0mm (NG)"));
+        QCOMPARE(cards.at(0).wheelsInfo, QStringLiteral("轮位1/走行轮1: 121.0mm (OK) · 轮位2/走行轮2: 122.0mm (NG)"));
         QVERIFY(cards.at(0).filePath.isEmpty());
         QCOMPARE(cards.at(1).result, 1);
         QCOMPARE(cards.at(1).filePath, dir.filePath(QStringLiteral("Cam01.PNG")));

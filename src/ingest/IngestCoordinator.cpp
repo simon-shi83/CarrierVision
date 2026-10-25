@@ -83,7 +83,7 @@ QVector<ImageItem> buildStationCards(const ImageIngest::BatchData &batch,
                                         .arg(wheel.actualDistance, 0, 'f', 1)
                                         .arg(wheel.result ? "OK" : "NG");
         card.wheelsInfo = card.wheelsInfo.isEmpty() ? description
-                                                    : card.wheelsInfo + QStringLiteral(" ╎ ") + description;
+                                                    : card.wheelsInfo + QStringLiteral(" · ") + description;
 
         if (wheel.imageName.isEmpty()) continue;
         if (card.fileName.isEmpty()) card.fileName = QFileInfo(wheel.imageName).fileName();

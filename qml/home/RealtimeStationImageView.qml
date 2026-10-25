@@ -88,7 +88,7 @@ Rectangle {
             Rectangle {
                 width: 4
                 height: 18
-                radius: 2
+                radius: Theme.radiusPill
                 color: Theme.borderStrong
             }
 
@@ -144,7 +144,7 @@ Rectangle {
                         text: "轻触或双击卡片进入全景缩放"
                         color: Theme.muted
                         font.family: Theme.fontSans
-                        font.pixelSize: Theme.fontMicro
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }

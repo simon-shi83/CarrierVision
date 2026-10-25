@@ -90,8 +90,8 @@ Rectangle {
                 Layout.preferredHeight: 20
                 implicitWidth: camText.implicitWidth + 12
                 radius: Theme.radiusPill
-                color: !cardRoot.hasImage ? Theme.surfaceAlt : (cardRoot.result === 0 ? Theme.dangerSoft : Theme.activeSubtle)
-                border.color: !cardRoot.hasImage ? Theme.borderMuted : (cardRoot.result === 0 ? Theme.danger : Theme.accent)
+                color: (cardRoot.hasImage && cardRoot.result === 0) ? Theme.dangerSoft : Theme.surfaceAlt
+                border.color: !cardRoot.hasImage ? Theme.borderMuted : (cardRoot.result === 0 ? Theme.dangerBorder : Theme.border)
                 border.width: 1
 
                 Text {
@@ -101,7 +101,7 @@ Rectangle {
                     font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                     font.pixelSize: Theme.fontMicro
                     font.weight: Theme.fontMedium
-                    color: !cardRoot.hasImage ? Theme.muted : (cardRoot.result === 0 ? Theme.danger : Theme.accent)
+                    color: !cardRoot.hasImage ? Theme.muted : (cardRoot.result === 0 ? Theme.danger : Theme.text)
                 }
             }
 
@@ -331,14 +331,14 @@ Rectangle {
         onClicked: {
             if (cardRoot.hasImage) {
                 const title = cardRoot.serial.length > 0 ? cardRoot.serial : cardRoot.fileName
-                const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " ╎ " + cardRoot.receivedAtText
+                const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " · " + cardRoot.receivedAtText
                 cardRoot.activate(cardRoot.currentTargetSource, title, subtitle, cardRoot.slotIndex)
             }
         }
         onDoubleClicked: {
             if (cardRoot.hasImage) {
                 const title = cardRoot.serial.length > 0 ? cardRoot.serial : cardRoot.fileName
-                const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " ╎ " + cardRoot.receivedAtText
+                const subtitle = "工位相机 #" + (cardRoot.slotIndex + 1) + " · " + cardRoot.receivedAtText
                 cardRoot.activate(cardRoot.currentTargetSource, title, subtitle, cardRoot.slotIndex)
             }
         }

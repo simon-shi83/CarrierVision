@@ -12,7 +12,6 @@ Page {
     property var wheelRows: []
     property int selectedRack: 0
     property int selectedWheel: 0
-    property int maxRackNg: 1
 
     property int rackRequestId: -1
     property int wheelRequestId: -1
@@ -24,6 +23,7 @@ Page {
     property string queryStart: ""
     property string queryEnd: ""
     property string operationMessage: ""
+    property var pendingDisposition: ({})
     property bool preserveWheel: false
 
     function resetImage() {
@@ -34,11 +34,20 @@ Page {
         viewer.visible = false
     }
 
-    function disposeWheel(wheel, kind) {
-        if (dispositionRequestId !== -1) return
+    function disposeWheel(wheel, kind, pendingCount) {
+        if (dispositionRequestId !== -1 || dispositionDialog.visible || pendingCount <= 0) return
+        pendingDisposition = { rack: selectedRack, wheel: wheel, kind: kind,
+                               start: queryStart, end: queryEnd, count: pendingCount }
+        dispositionDialog.open()
+    }
+
+    function confirmDisposition() {
+        if (dispositionRequestId !== -1 || !pendingDisposition.kind) return
+        var operation = pendingDisposition
         operationMessage = "正在保存处置状态…"
-        dispositionRequestId = appController.requestAlertOperation(kind, queryStart, queryEnd,
-                                                                  selectedRack, wheel, 1)
+        dispositionRequestId = appController.requestAlertOperation(operation.kind, operation.start, operation.end,
+                                                                  operation.rack, operation.wheel, 1)
+        dispositionDialog.close()
     }
 
     function refreshRackCounts() {
@@ -62,17 +71,14 @@ Page {
 
     function applyRackStatistics(stats) {
         var rows = []
-        var maxVal = 1
         for (var i = 0; i < stats.length; ++i) {
             var row = stats[i]
             var count = Number(row.count)
             if (count > 0) {
                 rows.push({ rack: Number(row.rack), count: count,
                             pending: Number(row.pending), handled: Number(row.handled) })
-                if (count > maxVal) maxVal = count
             }
         }
-        maxRackNg = maxVal
         rackRows = rows
         if (selectedRack > 0) return
         selectedWheel = 0
@@ -194,7 +200,7 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
+                        Rectangle { width: 3; height: 14; radius: Theme.radiusPill; color: Theme.borderStrong }
                         Label {
                             text: "架号异常"
                             color: Theme.text
@@ -240,17 +246,6 @@ Page {
                             border.color: selected ? Theme.accent : "transparent"
                             clip: true
 
-                            // 异常频次微热力图底色 (数据可视化深度赋能)
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                width: Math.max(4, (modelData.count / Math.max(1, root.maxRackNg)) * parent.width)
-                                color: Theme.dangerSoft
-                                opacity: parent.selected ? 0.45 : 0.25
-                                radius: Theme.radiusSmall
-                            }
-
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 8
@@ -261,14 +256,14 @@ Page {
                                 Rectangle {
                                     Layout.preferredWidth: 18
                                     Layout.preferredHeight: 18
-                                    radius: 9
-                                    color: index < 3 ? Theme.dangerSoft : Theme.surfaceAlt
-                                    border.color: index < 3 ? Theme.dangerBorder : Theme.borderMuted
+                                    radius: Theme.radiusPill
+                                    color: Theme.surfaceAlt
+                                    border.color: Theme.borderMuted
                                     border.width: 1
                                     Text {
                                         anchors.centerIn: parent
                                         text: String(index + 1)
-                                        color: index < 3 ? Theme.danger : Theme.muted
+                                        color: Theme.muted
                                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                         font.pixelSize: Theme.fontMicro
                                         font.weight: Theme.fontMedium
@@ -285,22 +280,15 @@ Page {
                                     font.pixelSize: Theme.fontCaption
                                 }
 
-                                Rectangle {
+                                Text {
+                                    text: parent.parent.modelData.pending
                                     Layout.preferredWidth: 80
-                                    Layout.preferredHeight: 22
-                                    radius: Theme.radiusPill
-                                    color: Theme.dangerSoft
-                                    border.color: Theme.dangerBorder
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: parent.parent.parent.modelData.pending
-                                        color: Theme.danger
-                                        font.weight: Theme.fontMedium
-                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                        font.pixelSize: Theme.fontCaption
-                                    }
+                                    horizontalAlignment: Text.AlignHCenter
+                                    color: Number(parent.parent.modelData.pending) > 0 ? Theme.danger : Theme.text
+                                    font.weight: Theme.fontMedium
+                                    font.family: Theme.fontSans
+                                    font.features: Theme.fontFeaturesTabular
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Text {
                                     text: parent.parent.modelData.handled
@@ -350,7 +338,7 @@ Page {
                                 text: "当前时间范围无异常记录"
                                 color: Theme.muted
                                 font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
                     }
@@ -373,7 +361,7 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.danger }
+                        Rectangle { width: 3; height: 14; radius: Theme.radiusPill; color: Theme.borderStrong }
                         Label {
                             text: selectedRack > 0 ? "架 #" + selectedRack + " · 异常统计" : "异常统计"
                             color: Theme.text
@@ -467,11 +455,10 @@ Page {
                                             text: modelData.label
                                             variant: "secondary"
                                             implicitHeight: 28
-                                            hoverTextColor: Theme.text
-                                            hoverColor: Theme.hover
                                             enabled: Number(wheelDelegate.modelData.pending) > 0
                                                      && root.dispositionRequestId === -1
-                                            onClicked: root.disposeWheel(Number(wheelDelegate.modelData.wheel), modelData.kind)
+                                            onClicked: root.disposeWheel(Number(wheelDelegate.modelData.wheel), modelData.kind,
+                                                                        Number(wheelDelegate.modelData.pending))
                                         }
                                     }
                                 }
@@ -516,7 +503,7 @@ Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Rectangle { width: 3; height: 14; radius: 1.5; color: Theme.borderStrong }
+                        Rectangle { width: 3; height: 14; radius: Theme.radiusPill; color: Theme.borderStrong }
                         Label {
                             text: selectedWheel > 0 ? "架 #" + selectedRack + " · " + appController.wheelLabel(selectedWheel) + " 异常证据链" : "异常点检原图"
                             color: Theme.text
@@ -589,8 +576,6 @@ Page {
                         ActionButton {
                             text: "上一幅"
                             variant: "secondary"
-                            hoverTextColor: Theme.text
-                            hoverColor: Theme.hover
                             enabled: root.imagePage > 1 && root.imageRequestId === -1
                             onClicked: root.loadImagePage(root.imagePage - 1)
                         }
@@ -604,12 +589,102 @@ Page {
                         ActionButton {
                             text: "下一幅"
                             variant: "secondary"
-                            hoverTextColor: Theme.text
-                            hoverColor: Theme.hover
                             enabled: root.imagePage < root.imageTotal && root.imageRequestId === -1
                             onClicked: root.loadImagePage(root.imagePage + 1)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: dispositionDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, root.width - Theme.space6)
+        padding: Theme.space5
+        modal: true
+        closePolicy: Popup.CloseOnEscape
+
+        readonly property string actionText: root.pendingDisposition.kind === "handled" ? "已处理（已换轮）" : "误报"
+
+        onOpened: cancelDispositionButton.forceActiveFocus()
+        onClosed: root.pendingDisposition = ({})
+
+        background: Rectangle {
+            color: Theme.surfaceFloating
+            radius: Theme.radiusLarge
+            border.width: 1
+            border.color: Theme.border
+        }
+
+        header: Label {
+            text: "确认标记为" + dispositionDialog.actionText
+            padding: Theme.space5
+            bottomPadding: Theme.space2
+            color: Theme.text
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontTitle
+            font.weight: Theme.fontMedium
+            wrapMode: Text.Wrap
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Theme.space3
+            Label {
+                Layout.fillWidth: true
+                text: "架号 #" + (root.pendingDisposition.rack || "") + " · "
+                      + (root.pendingDisposition.wheel ? appController.wheelLabel(root.pendingDisposition.wheel) : "")
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontBody
+                font.weight: Theme.fontMedium
+                wrapMode: Text.Wrap
+            }
+            Label {
+                Layout.fillWidth: true
+                text: (root.pendingDisposition.start || "") + " 至 " + (root.pendingDisposition.end || "")
+                      + "\n将此范围内该轮位的未处置异常记录标记为" + dispositionDialog.actionText
+                      + "（当前查询 " + (root.pendingDisposition.count || 0) + " 条）。"
+                color: Theme.textSoft
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontCaption
+                font.features: Theme.fontFeaturesTabular
+                wrapMode: Text.Wrap
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "处置后不可再次修改，请核对架号、轮位和日期范围。"
+                color: Theme.textSoft
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontCaption
+                wrapMode: Text.Wrap
+            }
+        }
+
+        footer: Item {
+            implicitHeight: Theme.space6 * 2
+
+            RowLayout {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Theme.space5
+                anchors.rightMargin: Theme.space5
+                spacing: Theme.space2
+                Item { Layout.fillWidth: true }
+                ActionButton {
+                    id: cancelDispositionButton
+                    text: "取消"
+                    variant: "secondary"
+                    onClicked: dispositionDialog.reject()
+                }
+                ActionButton {
+                    text: "确认" + dispositionDialog.actionText
+                    variant: "danger"
+                    enabled: root.dispositionRequestId === -1
+                    onClicked: root.confirmDisposition()
                 }
             }
         }

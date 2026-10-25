@@ -57,7 +57,7 @@ Rectangle {
             font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
             font.pixelSize: Theme.fontBody
             font.weight: Theme.fontMedium
-            color: _selected === 0 ? Theme.textSoft : Theme.accent
+            color: _selected === 0 ? Theme.textSoft : Theme.text
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
         }

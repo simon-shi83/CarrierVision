@@ -96,7 +96,7 @@ Page {
         var normalizedPath = String(image.filePath).replace(/\\/g, "/");
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath) ? "file:///" + normalizedPath : normalizedPath;
         var wheelName = appController.wheelLabel(wheel);
-        imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " ╎ 采集时间: " + image.time);
+        imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time);
     }
 
     Component.onCompleted: refreshDetection()
@@ -167,7 +167,7 @@ Page {
             Rectangle {
                 width: 3
                 height: 16
-                radius: 1.5
+                radius: Theme.radiusPill
                 color: Theme.borderStrong
                 anchors.left: parent.left
                 anchors.leftMargin: 2
@@ -185,7 +185,7 @@ Page {
                 Rectangle {
                     Layout.preferredWidth: 6
                     Layout.preferredHeight: 6
-                    radius: 3
+                    radius: Theme.radiusPill
                     color: !delegateRoot.hasResult ? Theme.muted : (delegateRoot.isOk ? Theme.ok : Theme.danger)
                     Layout.alignment: Qt.AlignVCenter
 
@@ -195,13 +195,13 @@ Page {
                         NumberAnimation {
                             from: 1.0
                             to: 0.4
-                            duration: 1000
+                            duration: Theme.animPulse
                             easing.type: Easing.InOutQuad
                         }
                         NumberAnimation {
                             from: 0.4
                             to: 1.0
-                            duration: 1000
+                            duration: Theme.animPulse
                             easing.type: Easing.InOutQuad
                         }
                     }
@@ -238,7 +238,7 @@ Page {
                         color: !delegateRoot.hasResult ? Theme.muted : Theme.textOnAccent
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                         font.pixelSize: Theme.fontMicro
-                        font.weight: Theme.fontBold
+                        font.weight: Theme.fontMedium
                     }
                 }
 
@@ -260,12 +260,12 @@ Page {
                     Rectangle {
                         Layout.fillWidth: true
                         height: 3
-                        radius: 1.5
+                        radius: Theme.radiusPill
                         color: Theme.surfaceAlt
 
                         Rectangle {
                             height: parent.height
-                            radius: 1.5
+                            radius: Theme.radiusPill
                             width: (delegateRoot.hasResult && delegateRoot.modelData) ? (parent.width * Math.min(1.0, Math.max(0.0, (delegateRoot.modelData.passRate || 0) / 100))) : 0
                             color: delegateRoot.isOk ? Theme.ok : Theme.danger
                         }
@@ -341,7 +341,7 @@ Page {
                     Rectangle {
                         width: 4
                         height: 18
-                        radius: 2
+                        radius: Theme.radiusPill
                         color: Theme.borderStrong
                     }
 
@@ -375,7 +375,7 @@ Page {
                             Rectangle {
                                 width: 6
                                 height: 6
-                                radius: 3
+                                radius: Theme.radiusPill
                                 color: currentRack > 0 ? Theme.ok : Theme.warn
 
                                 SequentialAnimation on opacity {
@@ -383,13 +383,13 @@ Page {
                                     NumberAnimation {
                                         from: 1.0
                                         to: 0.3
-                                        duration: 800
+                                        duration: Theme.animPulse
                                         easing.type: Easing.InOutQuad
                                     }
                                     NumberAnimation {
                                         from: 0.3
                                         to: 1.0
-                                        duration: 800
+                                        duration: Theme.animPulse
                                         easing.type: Easing.InOutQuad
                                     }
                                 }
@@ -423,7 +423,7 @@ Page {
                             Rectangle {
                                 width: 6
                                 height: 6
-                                radius: 3
+                                radius: Theme.radiusPill
                                 color: Theme.accent
                             }
 
@@ -456,7 +456,7 @@ Page {
                                 id: btn3D
                                 Layout.preferredHeight: 24
                                 implicitWidth: seg3DRow.implicitWidth + 18
-                                radius: 12
+                                radius: Theme.radiusPill
                                 color: root.currentLeftCardView === 0 ? Theme.accent : (mouse3D.containsMouse ? Theme.surfaceAlt : "transparent")
                                 border.width: 1
                                 border.color: root.currentLeftCardView === 0 ? Theme.accent : "transparent"
@@ -501,7 +501,7 @@ Page {
                                 id: btnBatch
                                 Layout.preferredHeight: 24
                                 implicitWidth: segBatchRow.implicitWidth + 18
-                                radius: 12
+                                radius: Theme.radiusPill
                                 color: root.currentLeftCardView === 1 ? Theme.accent : (mouseBatch.containsMouse ? Theme.surfaceAlt : "transparent")
                                 border.width: 1
                                 border.color: root.currentLeftCardView === 1 ? Theme.accent : "transparent"
@@ -620,7 +620,7 @@ Page {
                     Rectangle {
                         width: 4
                         height: 18
-                        radius: 2
+                        radius: Theme.radiusPill
                         color: Theme.borderStrong
                     }
 
@@ -658,7 +658,7 @@ Page {
                             Label {
                                 text: "轻触查看原图"
                                 color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                         }
                     }
@@ -692,7 +692,7 @@ Page {
                                 Label {
                                     text: "当前架号"
                                     color: Theme.textSoft
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                 }
                                 Label {
                                     text: "RACK NO."
@@ -709,10 +709,10 @@ Page {
 
                             Label {
                                 text: currentRack > 0 ? (currentRack < 10 ? "0" + currentRack : String(currentRack)) : "--"
-                                color: currentRack > 0 ? Theme.accent : Theme.muted
+                                color: currentRack > 0 ? Theme.text : Theme.muted
                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                 font.pixelSize: Theme.fontDisplay
-                                font.weight: Theme.fontBold
+                                font.weight: Theme.fontMedium
                                 Layout.alignment: Qt.AlignVCenter
                             }
                         }
@@ -794,7 +794,7 @@ Page {
                                                 color: modelData.accent
                                                 font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
                                                 font.pixelSize: Theme.fontCaption
-                                                font.weight: Theme.fontBold
+                                                font.weight: Theme.fontMedium
                                             }
                                         }
                                     }
@@ -823,7 +823,7 @@ Page {
                             Rectangle {
                                 width: 3
                                 height: 13
-                                radius: 1.5
+                                radius: Theme.radiusPill
                                 color: Theme.walkWheel
                             }
                             Label {
@@ -839,7 +839,7 @@ Page {
                             Label {
                                 text: "当前判定"
                                 color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                             Item {
                                 width: 14
@@ -847,7 +847,7 @@ Page {
                             Label {
                                 text: "合格率"
                                 color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                             Item {
                                 width: 26
@@ -899,7 +899,7 @@ Page {
                             Rectangle {
                                 width: 3
                                 height: 13
-                                radius: 1.5
+                                radius: Theme.radiusPill
                                 color: Theme.driveWheel
                             }
                             Label {
@@ -915,7 +915,7 @@ Page {
                             Label {
                                 text: "当前判定"
                                 color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                             Item {
                                 width: 14
@@ -923,7 +923,7 @@ Page {
                             Label {
                                 text: "合格率"
                                 color: Theme.muted
-                                font.pixelSize: Theme.fontMicro
+                                font.pixelSize: Theme.fontCaption
                             }
                             Item {
                                 width: 26

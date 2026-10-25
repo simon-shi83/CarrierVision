@@ -70,7 +70,7 @@ Dialog {
     background: Rectangle {
         color: Theme.surface
         radius: Theme.radiusLarge
-        border.color: Theme.borderStrong
+        border.color: Theme.border
         border.width: 1
         clip: true
     }
@@ -145,7 +145,7 @@ Dialog {
         if (newSrc.length === 0)
             return;
         titleText = (currentItemObject.serial && currentItemObject.serial.length > 0) ? currentItemObject.serial : (currentItemObject.fileName || ("CAM " + (slotIndex < 9 ? "0" : "") + (slotIndex + 1)));
-        subtitleText = "工位相机 #" + (slotIndex + 1) + " ╎ " + (currentItemObject.receivedAtText || "");
+        subtitleText = "工位相机 #" + (slotIndex + 1) + " · " + (currentItemObject.receivedAtText || "");
 
         if (String(viewerSource) !== newSrc) {
             isLiveUpdating = true;
@@ -350,7 +350,7 @@ Dialog {
                                 Rectangle {
                                     width: 6
                                     height: 6
-                                    radius: 3
+                                    radius: Theme.radiusPill
                                     color: Theme.ok
 
                                     SequentialAnimation on opacity {
@@ -359,12 +359,12 @@ Dialog {
                                         NumberAnimation {
                                             from: 1.0
                                             to: 0.2
-                                            duration: 700
+                                            duration: Theme.animPulse
                                         }
                                         NumberAnimation {
                                             from: 0.2
                                             to: 1.0
-                                            duration: 700
+                                            duration: Theme.animPulse
                                         }
                                     }
                                 }
@@ -373,7 +373,7 @@ Dialog {
                                     text: "实时工位监控中"
                                     color: Theme.ok
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                     font.weight: Theme.fontMedium
                                 }
                             }
@@ -405,7 +405,7 @@ Dialog {
                 Rectangle {
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
-                    radius: 17
+                    radius: Theme.radiusPill
                     color: closeBtnMouse.containsMouse ? Theme.pressed : "transparent"
                     border.width: 1
                     border.color: closeBtnMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
@@ -562,7 +562,7 @@ Dialog {
                         Rectangle {
                             Layout.preferredWidth: 30
                             Layout.preferredHeight: 30
-                            radius: 15
+                            radius: Theme.radiusPill
                             color: zoomOutMouse.containsMouse ? Theme.pressed : "transparent"
                             Text {
                                 anchors.centerIn: parent
@@ -604,7 +604,7 @@ Dialog {
                         Rectangle {
                             Layout.preferredWidth: 30
                             Layout.preferredHeight: 30
-                            radius: 15
+                            radius: Theme.radiusPill
                             color: zoomInMouse.containsMouse ? Theme.pressed : "transparent"
                             Text {
                                 anchors.centerIn: parent
@@ -692,7 +692,7 @@ Dialog {
                         Rectangle {
                             width: 3
                             height: 14
-                            radius: 1.5
+                            radius: Theme.radiusPill
                             color: Theme.borderStrong
                         }
 
@@ -723,7 +723,7 @@ Dialog {
                             Rectangle {
                                 Layout.preferredWidth: 38
                                 Layout.preferredHeight: 38
-                                radius: 19
+                                radius: Theme.radiusPill
                                 color: parent.parent.isPass ? Theme.ok : Theme.danger
 
                                 AppIcon {
@@ -749,7 +749,7 @@ Dialog {
                                 Text {
                                     text: parent.parent.isPass ? "符合产线高精公差规范" : "存在偏差或缺陷，请核验"
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                     color: Theme.muted
                                 }
                             }
@@ -843,7 +843,7 @@ Dialog {
                                     text: "文件归档信息"
                                     color: Theme.muted
                                     font.family: Theme.fontSans
-                                    font.pixelSize: Theme.fontMicro
+                                    font.pixelSize: Theme.fontCaption
                                     font.weight: Theme.fontMedium
                                 }
 
