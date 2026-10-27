@@ -435,7 +435,7 @@ bool accept(const QString &staged, const QString &target,
         LOG_WARN("[INGEST] 无法清除恢复记录标记: {}", marker.toStdString());
         return false;
     }
-    LOG_INFO("[INGEST] 图像归档成功: target='{}'", target.toStdString());
+    LOG_DEBUG("[INGEST] 图像归档成功: target='{}'", target.toStdString());
     return true;
 }
 

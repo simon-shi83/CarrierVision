@@ -234,6 +234,7 @@ private:
     void checkStorage();
     QStringList storagePaths() const;
     bool processTcpBatch(const QJsonObject &batchData, QString &error);
+    void flushImageIngestLog();
 
     QString m_sourceDirectory;
     QString m_archiveDirectory;
@@ -273,6 +274,10 @@ private:
     ImageListModel m_currentImagesModel;
     ImageListModel m_searchImagesModel;
     IngestCoordinator::PendingImageCache m_pendingImages;
+    QTimer m_imageIngestLogTimer;
+    quint64 m_loggedImageCount = 0;
+    quint64 m_loggedLinkedRows = 0;
+    quint64 m_loggedCachedImages = 0;
     QVariantList m_gearSumResult;
     mutable QMutex m_dbMutex;
     QThreadPool m_logPool;

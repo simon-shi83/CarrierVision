@@ -257,11 +257,7 @@ int main(int argc, char *argv[])
             &app,
             []() { QCoreApplication::exit(-1); },
             Qt::QueuedConnection);
-        QObject::connect(&engine, &QQmlEngine::warnings, [&](const QList<QQmlError> &warnings){
-            for (const QQmlError &e : warnings) {
-                LOG_WARN("QML 引擎警告: {}", e.toString().toStdString());
-            }
-        });
+        // QML 警告由引擎默认输出到 Qt 消息处理器，AppLogger 统一记录一次。
 
         // register ImageItemObject type for QML bindings (uncreatable from QML)
         qmlRegisterUncreatableType<ImageItemObject>("AGC", 1, 0, "ImageItemObject", "exposed for model only");

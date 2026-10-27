@@ -652,6 +652,8 @@ AppController::AppController(QObject *parent)
     });
     m_serviceRetryTimer.start(30'000);
     m_scheduleTimer.start(60'000);
+    connect(&m_imageIngestLogTimer, &QTimer::timeout, this, &AppController::flushImageIngestLog);
+    m_imageIngestLogTimer.start(60'000);
 
     connect(&m_storageTimer, &QTimer::timeout, this, &AppController::checkStorage);
     m_storageTimer.start(60'000);
@@ -910,6 +912,7 @@ AppController::~AppController()
     m_ftpThread.quit();
     m_ftpThread.wait(); // finished 时 deleteLater 回收 m_ftpService
     m_ftpService = nullptr;
+    flushImageIngestLog();
     stopTcpServer();
     ++m_searchGeneration;
     ++m_alertSearchGeneration;
@@ -1603,7 +1606,7 @@ void AppController::onFtpImageStored(const QString &filePath, const QString &req
         update.bindValue(QStringLiteral(":since"), AgcUtils::formatDateTime(QDateTime::currentDateTime().addSecs(-3600)));
         update.bindValue(QStringLiteral(":name"), requestedName);
         if (update.exec()) linkedRows = update.numRowsAffected();
-        else LOG_ERROR("[FTP] 补写图片路径失败: {}", update.lastError().text().toStdString());
+        else LOG_ERROR("[FTP] 补写图片路径失败: 文件={}, 原因={}", requestedName.toStdString(), update.lastError().text().toStdString());
     }
 
     // 只更新正在等待这张图的批次卡片；否则（如 _vN 新图先于其批次到达）放入缓存，
@@ -1628,10 +1631,24 @@ void AppController::onFtpImageStored(const QString &filePath, const QString &req
 
     if (linkedRows > 0) emit recordImagesChanged();
 
-    LOG_INFO("[FTP] 图像文件入库归档: {}{}, 关联卡片={}, 关联记录={}, 待关联缓存={}",
+    ++m_loggedImageCount;
+    m_loggedLinkedRows += qMax(0, linkedRows);
+    if (linkedRows == 0) ++m_loggedCachedImages;
+    LOG_DEBUG("[FTP] 图像文件入库归档: {}{}, 关联卡片={}, 关联记录={}, 待关联缓存={}",
              file.fileName().toStdString(),
              requestedName != file.fileName() ? (" (请求名 " + requestedName.toStdString() + ")") : std::string(),
              matchedCard, linkedRows, m_pendingImages.size());
+}
+
+void AppController::flushImageIngestLog()
+{
+    if (m_loggedImageCount == 0) return;
+    LOG_INFO("[FTP] 图像接收汇总: 本期图片={} 张, 回填关联记录={} 轮, 进入缓存图片={} 张, 当前待关联缓存={} 张, 目录={}",
+             m_loggedImageCount, m_loggedLinkedRows, m_loggedCachedImages,
+             m_pendingImages.size(), m_archiveDirectory.toStdString());
+    m_loggedImageCount = 0;
+    m_loggedLinkedRows = 0;
+    m_loggedCachedImages = 0;
 }
 
 QString AppController::ftpUser() const

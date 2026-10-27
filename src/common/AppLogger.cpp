@@ -322,13 +322,12 @@ private:
 
 static std::shared_ptr<DailyRollingSizeRetentionSink> s_retentionSink;
 
-void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+void qtMessageHandler(QtMsgType type, const QMessageLogContext &, const QString &msg)
 {
     auto lg = AppLogger::logger();
     if (!lg) return;
 
     std::string text = msg.toStdString();
-    QString timeStr = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
     switch (type) {
     case QtDebugMsg:
         lg->debug(text);
@@ -338,15 +337,12 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
         break;
     case QtWarningMsg:
         lg->warn(text);
-        notifyLogEntry(QStringLiteral("WARN"), msg, timeStr);
         break;
     case QtCriticalMsg:
         lg->error(text);
-        notifyLogEntry(QStringLiteral("ERROR"), msg, timeStr);
         break;
     case QtFatalMsg:
         lg->critical(text);
-        notifyLogEntry(QStringLiteral("CRITICAL"), msg, timeStr);
         break;
     }
 }

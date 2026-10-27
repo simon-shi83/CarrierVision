@@ -238,7 +238,7 @@ cmake --install build/Release      # 输出到 install/CarrierVision_linux_<版�
 - 程序异常退出后再次启动，或日常检查发现损坏时，启动前会自动检查数据库；损坏时把原库改名为 `dataAgc.db.corrupt-时间` 保留，并从最近一份可用备份恢复（备份之后写入的数据会丢失）。
 
 ### 4. 故障诊断与自动重启
-- 运行日志统一写入 `logs/carrier_YYYY-MM-DD.log`（含 FTP、TCP 与入库日志，可在「日志查询」页检索）。FTP 的连接、断开、拒绝与异常为 INFO / WARN 级别；逐条 FTP 命令与应答为 DEBUG 级别，排查客户端上传问题时将 `log/level` 设为 `debug` 并重启；
+- 运行日志统一写入 `logs/carrier_YYYY-MM-DD.log`（含 FTP、TCP 与入库日志，可在「日志查询」页检索）。INFO 保留服务启停、连接、每批 TCP 入库及已关联/待图片轮数；FTP 图片每分钟汇总接收张数、回填记录轮数、进入缓存张数和当前待关联缓存量，无图片时不输出，正常退出时补记不足一分钟的汇总。两种关联顺序均可核对：图先到由 TCP 入库日志统计，记录先到由 FTP 汇总统计（各汇总窗口独立，不保证同一分钟对齐）。逐条 FTP 命令、应答、目录确认、图片归档/关联明细和 TCP 接收明细为 DEBUG 级别，排查具体文件时将 `log/level` 设为 `debug` 并重启；告警和错误仍逐条记录，QML 警告统一经 Qt 消息处理器记录一次；
 - 旧版本在程序目录单独写的 `ftp.log`、`ftp.log.1`，升级后首次启动时移入 `logs/ftp_legacy_时间.log`，按日志保留天数清理；
 - 程序崩溃时，Linux 在 `logs/crash.log` 记录调用栈，Windows 在 `logs/` 下生成 `crash_时间.dmp`；
 - FTP / TCP 服务因端口占用等原因启动失败后，每 30 秒自动重试；

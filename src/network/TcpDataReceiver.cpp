@@ -210,7 +210,7 @@ void TcpDataReceiver::handleLine(QTcpSocket *sock, const QByteArray &line)
     const int carrierId = obj.value(QStringLiteral("carrierId")).toInt();
     const QJsonArray wheels = obj.value(QStringLiteral("wheels")).toArray();
 
-    LOG_INFO("[TCP] 收到载具 {} 数据包, 包含 {} 轮检测数据", carrierId, wheels.size());
+    LOG_DEBUG("[TCP] 收到载具 {} 数据包, 包含 {} 轮检测数据", carrierId, wheels.size());
     emit logMessage(QStringLiteral("[TCP] 收到载具 %1 数据包 (轮数=%2)").arg(carrierId).arg(wheels.size()));
     QString processingError;
     bool accepted = true;

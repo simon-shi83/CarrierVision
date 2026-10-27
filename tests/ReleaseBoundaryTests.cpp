@@ -694,11 +694,11 @@ private slots:
     void loggerEscalationAndCallback() {
         QTemporaryDir dir;
         AppLogger::init(dir.path());
-        bool callbackCalled = false;
+        int callbackCount = 0;
         QString lastLevel;
         QString lastMsg;
         AppLogger::setLogCallback([&](const QString &level, const QString &msg, const QString &/*time*/) {
-            callbackCalled = true;
+            ++callbackCount;
             lastLevel = level;
             lastMsg = msg;
         });
@@ -717,9 +717,44 @@ private slots:
         QCOMPARE(errMap.value("level").toString(), QStringLiteral("ERROR"));
         QVERIFY(errMap.value("message").toString().contains("测试严重错误456"));
 
+        QCOMPARE(callbackCount, 2);
+        qWarning("Qt告警只通知一次");
+        QCOMPARE(callbackCount, 3);
+        QCOMPARE(lastMsg, QStringLiteral("Qt告警只通知一次"));
+        qCritical("Qt错误只通知一次");
+        QCOMPARE(callbackCount, 4);
+        QCOMPARE(lastLevel, QStringLiteral("ERROR"));
+        QVERIFY(AppLogger::setLevel("error"));
+        qWarning("已过滤的Qt告警");
+        QCOMPARE(callbackCount, 4);
+
         AppLogger::clearLatestWarningOrError();
         QVERIFY(AppLogger::latestWarningOrError().isEmpty());
         AppLogger::setLogCallback(nullptr);
+        AppLogger::shutdown();
+    }
+    void loggerRuntimeDebugAndTraceLevels() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        AppLogger::init(dir.path());
+        QVERIFY(AppLogger::setLevel("info"));
+        int evaluated = 0;
+        LOG_DEBUG("被过滤的调试信息 {}", ++evaluated);
+        LOG_TRACE("被过滤的跟踪信息 {}", ++evaluated);
+        QCOMPARE(evaluated, 0);
+        QVERIFY(AppLogger::setLevel("debug"));
+        LOG_DEBUG("运行时调试明细 {}", ++evaluated);
+        LOG_TRACE("不可见的跟踪明细 {}", ++evaluated);
+        QCOMPARE(evaluated, 1);
+        QVERIFY(AppLogger::setLevel("trace"));
+        LOG_TRACE("运行时跟踪明细 {}", ++evaluated);
+        QCOMPARE(evaluated, 2);
+        AppLogger::logger()->flush();
+        const QString date = QDate::currentDate().toString("yyyy-MM-dd");
+        const auto debug = AppLogger::queryLogs(date, "debug", "运行时调试明细", 1, 20);
+        const auto trace = AppLogger::queryLogs(date, "trace", "运行时跟踪明细", 1, 20);
+        QCOMPARE(debug.value("total").toInt(), 1);
+        QCOMPARE(trace.value("total").toInt(), 1);
         AppLogger::shutdown();
     }
     void tcpReceiverDisconnectsOverflowingClient() {

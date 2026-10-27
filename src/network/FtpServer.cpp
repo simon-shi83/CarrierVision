@@ -677,7 +677,7 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
         }
         if (QDir().mkpath(targetPath)) {
             sendReply(257, QStringLiteral("\"%1\" created.").arg(toVirtualPath(targetPath)));
-            ftpInfo(QStringLiteral("创建目录: %1").arg(targetPath));
+            ftpDebug(QStringLiteral("目录已就绪: %1").arg(targetPath));
         } else {
             sendReply(550, "Create directory failed.");
         }
