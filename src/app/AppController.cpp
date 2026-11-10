@@ -363,6 +363,16 @@ int AppController::cleanupRunHour() const
     return DBSchema::getConfigInt(db, "cleanup/runHour", 1);
 }
 
+QUrl AppController::homeModelUrl() const
+{
+    const QString path = AgcUtils::resolveAppPath(QStringLiteral("assets/models/Assembly.glb"));
+    if (!QFileInfo::exists(path)) {
+        LOG_WARN("未找到首页三维模型文件（{}），三维视图将不显示载具", path.toStdString());
+        return {};
+    }
+    return QUrl::fromLocalFile(path);
+}
+
 QString AppController::homepageDescription() const
 {
     QMutexLocker locker(&m_dbMutex);
@@ -768,14 +778,25 @@ QVariantMap AppController::homepageCurrentDetection() const
 }
 
 int AppController::requestAlertOperation(const QString &kind, const QString &start, const QString &end,
-                                         int rack, int wheel, int page)
+                                         int rack, int wheel, int page, const QString &operatorName)
 {
     const int requestId = ++m_statsRequestSeq;
     const QString archiveDir = m_archiveDirectory;
     const QString sourceDir = m_sourceDirectory;
-    (void)QtConcurrent::run(&m_statsPool, [this, requestId, kind, start, end, rack, wheel, page, archiveDir, sourceDir]() {
+    // 操作员姓名写入单行日志：折叠空白（含换行），限制长度
+    const QString operatorText = operatorName.simplified().left(32);
+    const bool disposition = kind == QLatin1String("handled") || kind == QLatin1String("falseAlarm");
+    if (disposition && operatorText.isEmpty()) {
+        QMetaObject::invokeMethod(this, [this, requestId]() {
+            emit alertOperationFinished(requestId, {{QStringLiteral("ok"), false},
+                                                    {QStringLiteral("error"), QStringLiteral("请填写操作员姓名")}});
+        }, Qt::QueuedConnection);
+        return requestId;
+    }
+    (void)QtConcurrent::run(&m_statsPool, [this, requestId, kind, start, end, rack, wheel, page, archiveDir, sourceDir, operatorText]() {
         const QVariantMap result = SearchService::alertOperation(getThreadDatabase(), kind, start, end,
-                                                                 rack, wheel, page, archiveDir, sourceDir);
+                                                                 rack, wheel, page, archiveDir, sourceDir,
+                                                                 operatorText);
         QMetaObject::invokeMethod(this, [this, requestId, result]() {
             emit alertOperationFinished(requestId, result);
         }, Qt::QueuedConnection);

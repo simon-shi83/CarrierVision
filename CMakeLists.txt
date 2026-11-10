@@ -195,7 +195,6 @@ qt_add_qml_module(CarrierVision
 
 
     RESOURCES
-        assets/models/Assembly.glb
         assets/icons/favicon.png
         assets/icons/logo_agc.svg
         assets/icons/icon_refresh.svg
@@ -282,14 +281,21 @@ else()
     message(STATUS "IPO / LTO not supported: ${ipo_output}")
 endif()
 
-# 界面字体（assets/fonts）放在可执行文件旁的 fonts/ 目录，启动时由 main.cpp 加载；
-# 不编进资源，避免 25 MB 字体数据进入 rcc 生成的源文件
+# 大体积运行时资源放在可执行文件旁的 assets/ 目录，启动时按文件加载，不编进程序：
+#   assets/fonts/   界面字体（约 25 MB），由 main.cpp 注册
+#   assets/models/  首页三维装配体模型 Assembly.glb（约 73 MB），由 AppController::homeModelUrl 提供给 QML
+# 编进资源会让 rcc 生成数百 MB 的 C++ 源文件，内存 8 GB 的机器编译时会报 C1060（堆空间不足）
 set(CARRIERVISION_FONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+set(CARRIERVISION_MODEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/models")
 add_custom_command(TARGET CarrierVision POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CARRIERVISION_FONT_DIR}" "$<TARGET_FILE_DIR:CarrierVision>/fonts"
-    COMMENT "Staging bundled fonts")
-install(DIRECTORY "${CARRIERVISION_FONT_DIR}/" DESTINATION fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CARRIERVISION_FONT_DIR}" "$<TARGET_FILE_DIR:CarrierVision>/assets/fonts"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:CarrierVision>/assets/models"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CARRIERVISION_MODEL_DIR}/Assembly.glb" "$<TARGET_FILE_DIR:CarrierVision>/assets/models/Assembly.glb"
+    COMMENT "Staging runtime assets (fonts, models)")
+install(DIRECTORY "${CARRIERVISION_FONT_DIR}/" DESTINATION assets/fonts
         FILES_MATCHING PATTERN "*.otf" PATTERN "*.ttf" PATTERN "LICENSE-*.txt")
+install(DIRECTORY "${CARRIERVISION_MODEL_DIR}/" DESTINATION assets/models
+        FILES_MATCHING PATTERN "*.glb")
 
 include(GNUInstallDirs)
 if(WIN32)
@@ -320,27 +326,19 @@ else()
 endif()
 
 # Windows 独立依赖自动部署（收集全部 Qt 动态库至 lib/、插件至 plugins/、QML模块至 qml/、生成 qt.conf 及启动脚本）
+# 部署逻辑在 cmake/DeployWindows.cmake 中，由 CMake 直接执行，不依赖 Python
 option(ENABLE_WINDEPLOYQT "Run Windows standalone deployment on install" ON)
 
 if(WIN32 AND ENABLE_WINDEPLOYQT)
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
     get_target_property(_qt_core_loc Qt6::Core LOCATION)
     get_filename_component(_qt_bin_dir "${_qt_core_loc}" DIRECTORY)
     get_filename_component(_qt_root_dir "${_qt_bin_dir}" DIRECTORY)
 
     install(CODE "
-        message(STATUS \"CarrierVision Windows: Running standalone dependency deployment...\")
-        execute_process(
-            COMMAND \"${Python3_EXECUTABLE}\"
-                    \"${CMAKE_CURRENT_SOURCE_DIR}/scripts/deploy_windows.py\"
-                    --install-dir \"\${CMAKE_INSTALL_PREFIX}\"
-                    --qt-dir \"${_qt_root_dir}\"
-                    --source-dir \"${CMAKE_CURRENT_SOURCE_DIR}\"
-            RESULT_VARIABLE _deploy_res
-        )
-        if(NOT _deploy_res EQUAL 0)
-            message(FATAL_ERROR \"Windows standalone deployment failed with exit code: \${_deploy_res}\")
-        endif()
+        set(CV_INSTALL_DIR \"\${CMAKE_INSTALL_PREFIX}\")
+        set(CV_QT_DIR \"${_qt_root_dir}\")
+        set(CV_SOURCE_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")
+        include(\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployWindows.cmake\")
     ")
 endif()
 

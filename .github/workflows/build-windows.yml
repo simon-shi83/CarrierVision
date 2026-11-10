@@ -76,9 +76,6 @@ jobs:
 
       - name: Deploy Windows Package
         shell: pwsh
-        env:
-          PYTHONUTF8: "1"
-          PYTHONIOENCODING: "utf-8"
         run: |
           $qtRoot = $env:QT_ROOT_DIR.Replace('\', '/')
           $workspace = $PWD.Path.Replace('\', '/')
@@ -92,7 +89,8 @@ jobs:
           cmake --install build --prefix "$pkgPath"
 
           # 2. 执行 Windows 规范化部署与依赖归拢 (lib/, plugins/, qml/, qt.conf, CarrierVision.bat)
-          python "$workspace/scripts/deploy_windows.py" --install-dir "$pkgPath" --qt-dir "$qtRoot" --source-dir "$workspace"
+          cmake "-DCV_INSTALL_DIR=$pkgPath" "-DCV_QT_DIR=$qtRoot" "-DCV_SOURCE_DIR=$workspace" -P "$workspace/cmake/DeployWindows.cmake"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Write-Host "Package contents:"
           Get-ChildItem -Path "$pkgPath"

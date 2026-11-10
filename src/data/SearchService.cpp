@@ -338,7 +338,8 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
 
 QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
                           const QString &start, const QString &end, int rack, int wheel,
-                          int page, const QString &archiveDir, const QString &sourceDir)
+                          int page, const QString &archiveDir, const QString &sourceDir,
+                          const QString &operatorName)
 {
     const auto fail = [](const QString &message) {
         return QVariantMap{{QStringLiteral("ok"), false}, {QStringLiteral("error"), message}};
@@ -373,7 +374,8 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
             return fail(QStringLiteral("保存处置状态失败，请查看日志"));
         }
         const qint64 affected = query.numRowsAffected();
-        LOG_INFO("报警处置完成，架号={}，轮位={}，操作={}，日期={} 至 {}，更新记录={}",
+        LOG_INFO("报警处置完成，操作员={}，架号={}，轮位={}，操作={}，日期={} 至 {}，更新记录={}",
+                 operatorName.isEmpty() ? std::string("未填写") : operatorName.toStdString(),
                  rack, wheel, kind == QLatin1String("handled") ? "已处理（已换轮）" : "误报",
                  start.toStdString(), end.toStdString(), affected);
         return {{QStringLiteral("ok"), true}, {QStringLiteral("affected"), affected}};

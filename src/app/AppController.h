@@ -13,6 +13,7 @@
 #include <QHash>
 #include <QDateTime>
 #include <QSet>
+#include <QUrl>
 #include <QVariantList>
 #include <QVector>
 #include <QMutex>
@@ -39,6 +40,8 @@ class AppController : public QObject
     Q_PROPERTY(QString defaultSearchStart READ defaultSearchStart NOTIFY defaultSearchRangeChanged)
     Q_PROPERTY(QString defaultSearchEnd READ defaultSearchEnd NOTIFY defaultSearchRangeChanged)
     Q_PROPERTY(QString homepageDescription READ homepageDescription NOTIFY homepageDescriptionChanged)
+    // 首页三维装配体模型，随程序分发在 assets/models/ 目录，运行时按文件加载（不编进资源）
+    Q_PROPERTY(QUrl homeModelUrl READ homeModelUrl CONSTANT)
     Q_PROPERTY(bool isDark READ isDarkMode WRITE setDarkMode NOTIFY darkModeChanged)
     Q_PROPERTY(ImageListModel *currentImagesModel READ currentImagesModel CONSTANT)
     Q_PROPERTY(ImageListModel *searchImagesModel READ searchImagesModel CONSTANT)
@@ -73,6 +76,7 @@ public:
     QString defaultSearchStart() const;
     QString defaultSearchEnd() const;
     QString homepageDescription() const;
+    QUrl homeModelUrl() const;
     ImageListModel *currentImagesModel();
     ImageListModel *searchImagesModel();
 
@@ -123,8 +127,10 @@ public:
     Q_INVOKABLE void setSlotMapping(int sourceOneBased, int targetValue);
     Q_INVOKABLE QVariantList rackWheelDistances(int rackNumber) const;
     // 报警操作在后台线程执行，结果通过请求编号返回，页面丢弃过期响应。
+    // 处置操作（handled / falseAlarm）必须提供操作员姓名，写入处置日志。
     Q_INVOKABLE int requestAlertOperation(const QString &kind, const QString &start, const QString &end,
-                                          int rack, int wheel, int page = 1);
+                                          int rack, int wheel, int page = 1,
+                                          const QString &operatorName = QString());
     Q_SIGNAL void alertOperationFinished(int requestId, const QVariantMap &result);
     // 异步统计：kind 为下方同步统计函数名，args 与其参数顺序一致；结果经 statsReady 返回。
     // 页面应优先使用该接口，同步版本仅为兼容保留，会阻塞界面线程。

@@ -36,9 +36,11 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
 // 报警轮位汇总、单幅去重原图分页和批量人工处置。所有请求均强制有效日期范围。
 // kind: racks / groups / image / handled / falseAlarm；page 为从 1 开始的图像页号。
 // racks 支持 rack=0 汇总全部架号；groups 支持 wheel=0 汇总全部轮位，其他值保留轮系筛选。
+// operatorName 只用于处置（handled / falseAlarm），随处置记录写入日志。
 QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
                           const QString &start, const QString &end, int rack, int wheel,
-                          int page, const QString &archiveDir, const QString &sourceDir);
+                          int page, const QString &archiveDir, const QString &sourceDir,
+                          const QString &operatorName = QString());
 
 // "OK"/"1" -> 1，"NG"/"0" -> 0；其余返回 false
 bool parseResultFilter(const QString &text, int &result);
