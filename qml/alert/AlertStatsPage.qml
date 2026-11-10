@@ -25,6 +25,8 @@ Page {
     property string operationMessage: ""
     property var pendingDisposition: ({})
     property bool preserveWheel: false
+    // 上一次处置填写的操作员姓名，本次运行内再次处置时预填
+    property string lastOperatorName: ""
 
     function resetImage() {
         imageRequestId = -1
@@ -43,10 +45,16 @@ Page {
 
     function confirmDisposition() {
         if (dispositionRequestId !== -1 || !pendingDisposition.kind) return
+        var operatorName = operatorInput.text.trim()
+        if (operatorName.length === 0) {
+            operatorInput.forceActiveFocus()
+            return
+        }
+        lastOperatorName = operatorName
         var operation = pendingDisposition
         operationMessage = "正在保存处置状态…"
         dispositionRequestId = appController.requestAlertOperation(operation.kind, operation.start, operation.end,
-                                                                  operation.rack, operation.wheel, 1)
+                                                                  operation.rack, operation.wheel, 1, operatorName)
         dispositionDialog.close()
     }
 
@@ -609,7 +617,11 @@ Page {
 
         readonly property string actionText: root.pendingDisposition.kind === "handled" ? "已处理（已换轮）" : "误报"
 
-        onOpened: cancelDispositionButton.forceActiveFocus()
+        onAboutToShow: operatorInput.text = root.lastOperatorName
+        onOpened: {
+            operatorInput.forceActiveFocus()
+            operatorInput.selectAll()
+        }
         onClosed: root.pendingDisposition = ({})
 
         background: Rectangle {
@@ -661,6 +673,34 @@ Page {
                 font.pixelSize: Theme.fontCaption
                 wrapMode: Text.Wrap
             }
+            Label {
+                Layout.topMargin: Theme.space2
+                text: "操作员姓名"
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontCaption
+                font.weight: Theme.fontMedium
+            }
+            TextField {
+                id: operatorInput
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                maximumLength: 32
+                placeholderText: "请输入处置人姓名，将随处置记录写入日志"
+                placeholderTextColor: Theme.muted
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontBody
+                selectByMouse: true
+                onAccepted: root.confirmDisposition()
+
+                background: Rectangle {
+                    radius: Theme.radiusSmall
+                    color: Theme.fieldFill
+                    border.width: 1
+                    border.color: operatorInput.activeFocus ? Theme.accent : Theme.border
+                }
+            }
         }
 
         footer: Item {
@@ -683,7 +723,7 @@ Page {
                 ActionButton {
                     text: "确认" + dispositionDialog.actionText
                     variant: "danger"
-                    enabled: root.dispositionRequestId === -1
+                    enabled: root.dispositionRequestId === -1 && operatorInput.text.trim().length > 0
                     onClicked: root.confirmDisposition()
                 }
             }
