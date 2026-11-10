@@ -496,7 +496,8 @@ Page {
 
                             RuntimeLoader {
                                 id: homeModel
-                                source: "qrc:/qt/qml/CarrierVision/assets/models/Assembly.glb"
+                                // 模型文件随程序分发在 assets/models/ 目录，启动时从磁盘载入
+                                source: (typeof appController !== 'undefined' && appController) ? appController.homeModelUrl : ""
 
                                 function fitToView() {
                                     var minimum = bounds.minimum

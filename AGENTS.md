@@ -21,7 +21,7 @@
 - 所有相对路径一律按程序所在目录解析（`AgcUtils::resolveAppPath`），不得依赖启动时的工作目录。
 - 程序目录内的路径保存为相对路径（`AgcUtils::toAppRelativePath`），安装目录整体搬迁后配置仍然有效。不要把规范化后的绝对路径写回数据库。
 - 图像只有一个目录：FTP 上传目录就是图像存储目录（数据库键 `ftp/rootDirectory`，默认 `images`）。不要再引入第二个图像根目录。
-- 程序目录布局：`data/`（数据库与备份）、`images/`、`logs/`、`fonts/`。FTP 日志已并入主日志，不要再单独写日志文件。升级只替换程序文件，不得覆盖或清理这些数据。
+- 程序目录布局：`data/`（数据库与备份）、`images/`、`logs/`、`assets/`（`fonts/` 界面字体、`models/` 首页三维模型，运行时按文件加载，不编进程序资源）。FTP 日志已并入主日志，不要再单独写日志文件。升级只替换程序文件，不得覆盖或清理这些数据。
 
 ## 4. 线程与日志
 
@@ -36,7 +36,7 @@
 
 **字体**
 
-- 界面字体只用 `assets/fonts` 中随程序分发的字体：正文 `Theme.fontSans`（思源黑体 SC），等宽 `Theme.fontMono`（JetBrains Mono，缺中文时回退到思源黑体）。字体由 `main.cpp` 从程序旁的 `fonts/` 加载，不要引用系统字体名。
+- 界面字体只用 `assets/fonts` 中随程序分发的字体：正文 `Theme.fontSans`（思源黑体 SC），等宽 `Theme.fontMono`（JetBrains Mono，缺中文时回退到思源黑体）。字体由 `main.cpp` 从程序旁的 `assets/fonts/` 加载，不要引用系统字体名。
 - 等宽字体只用于文件名、路径、日志正文和报文。普通数字（计数、百分比、时间、测量值）用 `fontSans` 加 `font.features: Theme.fontFeaturesTabular`。
 - 字号只用 `Theme.fontDisplay`、`fontTitle`、`fontBody`、`fontCaption`、`fontMicro`，禁止写数字字号。`fontMicro` 只用于数字、单位和徽标，不用于中文句子。
 - 字重只有三档：`Theme.fontRegular`、`fontMedium`、`fontBold`。页面大标题用 Bold，分区标题、按钮和强调项用 Medium，其余用 Regular。禁止写 `font.bold`。

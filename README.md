@@ -209,6 +209,15 @@ cmake --build build/Release -j8
 cmake --install build/Release      # 输出到 install/CarrierVision_linux_<版本>
 ```
 
+也可以用 `scripts/` 下的一键脚本（Windows 用 `.cmd`，Linux 用 `.sh`）：
+
+```bash
+scripts/build.sh [Debug|Release] [--no-test] [--clean]   # 配置、编译 -j8、运行 ctest
+scripts/install.sh [目录] [--no-test] [--clean]          # Release 构建 + 测试 + 安装部署
+```
+
+Windows 下 `scripts\build.cmd` 自动加载 MSVC 环境（vswhere）并选用 `C:\Qt` 下版本最高的 `msvc*_64` 套件，可用环境变量 `QT_DIR` 指定。Windows 的安装部署由 `cmake/DeployWindows.cmake` 完成（调用 windeployqt），不需要 Python；Linux 的安装部署仍使用 `scripts/deploy_linux.py`，需要 python3。
+
 持续集成：推送到 `main` 或向 `main` 发起 PR 时，GitHub Actions 自动执行 Windows 构建、全部测试并打包为 zip（在运行记录的 Artifacts 中下载，保留 14 天）。也可在 Actions 页面手动对任意分支运行。
 
 ---
@@ -285,7 +294,7 @@ python3 scripts/simulator.py --interval 5 --duration 72h --fault-rate 0.05 --pid
 ```text
 CarrierVision/
 ├── CMakeLists.txt
-├── cmake/               版本号计算（version.cmake），生成 version.h 到构建目录
+├── cmake/               版本号计算（version.cmake），生成 version.h 到构建目录；Windows 安装部署（DeployWindows.cmake）
 ├── src/
 │   ├── main.cpp         程序入口、单实例保护、数据库完整性检查与初始化
 │   ├── app/             AppController（QML 门面）、图像列表模型、批次类型
@@ -301,7 +310,7 @@ CarrierVision/
 │   ├── README.txt       发布说明
 │   ├── linux/           启动脚本、桌面快捷方式、systemd 守护服务
 │   └── windows/         exe 图标资源、环境变量注册脚本、守护启动脚本
-├── scripts/             安装时调用的依赖部署脚本（Linux / Windows）、产线模拟器 simulator.py
+├── scripts/             一键构建与安装脚本（build / install，.sh 与 .cmd）、Linux 依赖部署脚本、产线模拟器 simulator.py
 ├── tests/               QtTest 单元测试与集成测试
 ├── third_party/         仅头文件的第三方库（版本见其中 README.md）
 ├── docs/                发布记录、两轮优化方案及实测数据

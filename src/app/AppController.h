@@ -13,6 +13,7 @@
 #include <QHash>
 #include <QDateTime>
 #include <QSet>
+#include <QUrl>
 #include <QVariantList>
 #include <QVector>
 #include <QMutex>
@@ -39,6 +40,8 @@ class AppController : public QObject
     Q_PROPERTY(QString defaultSearchStart READ defaultSearchStart NOTIFY defaultSearchRangeChanged)
     Q_PROPERTY(QString defaultSearchEnd READ defaultSearchEnd NOTIFY defaultSearchRangeChanged)
     Q_PROPERTY(QString homepageDescription READ homepageDescription NOTIFY homepageDescriptionChanged)
+    // 首页三维装配体模型，随程序分发在 assets/models/ 目录，运行时按文件加载（不编进资源）
+    Q_PROPERTY(QUrl homeModelUrl READ homeModelUrl CONSTANT)
     Q_PROPERTY(bool isDark READ isDarkMode WRITE setDarkMode NOTIFY darkModeChanged)
     Q_PROPERTY(ImageListModel *currentImagesModel READ currentImagesModel CONSTANT)
     Q_PROPERTY(ImageListModel *searchImagesModel READ searchImagesModel CONSTANT)
@@ -73,6 +76,7 @@ public:
     QString defaultSearchStart() const;
     QString defaultSearchEnd() const;
     QString homepageDescription() const;
+    QUrl homeModelUrl() const;
     ImageListModel *currentImagesModel();
     ImageListModel *searchImagesModel();
 

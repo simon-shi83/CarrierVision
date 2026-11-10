@@ -363,6 +363,16 @@ int AppController::cleanupRunHour() const
     return DBSchema::getConfigInt(db, "cleanup/runHour", 1);
 }
 
+QUrl AppController::homeModelUrl() const
+{
+    const QString path = AgcUtils::resolveAppPath(QStringLiteral("assets/models/Assembly.glb"));
+    if (!QFileInfo::exists(path)) {
+        LOG_WARN("未找到首页三维模型文件（{}），三维视图将不显示载具", path.toStdString());
+        return {};
+    }
+    return QUrl::fromLocalFile(path);
+}
+
 QString AppController::homepageDescription() const
 {
     QMutexLocker locker(&m_dbMutex);

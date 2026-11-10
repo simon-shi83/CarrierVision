@@ -130,9 +130,9 @@ int main(int argc, char *argv[])
     CrashHandler::install(AppLogger::getLogDirectory());
     LOG_INFO("CarrierVision 应用程序启动, 版本: {}", CARRIER_VISION_VERSION_FULL);
 
-    // 界面字体统一使用 fonts/ 下随程序分发的思源黑体与 JetBrains Mono，各平台字形和字重一致
+    // 界面字体统一使用 assets/fonts/ 下随程序分发的思源黑体与 JetBrains Mono，各平台字形和字重一致
     {
-        const QDir fontDir(QCoreApplication::applicationDirPath() + QStringLiteral("/fonts"));
+        const QDir fontDir(QCoreApplication::applicationDirPath() + QStringLiteral("/assets/fonts"));
         int loaded = 0;
         for (const QString &fileName : fontDir.entryList({QStringLiteral("*.otf"), QStringLiteral("*.ttf")}, QDir::Files)) {
             if (QFontDatabase::addApplicationFont(fontDir.filePath(fileName)) >= 0) ++loaded;
