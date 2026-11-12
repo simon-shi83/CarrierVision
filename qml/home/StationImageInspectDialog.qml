@@ -293,7 +293,7 @@ Dialog {
     // 键盘：Ctrl+S 另存为，+ / - 缩放，0 适应窗口，1 原始像素
     Shortcut {
         enabled: inspectDialog.opened
-        sequence: StandardKey.Save
+        sequences: [StandardKey.Save]
         onActivated: saver.open()
     }
     Shortcut {
