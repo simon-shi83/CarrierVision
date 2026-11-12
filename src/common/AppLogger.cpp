@@ -615,7 +615,8 @@ QVariantMap AppLogger::getLogStats()
     return stats;
 }
 
-QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize)
+QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
+                                 const QString &category)
 {
     page = qMax(1, page);
     pageSize = qBound(1, pageSize <= 0 ? 50 : pageSize, 200);
@@ -633,6 +634,9 @@ QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, c
     }
     std::sort(volumes.begin(),volumes.end(),[](const auto &a,const auto &b){return a.index < b.index;});
     const QString filterLevel = level.trimmed().toLower(), filterKeyword = keyword.trimmed();
+    // 报警处置日志统一以"报警处置"开头（完成 / 失败），历史日志同样适用
+    const bool alertDispositionOnly = category.trimmed() == QLatin1String("alertDisposition");
+    const QString alertDispositionPrefix = QStringLiteral("报警处置");
     const QRegularExpression lineRe(QStringLiteral("^\\[(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\] \\[(\\w+)\\] (.*)$"));
     qint64 total = 0;
     QVariantList items;
@@ -657,6 +661,7 @@ QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, c
                     else if(filterLevel=="error" || filterLevel=="critical") { if(lvl!="error" && lvl!="critical") continue; }
                     else if(lvl!=filterLevel) continue;
                 }
+                if (alertDispositionOnly && !message.startsWith(alertDispositionPrefix)) continue;
                 if (!filterKeyword.isEmpty() && !message.contains(filterKeyword,Qt::CaseInsensitive)
                     && !time.contains(filterKeyword,Qt::CaseInsensitive)) continue;
                 if (collect && index>=first && index<last) {

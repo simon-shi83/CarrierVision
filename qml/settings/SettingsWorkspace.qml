@@ -12,6 +12,22 @@ Item {
 
     property string homepageFeedback: ""
     property string securityMessage: ""
+    property string handlerMessage: ""
+    property bool handlerMessageIsError: false
+
+    function addHandler() {
+        if (!appController)
+            return;
+        var name = newHandlerInput.text.trim();
+        if (name.length === 0)
+            return;
+        var error = appController.addAlertHandler(name);
+        handlerMessageIsError = error.length > 0;
+        handlerMessage = error.length > 0 ? error : ("已添加处置人员：" + name);
+        if (error.length === 0)
+            newHandlerInput.text = "";
+        newHandlerInput.forceActiveFocus();
+    }
     property bool maintenanceSet: appController && appController.hasMaintenancePassword ? appController.hasMaintenancePassword() : false
 
     // ========== 卡片与行的基础组件 ==========
@@ -792,6 +808,129 @@ Item {
                             }
                         }
                         Item { Layout.fillWidth: true }
+                    }
+                }
+
+                // ---------- 报警处置 ----------
+                Section {
+                    title: "报警处置"
+                    description: "预设可处置报警的人员，在报警统计中标记已处理或误报时直接选择。"
+
+                    ParamHeader {
+                        title: "处置人员"
+                        description: "处置记录会写明所选人员，可在日志查询中按“报警处置”类型筛选。最多 64 人，每人姓名不超过 32 字。"
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Theme.space2
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.space2
+
+                            Field {
+                                id: newHandlerInput
+                                Layout.fillWidth: true
+                                maximumLength: 32
+                                placeholderText: "人员姓名"
+                                font.features: ({})
+                                onAccepted: root.addHandler()
+                                onTextEdited: root.handlerMessage = ""
+                            }
+                            ActionButton {
+                                Layout.preferredHeight: 36
+                                text: "添加人员"
+                                variant: "primary"
+                                enabled: newHandlerInput.text.trim().length > 0
+                                onClicked: root.addHandler()
+                            }
+                        }
+
+                        HintLabel {
+                            visible: root.handlerMessage.length > 0
+                            text: root.handlerMessage
+                            color: root.handlerMessageIsError ? Theme.warn : Theme.textSoft
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: handlersList.count === 0 ? 64
+                                                    : Math.min(220, handlersList.count * 44 + Theme.space1 * 2)
+                            color: Theme.surfaceAlt
+                            radius: Theme.radiusSmall
+                            clip: true
+
+                            ListView {
+                                id: handlersList
+                                anchors.fill: parent
+                                anchors.margins: Theme.space1
+                                model: appController ? appController.alertHandlers : []
+                                spacing: 2
+                                boundsBehavior: Flickable.StopAtBounds
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    width: handlersList.width
+                                    height: 42
+                                    radius: Theme.radiusMicro
+                                    color: handlerMouse.containsMouse ? Theme.hover : "transparent"
+
+                                    MouseArea {
+                                        id: handlerMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.NoButton
+                                    }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: Theme.space3
+                                        anchors.rightMargin: Theme.space1
+                                        spacing: Theme.space2
+
+                                        AppIcon {
+                                            name: "icon_user"
+                                            size: 14
+                                            color: Theme.textSoft
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData
+                                            color: Theme.text
+                                            font.family: Theme.fontSans
+                                            font.pixelSize: Theme.fontBody
+                                            elide: Text.ElideRight
+                                        }
+                                        ActionButton {
+                                            Layout.preferredHeight: 28
+                                            text: "删除"
+                                            variant: "secondary"
+                                            btnRadius: Theme.radiusMicro
+                                            Accessible.name: "删除处置人员 " + modelData
+                                            onClicked: {
+                                                // 删除后名单刷新会销毁本委托，先取出姓名
+                                                var name = modelData;
+                                                if (appController && appController.removeAlertHandler(name)) {
+                                                    root.handlerMessageIsError = false;
+                                                    root.handlerMessage = "已删除处置人员：" + name;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                visible: handlersList.count === 0
+                                text: "暂无处置人员，请在上方添加"
+                                color: Theme.muted
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                            }
+                        }
                     }
                 }
 

@@ -54,6 +54,7 @@ class AppController : public QObject
     Q_PROPERTY(bool ftpRunning READ ftpRunning NOTIFY ftpServerStateChanged)
     Q_PROPERTY(int ftpClientCount READ ftpClientCount NOTIFY ftpServerStateChanged)
     Q_PROPERTY(QVariantList ftpAccounts READ ftpAccounts NOTIFY ftpSettingsChanged)
+    Q_PROPERTY(QStringList alertHandlers READ alertHandlers NOTIFY alertHandlersChanged)
     Q_PROPERTY(QVariantList slotMapping READ slotMapping NOTIFY mappingChanged)
     Q_PROPERTY(QVariantList gearSumResult READ gearSumResult NOTIFY gearSumResultChanged)
     Q_PROPERTY(QVariantMap latestWarnOrError READ latestWarnOrError NOTIFY latestWarnOrErrorChanged)
@@ -127,11 +128,15 @@ public:
     Q_INVOKABLE void setSlotMapping(int sourceOneBased, int targetValue);
     Q_INVOKABLE QVariantList rackWheelDistances(int rackNumber) const;
     // 报警操作在后台线程执行，结果通过请求编号返回，页面丢弃过期响应。
-    // 处置操作（handled / falseAlarm）必须提供操作员姓名，写入处置日志。
+    // 处置操作（handled / falseAlarm）必须提供系统设置中预设的处置人员姓名，写入处置日志。
     Q_INVOKABLE int requestAlertOperation(const QString &kind, const QString &start, const QString &end,
                                           int rack, int wheel, int page = 1,
                                           const QString &operatorName = QString());
     Q_SIGNAL void alertOperationFinished(int requestId, const QVariantMap &result);
+    // 报警处置人员名单（系统设置中维护）。add 返回空串表示成功，否则为失败原因。
+    QStringList alertHandlers() const;
+    Q_INVOKABLE QString addAlertHandler(const QString &name);
+    Q_INVOKABLE bool removeAlertHandler(const QString &name);
     // 异步统计：kind 为下方同步统计函数名，args 与其参数顺序一致；结果经 statsReady 返回。
     // 页面应优先使用该接口，同步版本仅为兼容保留，会阻塞界面线程。
     Q_INVOKABLE int requestStats(const QString &kind, const QVariantList &args = {});
@@ -177,9 +182,12 @@ public:
 
     // 日志查询与统计接口
     Q_INVOKABLE QStringList getAvailableLogDates();
-    Q_INVOKABLE QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize);
+    Q_INVOKABLE QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
+                                      const QString &category = QString());
     Q_INVOKABLE QVariantMap getLogStats();
-    Q_INVOKABLE int requestLogs(const QString &date, const QString &level, const QString &keyword, int page, int pageSize);
+    // category 同 AppLogger::queryLogs："all" 或 "alertDisposition"
+    Q_INVOKABLE int requestLogs(const QString &date, const QString &level, const QString &keyword, int page, int pageSize,
+                                const QString &category = QString());
     Q_INVOKABLE void openLogDirectory();
     Q_INVOKABLE void copyToClipboard(const QString &text);
 
@@ -200,6 +208,7 @@ signals:
     void statsReady(int requestId, const QString &kind, const QVariant &result);
     void latestWarnOrErrorChanged();
     void storageStatusChanged();
+    void alertHandlersChanged();
     void sourceDirectoryChanged();
     void archiveDirectoryChanged();
     void statusMessageChanged();

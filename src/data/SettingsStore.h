@@ -3,16 +3,19 @@
 #include <QMap>
 #include <QSqlDatabase>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVector>
 
-// 持久化配置：FTP 账户/目录/端口与相机槽位映射、设置页密码、载具标准轮距。
+// 持久化配置：FTP 账户/目录/端口与相机槽位映射、设置页密码、载具标准轮距、报警处置人员。
 // 无状态，调用方提供当前线程可用的数据库连接并负责加锁。
 namespace SettingsStore {
 
 constexpr int kMaxFtpUsers = 32;
 constexpr int kSlotCount = 12;
 constexpr int kMaxSlotTarget = 14;
+constexpr int kMaxAlertHandlers = 64;
+constexpr int kMaxAlertHandlerNameLength = 32;
 
 struct FtpSettings {
     QMap<QString, QString> users;   // 用户名 -> 密码哈希
@@ -44,5 +47,12 @@ bool resetSettingsPasswordAuthorized(QSqlDatabase &db, const QString &password);
 QVariantList rackWheelDistances(QSqlDatabase &db, int rackNumber);
 // 全部为非负数字时才在一个事务中写入
 bool saveRackWheelDistances(QSqlDatabase &db, int rackNumber, const QVariantList &distances);
+
+// 报警处置人员名单：按添加顺序保存在 system_config（alert/handlers，JSON 数组）。
+// 姓名折叠空白并限长，空名与重复名（不区分大小写）被丢弃，最多 kMaxAlertHandlers 人。
+QString normalizeAlertHandlerName(const QString &name);
+QStringList normalizeAlertHandlers(const QStringList &names);
+QStringList loadAlertHandlers(QSqlDatabase &db);
+bool saveAlertHandlers(QSqlDatabase &db, const QStringList &names);
 
 } // namespace SettingsStore

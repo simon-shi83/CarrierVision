@@ -42,8 +42,9 @@ Page {
                    ? availableDates[dateCombo.currentIndex] : ""
         var lvl = levelCombo.currentValue || "all"
         var kw = searchField.text.trim()
+        var category = categoryCombo.currentValue || "all"
 
-        logRequestId = appController.requestLogs(dStr, lvl, kw, currentPage, pageSize)
+        logRequestId = appController.requestLogs(dStr, lvl, kw, currentPage, pageSize, category)
     }
 
     function filterByLevel(lvl) {
@@ -400,6 +401,97 @@ Page {
                     }
                 }
 
+                // 日志类型筛选：报警处置记录单独查看
+                RowLayout {
+                    spacing: 8
+                    Text {
+                        text: "日志类型:"
+                        font.pixelSize: Theme.fontCaption
+                        font.family: Theme.fontSans
+                        color: Theme.textSoft
+                    }
+                    ComboBox {
+                        id: categoryCombo
+                        Layout.preferredWidth: 120
+                        Layout.preferredHeight: 34
+                        textRole: "text"
+                        valueRole: "value"
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontCaption
+                        Accessible.name: "日志类型"
+                        model: [
+                            { text: "全部日志", value: "all" },
+                            { text: "报警处置", value: "alertDisposition" }
+                        ]
+
+                        background: Rectangle {
+                            radius: Theme.radiusMicro
+                            color: Theme.fieldFill
+                            border.color: categoryCombo.activeFocus ? Theme.selectedBorder : Theme.border
+                            border.width: 1
+                        }
+
+                        contentItem: Text {
+                            leftPadding: 10
+                            rightPadding: 26
+                            text: categoryCombo.currentText
+                            color: Theme.text
+                            font: categoryCombo.font
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        indicator: AppIcon {
+                            x: categoryCombo.width - width - 8
+                            y: (categoryCombo.height - height) / 2
+                            name: "icon_arrow_down"
+                            size: 12
+                            color: Theme.textSoft
+                        }
+
+                        popup: Popup {
+                            y: categoryCombo.height + 4
+                            width: categoryCombo.width
+                            implicitHeight: contentItem.implicitHeight + 8
+                            padding: 4
+                            background: Rectangle {
+                                color: Theme.surfaceFloating
+                                radius: Theme.radiusSmall
+                                border.color: Theme.border
+                                border.width: 1
+                            }
+                            contentItem: ListView {
+                                clip: true
+                                implicitHeight: contentHeight
+                                model: categoryCombo.popup.visible ? categoryCombo.delegateModel : null
+                                currentIndex: categoryCombo.highlightedIndex
+                            }
+                        }
+
+                        delegate: ItemDelegate {
+                            width: categoryCombo.width - 8
+                            height: 32
+                            contentItem: Text {
+                                text: modelData.text
+                                color: Theme.text
+                                font.weight: (highlighted || modelData.value === categoryCombo.currentValue) ? Theme.fontMedium : Theme.fontRegular
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontCaption
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 8
+                            }
+                            background: Rectangle {
+                                radius: Theme.radiusMicro
+                                color: highlighted ? Theme.pressed : "transparent"
+                            }
+                        }
+
+                        onActivated: {
+                            root.currentPage = 1
+                            root.queryCurrentPage()
+                        }
+                    }
+                }
+
                 // 关键字搜索
                 RowLayout {
                     Layout.fillWidth: true
@@ -408,7 +500,9 @@ Page {
                         id: searchField
                         Layout.fillWidth: true
                         Layout.preferredHeight: 34
-                        placeholderText: "输入关键字搜索日志内容或时间..."
+                        placeholderText: categoryCombo.currentValue === "alertDisposition"
+                                         ? "输入处置人员、架号或轮位筛选处置记录..."
+                                         : "输入关键字搜索日志内容或时间..."
                         placeholderTextColor: Theme.muted
                         color: Theme.text
                         font.family: Theme.fontSans

@@ -6,6 +6,8 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStandardPaths>
@@ -261,6 +263,49 @@ bool saveRackWheelDistances(QSqlDatabase &db, int rackNumber, const QVariantList
     }
     LOG_INFO("保存载具轮标准距离成功: 架号={}", rackNumber);
     return true;
+}
+
+QString normalizeAlertHandlerName(const QString &name)
+{
+    // 姓名写入单行日志：折叠空白（含换行），限制长度
+    return name.simplified().left(kMaxAlertHandlerNameLength).trimmed();
+}
+
+QStringList normalizeAlertHandlers(const QStringList &names)
+{
+    QStringList result;
+    for (const QString &name : names) {
+        const QString clean = normalizeAlertHandlerName(name);
+        if (clean.isEmpty() || result.contains(clean, Qt::CaseInsensitive)) continue;
+        result.append(clean);
+        if (result.size() >= kMaxAlertHandlers) break;
+    }
+    return result;
+}
+
+QStringList loadAlertHandlers(QSqlDatabase &db)
+{
+    if (!db.isOpen()) return {};
+    const QString stored = DBSchema::getConfig(db, QStringLiteral("alert/handlers"));
+    if (stored.trimmed().isEmpty()) return {};
+    const QJsonDocument doc = QJsonDocument::fromJson(stored.toUtf8());
+    if (!doc.isArray()) {
+        LOG_WARN("报警处置人员名单格式无效，已忽略");
+        return {};
+    }
+    QStringList names;
+    for (const auto &value : doc.array()) {
+        if (value.isString()) names.append(value.toString());
+    }
+    return normalizeAlertHandlers(names);
+}
+
+bool saveAlertHandlers(QSqlDatabase &db, const QStringList &names)
+{
+    if (!db.isOpen()) return false;
+    const QStringList clean = normalizeAlertHandlers(names);
+    const QByteArray json = QJsonDocument(QJsonArray::fromStringList(clean)).toJson(QJsonDocument::Compact);
+    return DBSchema::setConfig(db, QStringLiteral("alert/handlers"), QString::fromUtf8(json));
 }
 
 } // namespace SettingsStore
