@@ -32,6 +32,8 @@ public:
     // 磁盘空间不足时由主线程设置为 false，新上传以 452 拒绝；线程安全
     void setAcceptUploads(bool accept) { m_acceptUploads.store(accept); }
     void setAccessPolicy(const QList<NetworkAccess::Subnet> &allowList, quint16 passiveMin, quint16 passiveMax);
+    // 传到根目录的图片按接收日期存入 yyyy-MM-dd 子目录（对新会话生效）
+    void setDateSubdirectories(bool enabled) { m_server.setDateSubdirectories(enabled); }
 
 signals:
     // filePath 为实际落盘路径；requestedPath 为客户端请求的路径（发生 _vN 版本化时两者不同）

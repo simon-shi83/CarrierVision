@@ -718,6 +718,41 @@ private slots:
         QVERIFY(response.value("message").toString().contains("database"));
         receiver.stop();
     }
+    void ftpStoresRootUploadsInDateSubdirectory() {
+        // 传到根目录的图片按接收日期分子目录落盘，客户端指定的子目录不变
+        QTemporaryDir dir; FtpServer server; QString error; QStringList stored;
+        server.setDateSubdirectories(true);
+        server.uploadHandler = [&](const QString &staged, const QString &target, const QString &) {
+            return ImageIngest::accept(staged, target, [](const QString&){ return true; }, error);
+        };
+        connect(&server, &FtpServer::imageStored, this, [&stored](const QString &path) { stored << path; });
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0, dir.path(), QMap<QString,QString>{{"u","p"}}));
+        QVERIFY(QDir().mkpath(dir.filePath("cam1")));
+        QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, server.port());
+        QVERIFY(reply(client).startsWith("220"));
+        QVERIFY(command(client, "USER u").startsWith("331"));
+        QVERIFY(command(client, "PASS p").startsWith("230"));
+        QImage image(8, 8, QImage::Format_RGB32); image.fill(Qt::red);
+        QByteArray png; QBuffer buffer(&png); QVERIFY(buffer.open(QIODevice::WriteOnly)); QVERIFY(image.save(&buffer, "PNG"));
+        auto upload = [&](const QByteArray &name) {
+            const QString epsv = command(client, "EPSV");
+            QTcpSocket data; data.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
+            if (!data.waitForConnected(3000)) return QString();
+            const QString started = command(client, "STOR " + name);
+            if (!started.startsWith("150")) return started;
+            data.write(png); data.flush(); data.disconnectFromHost();
+            return reply(client);
+        };
+        const QString day = QDate::currentDate().toString("yyyy-MM-dd");
+        QVERIFY2(upload("dated.png").startsWith("226"), qPrintable(error));
+        QVERIFY(QFile::exists(dir.filePath(day + "/dated.png")));
+        QVERIFY(!QFile::exists(dir.filePath("dated.png")));
+        QVERIFY2(upload("cam1/kept.png").startsWith("226"), qPrintable(error));
+        QVERIFY(QFile::exists(dir.filePath("cam1/kept.png")));
+        QTRY_COMPARE(stored.size(), 2);
+        QVERIFY(stored.first().endsWith(day + "/dated.png"));
+        server.stop();
+    }
     void collisionSafeFtpUpload() {
         QTemporaryDir dir; FtpServer server; QString error;
         server.uploadHandler = [&](const QString &staged, const QString &target, const QString &) {

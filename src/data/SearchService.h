@@ -47,9 +47,11 @@ bool parseResultFilter(const QString &text, int &result);
 
 // 在原路径、归档目录、源目录及程序目录附近查找图片；只返回已确认存在的绝对路径，找不到返回空串
 QString resolveImagePath(const QString &rawName, const QString &archiveDir, const QString &sourceDir);
-// 优先使用记录中的实际落盘路径 image_path（存在时），否则按图片名查找
+// 优先使用记录中的实际落盘路径 image_path（存在时），否则按图片名查找；
+// 给出记录时间 createTime 时，还会在归档目录下该日期前后一天的 yyyy-MM-dd 子目录中查找
 QString resolveRecordImage(const QString &imagePath, const QString &imageName,
-                           const QString &archiveDir, const QString &sourceDir);
+                           const QString &archiveDir, const QString &sourceDir,
+                           const QString &createTime = QString());
 
 // 热力图像：50 个架号各自最近一轮检测的 12 个相机图像，固定返回 50 组、每组 12 项（CAM 01 ~ CAM 12）。
 // 一轮 = 该架号最新记录往前 IngestCoordinator::kSameCarrierMergeSecs 秒内的记录（两次触发各 6 个相机）；

@@ -933,7 +933,8 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
     }
 
     const QString imageName = query.value(0).toString().trimmed();
-    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, m_archiveDirectory, m_sourceDirectory);
+    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, m_archiveDirectory, m_sourceDirectory,
+                                           query.value(1).toString());
     if (imagePath.isEmpty()) imagePath = imageName;
 
     image.insert(QStringLiteral("filePath"), imagePath);
@@ -1196,7 +1197,8 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                     item.lower_tolerance = q.value(9).toDouble();
 
                     const QString rawName = q.value(6).toString().trimmed();
-                    item.filePath = resolveRecordImage(q.value(10).toString(), rawName, m_archiveDirectory, m_sourceDirectory);
+                    item.filePath = resolveRecordImage(q.value(10).toString(), rawName, m_archiveDirectory, m_sourceDirectory,
+                                                       q.value(1).toString());
                     if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
                     items.append(item);
                 }
@@ -1479,11 +1481,14 @@ bool AppController::ftpListen(int port, const QString &root)
     const bool allowAnonymous = m_ftpAllowAnonymous;
     const auto allowList = networkAllowList();
     int passiveMin = 50000, passiveMax = 50100; // 决策 D5
+    bool dateSubdirectories = true;
     {
         QMutexLocker locker(&m_dbMutex);
         QSqlDatabase db = QSqlDatabase::database();
         passiveMin = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMin"), passiveMin);
         passiveMax = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMax"), passiveMax);
+        // 默认把传到根目录的图片按日期分子目录存放，避免单个目录文件过多；设为 false 恢复旧行为
+        dateSubdirectories = DBSchema::getConfigBool(db, QStringLiteral("ftp/dateSubdirectories"), true);
     }
     if (passiveMin < 1024 || passiveMax > 65535 || passiveMax < passiveMin) {
         LOG_WARN("FTP 被动端口范围配置无效 ({}-{})，改用 50000-50100", passiveMin, passiveMax);
@@ -1491,8 +1496,9 @@ bool AppController::ftpListen(int port, const QString &root)
         passiveMax = 50100;
     }
     bool ok = false;
-    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous, allowList, passiveMin, passiveMax]() {
+    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous, allowList, passiveMin, passiveMax, dateSubdirectories]() {
         service->setAccessPolicy(allowList, static_cast<quint16>(passiveMin), static_cast<quint16>(passiveMax));
+        service->setDateSubdirectories(dateSubdirectories);
         service->setRoot(root);
         return service->start(static_cast<quint16>(port), root, users, allowAnonymous);
     }, Qt::BlockingQueuedConnection, &ok);
@@ -1628,7 +1634,8 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
     QVector<ImageItem> cards = IngestCoordinator::buildStationCards(batch, [&](const QString &imageName) {
         const QString path = associated.value(imageName);
         // 图片尚未到达：先按文件名在归档目录查找用于显示，到达后由 onFtpImageStored 更新卡片与记录
-        return path.isEmpty() ? resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory) : path;
+        return path.isEmpty() ? resolveRecordImage(QString(), imageName, m_archiveDirectory, m_sourceDirectory,
+                                                  AgcUtils::formatDateTime(batch.timestamp)) : path;
     });
     // 一个载具分多次触发（每次 6 个相机）：同一载具的后续批次只刷新本批相机，
     // 其余工位保留该载具前几批的卡片；换载具或间隔过久时整屏刷新

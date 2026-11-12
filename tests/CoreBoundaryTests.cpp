@@ -17,6 +17,7 @@
 
 #include <QTemporaryDir>
 #include <QDir>
+#include <QFile>
 
 class CoreBoundaryTests final : public QObject
 {
@@ -520,6 +521,25 @@ private slots:
         }
         QSqlDatabase::removeDatabase(connectionName);
     }
+    void recordImageFoundInDateSubdirectory()
+    {
+        // FTP 按接收日期存入 yyyy-MM-dd 子目录；记录未关联落盘路径时按记录日期（前后一天）查找
+        QTemporaryDir archive;
+        QVERIFY(archive.isValid());
+        QVERIFY(QDir().mkpath(archive.filePath(QStringLiteral("2026-09-12"))));
+        QFile image(archive.filePath(QStringLiteral("2026-09-12/late.png")));
+        QVERIFY(image.open(QIODevice::WriteOnly));
+        image.write("x");
+        image.close();
+        QVERIFY(SearchService::resolveRecordImage(QString(), QStringLiteral("late.png"), archive.path(), QString(),
+                                                  QStringLiteral("2026-09-12 08:00:00")).endsWith(QStringLiteral("2026-09-12/late.png")));
+        QVERIFY(SearchService::resolveRecordImage(QString(), QStringLiteral("late.png"), archive.path(), QString(),
+                                                  QStringLiteral("2026-09-13 00:00:05")).endsWith(QStringLiteral("2026-09-12/late.png")));
+        QVERIFY(SearchService::resolveRecordImage(QString(), QStringLiteral("late.png"), archive.path(), QString(),
+                                                  QStringLiteral("2026-09-20 08:00:00")).isEmpty());
+        QVERIFY(SearchService::resolveRecordImage(QString(), QStringLiteral("late.png"), archive.path(), QString()).isEmpty());
+    }
+
     void alertHandlersRoundTripAndNormalize()
     {
         const QString connectionName = QStringLiteral("TestAlertHandlersDb");

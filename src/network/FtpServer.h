@@ -26,6 +26,8 @@ public:
     // 被动模式监听端口范围；min 为 0 时由系统随机分配
     quint16 passivePortMin = 0;
     quint16 passivePortMax = 0;
+    // 传到根目录的文件改存到根目录下的 yyyy-MM-dd 子目录
+    bool dateSubdirectories = false;
 
 signals:
     void connectionClosed();
@@ -105,6 +107,8 @@ public:
     // 来源 IP 白名单，空列表表示不限制；对新连接生效
     void setAllowList(const QList<NetworkAccess::Subnet> &allowList) { m_allowList = allowList; }
     void setPassivePortRange(quint16 min, quint16 max) { m_passiveMin = min; m_passiveMax = max; }
+    // 对新会话生效：传到根目录的图片按接收日期存入 yyyy-MM-dd 子目录
+    void setDateSubdirectories(bool enabled) { m_dateSubdirectories = enabled; }
 
 signals:
     void runningChanged(bool running);
@@ -128,4 +132,5 @@ private:
     NetworkAccess::LoginThrottle m_loginThrottle;
     quint16 m_passiveMin = 0;
     quint16 m_passiveMax = 0;
+    bool m_dateSubdirectories = false;
 };
