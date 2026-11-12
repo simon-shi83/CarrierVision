@@ -258,6 +258,16 @@ private slots:
         QVERIFY(QDir(dir.filePath("camera/deep")).exists());
         QVERIFY(q.exec("SELECT COUNT(*) FROM record")); QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(),1);
     }
+    void cleanupPrunesExpiredIngestRequests() {
+        // TCP 重发去重表随清理一起删除过期项，否则只增不减
+        QTemporaryDir dir; QSqlQuery q(db);
+        QVERIFY(q.exec("INSERT INTO ingest_requests(request_id,carrier_id,item_count,committed_at) VALUES('old',1,16,'2026-06-01 08:00:00')"));
+        QVERIFY(q.exec("INSERT INTO ingest_requests(request_id,carrier_id,item_count,committed_at) VALUES('new',1,16,'2026-06-07 08:00:00')"));
+        int removed; bool more; QString error; ArchiveMaintenance::CleanupStats stats;
+        QVERIFY2(ArchiveMaintenance::cleanup(db,dir.path(),{dir.path()},QDateTime::fromString("2026-06-07T01:00:00",Qt::ISODate),removed,more,error,&stats),qPrintable(error));
+        QCOMPARE(stats.requestsDeleted,1);
+        QVERIFY(q.exec("SELECT request_id FROM ingest_requests")); QVERIFY(q.next()); QCOMPARE(q.value(0).toString(),QString("new")); QVERIFY(!q.next());
+    }
     void cleanupRecoveryHonorsNewReference() {
         QTemporaryDir dir; const QString target = dir.filePath("keep.png"); QVERIFY(makeImage(target));
         QSqlQuery q(db);
@@ -707,6 +717,41 @@ private slots:
         QCOMPARE(response.value("status").toString(), QString("ERROR"));
         QVERIFY(response.value("message").toString().contains("database"));
         receiver.stop();
+    }
+    void ftpStoresRootUploadsInDateSubdirectory() {
+        // 传到根目录的图片按接收日期分子目录落盘，客户端指定的子目录不变
+        QTemporaryDir dir; FtpServer server; QString error; QStringList stored;
+        server.setDateSubdirectories(true);
+        server.uploadHandler = [&](const QString &staged, const QString &target, const QString &) {
+            return ImageIngest::accept(staged, target, [](const QString&){ return true; }, error);
+        };
+        connect(&server, &FtpServer::imageStored, this, [&stored](const QString &path) { stored << path; });
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0, dir.path(), QMap<QString,QString>{{"u","p"}}));
+        QVERIFY(QDir().mkpath(dir.filePath("cam1")));
+        QTcpSocket client; client.connectToHost(QHostAddress::LocalHost, server.port());
+        QVERIFY(reply(client).startsWith("220"));
+        QVERIFY(command(client, "USER u").startsWith("331"));
+        QVERIFY(command(client, "PASS p").startsWith("230"));
+        QImage image(8, 8, QImage::Format_RGB32); image.fill(Qt::red);
+        QByteArray png; QBuffer buffer(&png); QVERIFY(buffer.open(QIODevice::WriteOnly)); QVERIFY(image.save(&buffer, "PNG"));
+        auto upload = [&](const QByteArray &name) {
+            const QString epsv = command(client, "EPSV");
+            QTcpSocket data; data.connectToHost(QHostAddress::LocalHost, epsv.section('|', 3, 3).toUShort());
+            if (!data.waitForConnected(3000)) return QString();
+            const QString started = command(client, "STOR " + name);
+            if (!started.startsWith("150")) return started;
+            data.write(png); data.flush(); data.disconnectFromHost();
+            return reply(client);
+        };
+        const QString day = QDate::currentDate().toString("yyyy-MM-dd");
+        QVERIFY2(upload("dated.png").startsWith("226"), qPrintable(error));
+        QVERIFY(QFile::exists(dir.filePath(day + "/dated.png")));
+        QVERIFY(!QFile::exists(dir.filePath("dated.png")));
+        QVERIFY2(upload("cam1/kept.png").startsWith("226"), qPrintable(error));
+        QVERIFY(QFile::exists(dir.filePath("cam1/kept.png")));
+        QTRY_COMPARE(stored.size(), 2);
+        QVERIFY(stored.first().endsWith(day + "/dated.png"));
+        server.stop();
     }
     void collisionSafeFtpUpload() {
         QTemporaryDir dir; FtpServer server; QString error;

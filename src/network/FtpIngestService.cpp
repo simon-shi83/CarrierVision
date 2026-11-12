@@ -53,6 +53,7 @@ void FtpIngestService::setRoot(const QString &root)
     if (root != m_root) {
         m_root = root;
         m_pendingScan.reset();
+        m_retryTimer.start(1000); // 新目录尽快完整扫描一遍
     }
     if (!m_retryTimer.isActive()) m_retryTimer.start(1000);
 }
@@ -72,7 +73,7 @@ void FtpIngestService::recoverPendingUploads()
             QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories);
     }
     int scanned = 0;
-    while (m_pendingScan->hasNext() && scanned++ < 100) {
+    while (m_pendingScan->hasNext() && scanned++ < 200) {
         const QString marker = m_pendingScan->next();
         if (!marker.endsWith(QStringLiteral(".cv-pending"))) continue;
         const QString path = marker.chopped(QStringLiteral(".cv-pending").size());
@@ -91,10 +92,13 @@ void FtpIngestService::recoverPendingUploads()
             }
         }
     }
+    // 正常上传在提交成功后立即清除标记，残留标记只来自崩溃、断电或个别删除失败，
+    // 启动（或更换目录）时完整扫一遍即可，之后每 30 分钟复查一次。此前每轮扫完只歇 60 秒，
+    // 图像目录累积数十万张后，FTP 线程几乎不停地遍历整个目录。
     if (!m_pendingScan->hasNext()) {
         m_pendingScan.reset();
-        m_retryTimer.setInterval(60'000);
+        m_retryTimer.setInterval(30 * 60'000);
     } else {
-        m_retryTimer.setInterval(1000);
+        m_retryTimer.setInterval(250);
     }
 }

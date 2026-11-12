@@ -148,6 +148,7 @@ struct MaintenanceResult {
     int files = 0;
     int orphans = 0;
     int skippedUnsafe = 0;
+    int requests = 0;
     int effectiveKeepDays = 0;
     double freePercent = 100.0;
 };
@@ -174,6 +175,7 @@ MaintenanceResult runMaintenance(const MaintenanceRequest &request)
                 return;
             }
             result.records += stats.recordsDeleted;
+            result.requests += stats.requestsDeleted;
             result.files += stats.filesDeleted;
             result.skippedUnsafe += stats.skippedUnsafe;
             if (!more) break;
@@ -197,7 +199,8 @@ MaintenanceResult runMaintenance(const MaintenanceRequest &request)
         result.freePercent = StorageMonitor::lowest(request.storagePaths).freePercent;
     }
     result.effectiveKeepDays = keepDays;
-    if (result.ok) AppLogger::cleanupLogsOlderThanDays(request.logKeepDays);
+    // 日志清理与数据库无关，数据库清理失败时也照常执行
+    AppLogger::cleanupLogsOlderThanDays(request.logKeepDays);
     return result;
 }
 
@@ -257,13 +260,15 @@ void AppController::startMaintenance(bool emergency)
         QMetaObject::invokeMethod(this, [this, request, result]() {
             m_cleanupRunning = false;
             if (!result.ok) {
+                LOG_ERROR("{}清理未完成（已删除记录 {} 条、图片 {} 张）: {}", request.emergency ? "紧急" : "",
+                          result.records, result.files, result.error.toStdString());
                 setStatusMessage(QStringLiteral("清理未完成: %1").arg(result.error));
                 return;
             }
             removeExpiredLegacyFtpLogs(request.logKeepDays);
-            LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 剩余空间 {:.1f}%",
+            LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 过期重发去重记录 {} 条, 剩余空间 {:.1f}%",
                      request.emergency ? "紧急" : "", result.records, result.files, result.orphans,
-                     result.skippedUnsafe, result.freePercent);
+                     result.skippedUnsafe, result.requests, result.freePercent);
             if (result.skippedUnsafe > 0)
                 LOG_WARN("清理发现 {} 组图片路径不在图像目录内（已删除记录、保留文件），请检查客户端 imageName", result.skippedUnsafe);
             if (request.emergency && result.effectiveKeepDays < request.keepDays)
@@ -928,7 +933,8 @@ QVariantMap AppController::latestRackWheelMonitorImage(int rackNumber, int wheel
     }
 
     const QString imageName = query.value(0).toString().trimmed();
-    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, m_archiveDirectory, m_sourceDirectory);
+    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, m_archiveDirectory, m_sourceDirectory,
+                                           query.value(1).toString());
     if (imagePath.isEmpty()) imagePath = imageName;
 
     image.insert(QStringLiteral("filePath"), imagePath);
@@ -1191,7 +1197,8 @@ void AppController::loadLatestRackWheelImagesPage(int rackNumber, int page)
                     item.lower_tolerance = q.value(9).toDouble();
 
                     const QString rawName = q.value(6).toString().trimmed();
-                    item.filePath = resolveRecordImage(q.value(10).toString(), rawName, m_archiveDirectory, m_sourceDirectory);
+                    item.filePath = resolveRecordImage(q.value(10).toString(), rawName, m_archiveDirectory, m_sourceDirectory,
+                                                       q.value(1).toString());
                     if (!item.filePath.isEmpty()) item.fileUrl = QUrl::fromLocalFile(item.filePath).toString();
                     items.append(item);
                 }
@@ -1474,11 +1481,14 @@ bool AppController::ftpListen(int port, const QString &root)
     const bool allowAnonymous = m_ftpAllowAnonymous;
     const auto allowList = networkAllowList();
     int passiveMin = 50000, passiveMax = 50100; // 决策 D5
+    bool dateSubdirectories = true;
     {
         QMutexLocker locker(&m_dbMutex);
         QSqlDatabase db = QSqlDatabase::database();
         passiveMin = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMin"), passiveMin);
         passiveMax = DBSchema::getConfigInt(db, QStringLiteral("ftp/passivePortMax"), passiveMax);
+        // 默认把传到根目录的图片按日期分子目录存放，避免单个目录文件过多；设为 false 恢复旧行为
+        dateSubdirectories = DBSchema::getConfigBool(db, QStringLiteral("ftp/dateSubdirectories"), true);
     }
     if (passiveMin < 1024 || passiveMax > 65535 || passiveMax < passiveMin) {
         LOG_WARN("FTP 被动端口范围配置无效 ({}-{})，改用 50000-50100", passiveMin, passiveMax);
@@ -1486,8 +1496,9 @@ bool AppController::ftpListen(int port, const QString &root)
         passiveMax = 50100;
     }
     bool ok = false;
-    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous, allowList, passiveMin, passiveMax]() {
+    QMetaObject::invokeMethod(service, [service, port, root, users, allowAnonymous, allowList, passiveMin, passiveMax, dateSubdirectories]() {
         service->setAccessPolicy(allowList, static_cast<quint16>(passiveMin), static_cast<quint16>(passiveMax));
+        service->setDateSubdirectories(dateSubdirectories);
         service->setRoot(root);
         return service->start(static_cast<quint16>(port), root, users, allowAnonymous);
     }, Qt::BlockingQueuedConnection, &ok);
@@ -1623,7 +1634,8 @@ bool AppController::processTcpBatch(const QJsonObject &batchData, QString &error
     QVector<ImageItem> cards = IngestCoordinator::buildStationCards(batch, [&](const QString &imageName) {
         const QString path = associated.value(imageName);
         // 图片尚未到达：先按文件名在归档目录查找用于显示，到达后由 onFtpImageStored 更新卡片与记录
-        return path.isEmpty() ? resolveImagePath(imageName, m_archiveDirectory, m_sourceDirectory) : path;
+        return path.isEmpty() ? resolveRecordImage(QString(), imageName, m_archiveDirectory, m_sourceDirectory,
+                                                  AgcUtils::formatDateTime(batch.timestamp)) : path;
     });
     // 一个载具分多次触发（每次 6 个相机）：同一载具的后续批次只刷新本批相机，
     // 其余工位保留该载具前几批的卡片；换载具或间隔过久时整屏刷新
@@ -1673,7 +1685,10 @@ void AppController::onFtpImageStored(const QString &filePath, const QString &req
         update.prepare(QStringLiteral(
             "UPDATE record SET image_path = :path "
             "WHERE createtime >= :since AND imagename = :name COLLATE NOCASE "
-            "AND (image_path IS NULL OR image_path = '')"));
+            // 写成 COALESCE 表达式而不是 "image_path IS NULL OR image_path = ''"：后者会让 SQLite 改走
+            // image_path 索引，逐行扫描全部未关联图片的历史记录（升级前的记录全部为空），
+            // 记录越多越慢，且在主线程上每收到一张图执行一次。表达式形式只走最近 1 小时的时间索引
+            "AND COALESCE(image_path, '') = ''"));
         update.bindValue(QStringLiteral(":path"), absolutePath);
         update.bindValue(QStringLiteral(":since"), AgcUtils::formatDateTime(QDateTime::currentDateTime().addSecs(-3600)));
         update.bindValue(QStringLiteral(":name"), requestedName);

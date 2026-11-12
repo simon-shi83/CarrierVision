@@ -77,12 +77,24 @@ Item {
         function onRackWheelMonitorUpdated() {
             root.refreshStatus()
         }
+        function onCurrentBatchChanged() {
+            // 新批次入库后刷新矩阵（此前只在打开页面时查询一次，停留在本页时不会更新）；
+            // 一个载具分两次触发，合并短时间内的多次变化后再查询
+            refreshTimer.restart()
+        }
         function onStatsReady(requestId, kind, result) {
             if (requestId === root.statusRequestId)
                 root.applyStatus(result || [])
             else if (requestId === root.photoCountRequestId)
                 root.applyPhotoCounts(result || [])
         }
+    }
+
+    Timer {
+        id: refreshTimer
+        interval: 1500
+        repeat: false
+        onTriggered: root.refreshStatus()
     }
 
     Rectangle {

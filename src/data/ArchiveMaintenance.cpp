@@ -60,16 +60,19 @@ bool ArchiveMaintenance::cleanup(QSqlDatabase db, const QString &archiveRoot,
     CleanupStats local;
     CleanupStats &s = stats ? *stats : local;
     s = {};
-    if (!cutoff.isValid() || !db.isOpen() || !db.transaction()) { error = "数据库不可用"; return false; }
-    auto fail = [&](const QString &reason) { error = reason; db.rollback(); return false; };
+    if (!cutoff.isValid() || !db.isOpen()) { error = "数据库不可用"; return false; }
     const QString cutoffText = AgcUtils::formatDateTime(cutoff);
 
+    // 候选组的扫描（整表分组，记录越多越慢）在写事务之外执行。若放在延迟事务（BEGIN）里，
+    // 扫描期间主线程只要写入一批 TCP 数据，随后的首条写语句就会因读快照过期立即返回
+    // "database is locked"（busy_timeout 不生效），整轮清理中止，数据越积越多。
+    // 扫描与删除之间新到的记录不受影响：删除语句只删 cutoff 之前的记录，文件删除前还会再查引用。
     QSqlQuery select(db);
     select.prepare("SELECT COALESCE(NULLIF(image_path,''), imagename) AS image_key, "
                    "MAX(image_path IS NOT NULL AND image_path<>'') FROM record GROUP BY image_key "
                    "HAVING COUNT(*)=COUNT(datetime(createtime)) AND MAX(datetime(createtime)) < datetime(:cutoff) LIMIT 500");
     select.bindValue(":cutoff", cutoffText);
-    if (!select.exec()) return fail(select.lastError().text());
+    if (!select.exec()) { error = select.lastError().text(); return false; }
     QStringList keys;
     QSet<QString> pathKeys; // 来自 image_path 列（实际落盘路径）的组
     while (select.next()) {
@@ -79,37 +82,56 @@ bool ArchiveMaintenance::cleanup(QSqlDatabase db, const QString &archiveRoot,
     select.finish();
     s.selected = keys.size();
 
-    int queued = 0;
+    // 路径安全检查要访问文件系统，同样放在写事务之前，缩短持有写锁的时间（主线程入库会等这把锁）
+    struct Group { QString key; QString path; bool safe; };
+    QList<Group> groups;
+    groups.reserve(keys.size());
     for (const auto &key : keys) {
         const bool pathKey = pathKeys.contains(key);
         const QString path = QDir::cleanPath(pathKey ? key : QDir(archiveRoot).absoluteFilePath(key));
         if (QFileInfo::exists(path + ".cv-pending")) continue; // 上传提交中，下轮再处理
-        const bool safe = !key.isEmpty() && safeFile(path, roots);
-        if (safe) {
-            QSqlQuery queue(db);
-            queue.prepare("INSERT OR IGNORE INTO cleanup_files(path,imagename) VALUES(:path,:name)");
-            queue.bindValue(":path", path); queue.bindValue(":name", key);
+        groups.append({key, path, !key.isEmpty() && safeFile(path, roots)});
+    }
+
+    // BEGIN IMMEDIATE 先拿写锁（受 busy_timeout 等待），之后的写入不会再因快照过期失败
+    QSqlQuery begin(db);
+    if (!begin.exec(QStringLiteral("BEGIN IMMEDIATE"))) { error = begin.lastError().text(); return false; }
+    begin.finish();
+    auto fail = [&](const QString &reason) { error = reason; db.rollback(); return false; };
+
+    QSqlQuery queue(db);
+    queue.prepare("INSERT OR IGNORE INTO cleanup_files(path,imagename) VALUES(:path,:name)");
+    QSqlQuery erase(db);
+    erase.prepare(QStringLiteral(
+        "DELETE FROM record WHERE (image_path=:key OR (imagename=:key AND (image_path IS NULL OR image_path=''))) "
+        "AND datetime(createtime)<datetime(:cutoff)"));
+    for (const Group &group : std::as_const(groups)) {
+        if (group.safe) {
+            queue.bindValue(":path", group.path); queue.bindValue(":name", group.key);
             if (!queue.exec()) return fail(queue.lastError().text());
-            ++queued;
         } else {
             // 路径不在图像根目录内（历史数据中的绝对路径、../ 或非图片名）：保留文件，但必须删除记录，
             // 否则这些组每轮都会被重新选中，累计满一批后清理将永久停滞
             if (s.skippedUnsafe < 5)
-                LOG_WARN("[CLEANUP] 图片路径不在图像根目录内，仅删除记录、保留文件: '{}'", key.left(256).toStdString());
+                LOG_WARN("[CLEANUP] 图片路径不在图像根目录内，仅删除记录、保留文件: '{}'", group.key.left(256).toStdString());
             ++s.skippedUnsafe;
         }
-        QSqlQuery erase(db);
-        erase.prepare(QStringLiteral(
-            "DELETE FROM record WHERE (image_path=:key OR (imagename=:key AND (image_path IS NULL OR image_path=''))) "
-            "AND datetime(createtime)<datetime(:cutoff)"));
-        erase.bindValue(":key", key); erase.bindValue(":cutoff", cutoffText);
+        erase.bindValue(":key", group.key); erase.bindValue(":cutoff", cutoffText);
         if (!erase.exec()) return fail(erase.lastError().text());
         s.recordsDeleted += erase.numRowsAffected();
     }
+    queue.finish();
+    erase.finish();
     QSqlQuery alerts(db);
     alerts.prepare("DELETE FROM alertrecord WHERE datetime(createtime)<datetime(:cutoff)");
     alerts.bindValue(":cutoff", cutoffText);
     if (!alerts.exec()) return fail(alerts.lastError().text());
+    // TCP 重发去重表此前从不清理，只增不减；记录过期后其 requestId 也不再需要
+    QSqlQuery requests(db);
+    requests.prepare("DELETE FROM ingest_requests WHERE committed_at < :cutoff");
+    requests.bindValue(":cutoff", cutoffText);
+    if (!requests.exec()) return fail(requests.lastError().text());
+    s.requestsDeleted = requests.numRowsAffected();
     if (!db.commit()) return fail(db.lastError().text());
     if (s.skippedUnsafe > 5)
         LOG_WARN("[CLEANUP] 本轮共 {} 组图片路径不在图像根目录内，仅删除了记录", s.skippedUnsafe);

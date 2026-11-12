@@ -9,6 +9,7 @@ struct CleanupStats {
     int recordsDeleted = 0;  // 删除的检测记录
     int filesDeleted = 0;    // 删除的图片文件
     int skippedUnsafe = 0;   // 路径不在图像根目录内：只删记录、保留文件
+    int requestsDeleted = 0; // 清除的过期 TCP 重发去重记录（ingest_requests）
 };
 
 // Deletes only DB-referenced, expired image files. Never deletes a directory.

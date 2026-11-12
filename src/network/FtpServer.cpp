@@ -1,4 +1,5 @@
 #include "network/FtpServer.h"
+#include <QDate>
 #include "common/AppLogger.h"
 #include <QCoreApplication>
 #include <QDateTime>
@@ -792,6 +793,20 @@ void FtpControlConnection::processCommand(const QString &cmdLine)
             .arg(arg)
             .arg(path));
         if (path.isEmpty()) { sendReply(550, "Invalid path."); return; }
+        if (dateSubdirectories) {
+            // 直接传到根目录的图片按接收日期分子目录落盘（images/yyyy-MM-dd/）。数十万张图放在同一目录时，
+            // NTFS 新建文件明显变慢（同前缀长文件名的 8.3 短名生成），资源管理器也难以打开。
+            // 关联只看文件名，实际路径随记录入库；客户端自己指定的子目录保持不变
+            const QString parent = QDir::cleanPath(QFileInfo(path).absolutePath());
+#ifdef Q_OS_WIN
+            const bool atRoot = parent.compare(QDir::cleanPath(rootCanonical), Qt::CaseInsensitive) == 0;
+#else
+            const bool atRoot = parent == QDir::cleanPath(rootCanonical);
+#endif
+            if (atRoot)
+                path = QDir(rootCanonical).filePath(QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd"))
+                                                    + QLatin1Char('/') + QFileInfo(path).fileName());
+        }
         QDir().mkpath(QFileInfo(path).absolutePath());
         m_pendingStorePath = path;
         m_storeSuccess = false;
@@ -928,6 +943,7 @@ void FtpServer::onNewConnection()
         conn->uploadGate = uploadGate;
         conn->passivePortMin = m_passiveMin;
         conn->passivePortMax = m_passiveMax;
+        conn->dateSubdirectories = m_dateSubdirectories;
         connect(conn, &FtpControlConnection::loginFailed, this, [this, peerKey]() {
             if (m_loginThrottle.recordFailure(peerKey, QDateTime::currentDateTime())) {
                 reportWarning(QStringLiteral("来源 %1 登录失败次数过多，封禁 15 分钟").arg(peerKey));

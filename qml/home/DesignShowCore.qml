@@ -652,6 +652,7 @@ Page {
                     repeat: true
                     running: false
                     onTriggered: {
+                        if (!root.visible) return // 切到其他页面后不再每 25ms 计算一次全部标签投影
                         modelPivot.yaw = (modelPivot.yaw + 0.35) % 360
                         modelContainer.updateTagPositions()
                     }
@@ -1398,6 +1399,7 @@ Page {
                             color: root.curTheme.ok
                             SequentialAnimation on opacity {
                                 loops: Animation.Infinite
+                                running: root.visible // 三维视图隐藏时停止，避免窗口持续重绘
                                 NumberAnimation { from: 0.4; to: 1.0; duration: Theme.animPulse }
                                 NumberAnimation { from: 1.0; to: 0.4; duration: Theme.animPulse }
                             }

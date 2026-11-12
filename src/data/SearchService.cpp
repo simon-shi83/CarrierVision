@@ -106,13 +106,26 @@ QString resolveImagePath(const QString &rawName, const QString &archiveDir, cons
 }
 
 QString resolveRecordImage(const QString &imagePath, const QString &imageName,
-                           const QString &archiveDir, const QString &sourceDir)
+                           const QString &archiveDir, const QString &sourceDir,
+                           const QString &createTime)
 {
     if (!imagePath.isEmpty()) {
         const QFileInfo stored(imagePath);
         if (stored.isAbsolute() && stored.isFile()) return stored.absoluteFilePath();
     }
-    return resolveImagePath(imageName, archiveDir, sourceDir);
+    const QString found = resolveImagePath(imageName, archiveDir, sourceDir);
+    if (!found.isEmpty() || archiveDir.isEmpty() || createTime.isEmpty()) return found;
+
+    // 记录未关联落盘路径（如图片早于记录很久到达）时，FTP 按接收日期存入的子目录需按记录日期查找
+    const QString fileName = QFileInfo(QDir::fromNativeSeparators(imageName.trimmed())).fileName();
+    const QDateTime at = AgcUtils::parseFlexibleDateTime(createTime, false);
+    if (fileName.isEmpty() || !at.isValid()) return found;
+    for (int offset : {0, -1, 1}) {
+        const QString candidate = QDir(archiveDir).filePath(
+            at.date().addDays(offset).toString(QStringLiteral("yyyy-MM-dd")) + QLatin1Char('/') + fileName);
+        if (QFileInfo(candidate).isFile()) return QFileInfo(candidate).absoluteFilePath();
+    }
+    return found;
 }
 
 QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir, const QString &sourceDir)
@@ -206,7 +219,7 @@ QVariantList latestRoundImages(const QSqlDatabase &db, const QString &archiveDir
             if (camera.hasRecord) {
                 ++cameraCount;
                 if (camera.result == 0) ++ngCount;
-                path = resolveRecordImage(camera.imagePath, camera.imageName, archiveDir, sourceDir);
+                path = resolveRecordImage(camera.imagePath, camera.imageName, archiveDir, sourceDir, camera.time);
                 if (!path.isEmpty()) ++imageCount;
             }
             image.insert(QStringLiteral("hasImage"), !path.isEmpty());
@@ -325,7 +338,7 @@ bool queryRecordPage(const QSqlDatabase &db, const QString &table, const RecordF
         item.lower_tolerance = dataQuery.value(8).toDouble();
         item.fileName = QFileInfo(rawName).fileName();
         // resolveRecordImage 只返回已确认存在的路径，无需再次检查
-        const QString resolvedPath = resolveRecordImage(dataQuery.value(9).toString(), rawName, archiveDir, sourceDir);
+        const QString resolvedPath = resolveRecordImage(dataQuery.value(9).toString(), rawName, archiveDir, sourceDir, timeText);
         if (!resolvedPath.isEmpty()) {
             item.filePath = resolvedPath;
             item.fileUrl = QUrl::fromLocalFile(resolvedPath).toString();
@@ -423,7 +436,8 @@ QVariantMap alertOperation(const QSqlDatabase &db, const QString &kind,
     if (query.next()) {
         image.insert(QStringLiteral("time"), query.value(0));
         image.insert(QStringLiteral("name"), query.value(1));
-        const QString path = resolveRecordImage(query.value(2).toString(), query.value(1).toString(), archiveDir, sourceDir);
+        const QString path = resolveRecordImage(query.value(2).toString(), query.value(1).toString(), archiveDir, sourceDir,
+                                                query.value(0).toString());
         image.insert(QStringLiteral("url"), path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString());
     }
     query.finish();
