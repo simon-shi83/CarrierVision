@@ -149,7 +149,7 @@ def deploy(install_dir, qt_dir, build_dir, source_dir):
 
     print(f"[OK] 已部署必要插件组 ({len(plugin_specs)} 组, 共 {len(copied_plugins)} 个插件)")
 
-    # 2. 部署项目实际引用的 QML 模块（按需精简，去除未使用的 Dialogs、Imagine、Material、Particles3D、XR等）
+    # 2. 部署项目实际引用的 QML 模块（按需精简，去除未使用的 Imagine、Material、Particles3D、XR等）
     # 2.1 QtCore
     if (qt_qml_dir / "QtCore").exists():
         shutil.copytree(qt_qml_dir / "QtCore", target_qml_dir / "QtCore", symlinks=True)
@@ -158,13 +158,13 @@ def deploy(install_dir, qt_dir, build_dir, source_dir):
     if (qt_qml_dir / "QtQml").exists():
         copy_qml_tree(qt_qml_dir / "QtQml", target_qml_dir / "QtQml", include_subdirs=["Models", "WorkerScript"])
 
-    # 2.3 QtQuick (仅保留 Window, Layouts, Effects, Controls)
+    # 2.3 QtQuick (仅保留 Window, Layouts, Effects, Controls, Dialogs；Dialogs 用于图像另存为)
     if (qt_qml_dir / "QtQuick").exists():
         # 先拷贝顶层和基础子模块
         copy_qml_tree(
             qt_qml_dir / "QtQuick",
             target_qml_dir / "QtQuick",
-            include_subdirs=["Window", "Layouts", "Effects", "Controls", "Templates"]
+            include_subdirs=["Window", "Layouts", "Effects", "Controls", "Templates", "Dialogs"]
         )
         # 对 QtQuick/Controls 精简样式，仅保留基础 Basic 与项目设定的 Fusion
         src_controls = qt_qml_dir / "QtQuick" / "Controls"
@@ -186,7 +186,7 @@ def deploy(install_dir, qt_dir, build_dir, source_dir):
             include_subdirs=["AssetUtils"]
         )
 
-    for module in ["QtQuick/Templates", "QtQuick/Controls/impl", "QtQuick/Controls/Fusion"]:
+    for module in ["QtQuick/Templates", "QtQuick/Controls/impl", "QtQuick/Controls/Fusion", "QtQuick/Dialogs"]:
         if not (target_qml_dir / module / "qmldir").is_file():
             raise RuntimeError(f"Required QML module missing: {module}")
 

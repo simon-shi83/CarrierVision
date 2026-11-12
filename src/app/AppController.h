@@ -197,6 +197,13 @@ public:
     Q_INVOKABLE void openImagesDirectory() { openArchiveDirectory(); }
     Q_INVOKABLE void openFtpRootDirectory();
 
+    // 图像放大窗口“另存为”：保存在后台线程执行，完成后发出 imageSaveFinished
+    Q_INVOKABLE QVariantMap imageFileInfo(const QString &source) const;
+    Q_INVOKABLE QStringList imageSaveSuffixes(const QString &source) const;
+    Q_INVOKABLE QString imageSaveFolderUrl() const;
+    Q_INVOKABLE int saveImageAs(const QString &source, const QString &target);
+    Q_INVOKABLE void revealFileInFolder(const QString &path);
+
     QVariantList gearSumResult() const;
 
     QVariantMap latestWarnOrError() const;
@@ -229,6 +236,7 @@ signals:
     void roundImagesReady(int requestId, const QVariantList &racks);
     // 新的检测记录入库，或已入库记录关联到了图片
     void recordImagesChanged();
+    void imageSaveFinished(int requestId, bool ok, const QString &message, const QString &targetPath);
 
 private:
     void startLogQuery();
@@ -302,6 +310,9 @@ private:
     int m_roundImagesRequestSeq = 0;
     int m_gearSumGeneration = 0;
     QThreadPool m_maintenancePool;
+    QThreadPool m_exportPool;
+    int m_imageSaveSeq = 0;
+    QString m_lastImageSaveDir;
     bool m_cleanupRunning = false;
     QTimer m_storageTimer;
     StorageMonitor::Level m_storageLevel = StorageMonitor::Level::Ok;

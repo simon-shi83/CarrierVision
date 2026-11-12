@@ -173,6 +173,13 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
+                    indicator: AppIcon {
+                        x: cb.width - width - (Theme.space2 + 2)
+                        y: (cb.height - height) / 2
+                        name: "icon_chevron_down"
+                        size: 12
+                        color: cb.enabled ? Theme.textSoft : Theme.disabled
+                    }
                     popup: Popup {
                         y: cb.height + 4
                         width: cb.width

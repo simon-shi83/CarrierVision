@@ -217,6 +217,13 @@ Item {
                           : (combo.hovered ? Theme.borderStrong : Theme.border)
         }
 
+        indicator: AppIcon {
+            x: combo.width - width - (Theme.space2 + 2)
+            y: (combo.height - height) / 2
+            name: "icon_chevron_down"
+            size: 12
+            color: combo.enabled ? Theme.textSoft : Theme.disabled
+        }
         contentItem: Text {
             text: combo.displayText
             color: Theme.text

@@ -18,6 +18,7 @@
 #include "network/TcpDataReceiver.h"
 #include "common/AppLogger.h"
 #include "app/ThumbnailCache.h"
+#include "common/ImageExport.h"
 
 class ReleaseBoundaryTests : public QObject {
     Q_OBJECT
@@ -35,6 +36,63 @@ class ReleaseBoundaryTests : public QObject {
         QImage image(8,8,QImage::Format_RGB32); image.fill(color); return image.save(path,"PNG");
     }
 private slots:
+    // 放大窗口“另存为”：同格式按字节复制，异格式转码，拒绝覆盖原图与无效输入
+    void imageExportCopiesOrTranscodesWithoutTouchingSource()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = dir.filePath(QStringLiteral("CAM01_20261112.png"));
+        QImage image(64, 48, QImage::Format_RGB32);
+        image.fill(Qt::darkCyan);
+        QVERIFY(image.save(source, "PNG"));
+        QFile sourceFile(source);
+        QVERIFY(sourceFile.open(QIODevice::ReadOnly));
+        const QByteArray sourceBytes = sourceFile.readAll();
+        sourceFile.close();
+
+        const QVariantMap info = ImageExport::probe(QUrl::fromLocalFile(source).toString());
+        QCOMPARE(info.value(QStringLiteral("exists")).toBool(), true);
+        QCOMPARE(info.value(QStringLiteral("width")).toInt(), 64);
+        QCOMPARE(info.value(QStringLiteral("height")).toInt(), 48);
+        QCOMPARE(info.value(QStringLiteral("bytes")).toLongLong(), sourceBytes.size());
+
+        // 同格式：字节完全一致；目标目录不存在时自动创建
+        const QString copyTarget = dir.filePath(QStringLiteral("export/sub/copy.png"));
+        ImageExport::Result copied = ImageExport::exportImage(QUrl::fromLocalFile(source).toString(),
+                                                              QUrl::fromLocalFile(copyTarget).toString());
+        QVERIFY2(copied.ok, qPrintable(copied.message));
+        QFile copyFile(copyTarget);
+        QVERIFY(copyFile.open(QIODevice::ReadOnly));
+        QCOMPARE(copyFile.readAll(), sourceBytes);
+        copyFile.close();
+
+        // 未写扩展名时沿用原图扩展名
+        const ImageExport::Result noSuffix = ImageExport::exportImage(source, dir.filePath(QStringLiteral("plain")));
+        QVERIFY2(noSuffix.ok, qPrintable(noSuffix.message));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("plain.png"))));
+
+        // 异格式：转码后尺寸不变
+        const QString bmpTarget = dir.filePath(QStringLiteral("converted.bmp"));
+        const ImageExport::Result converted = ImageExport::exportImage(source, bmpTarget);
+        QVERIFY2(converted.ok, qPrintable(converted.message));
+        const QImage reread(bmpTarget);
+        QCOMPARE(reread.size(), image.size());
+
+        // 覆盖原图、原图缺失、相对或非本地目标、未知格式都拒绝，原图保持不变
+        QVERIFY(!ImageExport::exportImage(source, source).ok);
+        QVERIFY(!ImageExport::exportImage(dir.filePath(QStringLiteral("missing.png")), copyTarget).ok);
+        QVERIFY(!ImageExport::exportImage(source, QStringLiteral("http://example.com/a.png")).ok);
+        QVERIFY(!ImageExport::exportImage(source, dir.filePath(QStringLiteral("bad.xyz"))).ok);
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("bad.xyz"))));
+        QVERIFY(sourceFile.open(QIODevice::ReadOnly));
+        QCOMPARE(sourceFile.readAll(), sourceBytes);
+
+        // Windows 盘符路径不被当成 URL 协议
+        QCOMPARE(ImageExport::localPathFromSource(QStringLiteral("D:\\images\\a.png")), QStringLiteral("D:/images/a.png"));
+        QCOMPARE(ImageExport::localPathFromSource(QStringLiteral("qrc:/a.png")), QString());
+        QCOMPARE(ImageExport::supportedTargetSuffixes(QStringLiteral("JPEG")).value(0), QStringLiteral("jpg"));
+    }
+
     void init() {
         db = QSqlDatabase::addDatabase("QSQLITE", "release-test");
         db.setDatabaseName(":memory:"); QVERIFY(db.open()); QVERIFY(DBSchema::ensureAllTables(db));

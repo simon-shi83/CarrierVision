@@ -574,121 +574,18 @@ Item {
                             }
 
                             // 缩放快捷控制按钮组
-                            RowLayout {
+                            ViewerZoomControls {
                                 visible: previewCard.hasImage
-                                spacing: 6
-
-                                // 缩放比例显示 / 点击复位
-                                Rectangle {
-                                    Layout.preferredHeight: 24
-                                    implicitWidth: zoomPctText.implicitWidth + 16
-                                    radius: Theme.radiusPill
-                                    color: zoomResetMouse.containsMouse ? Theme.hover : Theme.fieldFill
-                                    border.color: previewCard.userZoom > 1.05 ? Theme.borderStrong : Theme.borderMuted
-                                    border.width: 1
-
-                                    Text {
-                                        id: zoomPctText
-                                        anchors.centerIn: parent
-                                        text: Math.round(previewCard.userZoom * 100) + "%"
-                                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                        font.pixelSize: Theme.fontCaption
-                                        font.weight: Theme.fontMedium
-                                        color: previewCard.userZoom > 1.05 ? Theme.text : Theme.textSoft
-                                    }
-
-                                    MouseArea {
-                                        id: zoomResetMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: previewCard.resetView()
-                                        ToolTip.visible: containsMouse
-                                        ToolTip.text: "点击重置为 100%"
-                                        ToolTip.delay: 400
-                                    }
-                                }
-
-                                // 缩小按钮
-                                Rectangle {
-                                    Layout.preferredWidth: 24
-                                    Layout.preferredHeight: 24
-                                    radius: Theme.radiusPill
-                                    color: zoomOutBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
-                                    border.color: Theme.borderMuted
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "－"
-                                        font.weight: Theme.fontMedium
-                                        font.pixelSize: Theme.fontBody
-                                        color: Theme.text
-                                    }
-                                    MouseArea {
-                                        id: zoomOutBtnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: previewCard.adjustZoom(1 / 1.25, flick.width / 2, flick.height / 2)
-                                        ToolTip.visible: containsMouse
-                                        ToolTip.text: "缩小"
-                                        ToolTip.delay: 400
-                                    }
-                                }
-
-                                // 放大按钮
-                                Rectangle {
-                                    Layout.preferredWidth: 24
-                                    Layout.preferredHeight: 24
-                                    radius: Theme.radiusPill
-                                    color: zoomInBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
-                                    border.color: Theme.borderMuted
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "＋"
-                                        font.weight: Theme.fontMedium
-                                        font.pixelSize: Theme.fontBody
-                                        color: Theme.text
-                                    }
-                                    MouseArea {
-                                        id: zoomInBtnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: previewCard.adjustZoom(1.25, flick.width / 2, flick.height / 2)
-                                        ToolTip.visible: containsMouse
-                                        ToolTip.text: "放大"
-                                        ToolTip.delay: 400
-                                    }
-                                }
-
-                                // 还原 1:1 按钮
-                                Rectangle {
-                                    Layout.preferredWidth: 24
-                                    Layout.preferredHeight: 24
-                                    radius: Theme.radiusPill
-                                    color: resetBtnMouse.containsMouse ? Theme.pressed : Theme.fieldFill
-                                    border.color: Theme.borderMuted
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "⟲"
-                                        font.pixelSize: Theme.fontBody
-                                        color: Theme.text
-                                    }
-                                    MouseArea {
-                                        id: resetBtnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: previewCard.resetView()
-                                        ToolTip.visible: containsMouse
-                                        ToolTip.text: "重置适应"
-                                    }
+                                zoom: previewCard.userZoom
+                                pixelScale: previewCard.contentScale
+                                canZoomIn: previewCard.userZoom < previewCard.maxZoom - 0.0001
+                                canZoomOut: previewCard.userZoom > previewCard.minZoom + 0.0001
+                                onZoomInRequested: previewCard.adjustZoom(1.25, flick.width / 2, flick.height / 2)
+                                onZoomOutRequested: previewCard.adjustZoom(1 / 1.25, flick.width / 2, flick.height / 2)
+                                onFitRequested: previewCard.resetView()
+                                onActualSizeRequested: {
+                                    if (previewCard.fitScale > 0)
+                                        previewCard.adjustZoom((1.0 / previewCard.fitScale) / previewCard.userZoom, flick.width / 2, flick.height / 2);
                                 }
                             }
                         }

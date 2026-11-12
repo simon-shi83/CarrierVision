@@ -56,6 +56,46 @@ Dialog {
     }
     readonly property real contentScale: fitScale * userZoom
 
+    // 原图文件信息（宽高、大小、格式），由 AppController 读取文件头得到；
+    // 预览按 sourceSize 降采样解码，显示比例和 1:1 按原图像素计算
+    property var imageInfo: ({})
+    readonly property bool imageReady: currentImageWidth > 0 && currentImageHeight > 0
+    readonly property bool imageLoading: !imageReady && (previewA.status === Image.Loading || previewB.status === Image.Loading)
+    readonly property bool imageFailed: !imageReady && (previewA.status === Image.Error || previewB.status === Image.Error)
+    readonly property real originalWidth: (imageInfo && imageInfo.width > 0) ? imageInfo.width : currentImageWidth
+    readonly property real pixelScale: originalWidth > 0 ? contentScale * currentImageWidth / originalWidth : contentScale
+
+    function formatBytes(bytes) {
+        if (!(bytes > 0))
+            return "";
+        if (bytes >= 1024 * 1024)
+            return (bytes / 1024 / 1024).toFixed(1) + " MB";
+        if (bytes >= 1024)
+            return Math.round(bytes / 1024) + " KB";
+        return bytes + " B";
+    }
+
+    readonly property string imageInfoText: {
+        var parts = [];
+        if (imageInfo && imageInfo.width > 0 && imageInfo.height > 0)
+            parts.push(imageInfo.width + " × " + imageInfo.height + " px");
+        else if (imageReady)
+            parts.push(Math.round(currentImageWidth) + " × " + Math.round(currentImageHeight) + " px");
+        var size = formatBytes(imageInfo ? imageInfo.bytes : 0);
+        if (size.length > 0)
+            parts.push(size);
+        if (imageInfo && imageInfo.format && imageInfo.format.length > 0)
+            parts.push(imageInfo.format);
+        return parts.join("  ·  ");
+    }
+
+    function loadImageInfo(src) {
+        if (typeof appController !== "undefined" && appController && typeof appController.imageFileInfo === "function")
+            imageInfo = appController.imageFileInfo(String(src || ""));
+        else
+            imageInfo = ({});
+    }
+
     // 模态背景遮罩
     Overlay.modal: Rectangle {
         color: Theme.dialogOverlay
@@ -88,6 +128,7 @@ Dialog {
         subtitleText = subtitle || "";
         isLiveUpdating = false;
         userZoom = 1.0;
+        loadImageInfo(viewerSource);
 
         showingA = true;
         sourceA = String(viewerSource || "");
@@ -112,6 +153,7 @@ Dialog {
         slotIndex = -1;
         currentItemObject = null;
         isLiveUpdating = false;
+        imageInfo = ({});
     }
 
     function syncItemObject() {
@@ -157,6 +199,7 @@ Dialog {
         if (!newSrc || newSrc.length === 0)
             return;
         viewerSource = newSrc;
+        loadImageInfo(newSrc);
         if (showingA) {
             sourceB = newSrc;
             previewB.source = newSrc;
@@ -213,6 +256,52 @@ Dialog {
         flick.contentX = Math.max(0, contentFocusX * ratio - focusX);
         flick.contentY = Math.max(0, contentFocusY * ratio - focusY);
         clampContent();
+    }
+
+    function zoomBy(multiplier) {
+        adjustZoom(multiplier, flick.width / 2, flick.height / 2);
+    }
+
+    // 显示为原始像素（1:1）
+    function showActualSize(focusX, focusY) {
+        if (!imageReady || fitScale <= 0)
+            return;
+        const target = Math.max(minZoom, Math.min(maxZoom, (originalWidth / currentImageWidth) / fitScale));
+        adjustZoom(target / userZoom, typeof focusX === "number" ? focusX : flick.width / 2, typeof focusY === "number" ? focusY : flick.height / 2);
+    }
+
+    function toggleActualSize(focusX, focusY) {
+        if (Math.abs(pixelScale - 1.0) < 0.01)
+            resetView();
+        else
+            showActualSize(focusX, focusY);
+    }
+
+    // 键盘：Ctrl+S 另存为，+ / - 缩放，0 适应窗口，1 原始像素
+    Shortcut {
+        enabled: inspectDialog.opened
+        sequence: StandardKey.Save
+        onActivated: saver.open()
+    }
+    Shortcut {
+        enabled: inspectDialog.opened
+        sequences: [StandardKey.ZoomIn, "=", "+"]
+        onActivated: inspectDialog.zoomBy(1.25)
+    }
+    Shortcut {
+        enabled: inspectDialog.opened
+        sequences: [StandardKey.ZoomOut, "-"]
+        onActivated: inspectDialog.zoomBy(1 / 1.25)
+    }
+    Shortcut {
+        enabled: inspectDialog.opened
+        sequence: "0"
+        onActivated: inspectDialog.resetView()
+    }
+    Shortcut {
+        enabled: inspectDialog.opened
+        sequence: "1"
+        onActivated: inspectDialog.showActualSize()
     }
 
     function centerContent() {
@@ -282,8 +371,8 @@ Dialog {
                     Layout.preferredWidth: 38
                     Layout.preferredHeight: 38
                     radius: Theme.radiusSmall
-                    color: Theme.activeSubtle
-                    border.color: Theme.accent
+                    color: Theme.surface
+                    border.color: Theme.borderMuted
                     border.width: 1
 
                     AppIcon {
@@ -297,9 +386,11 @@ Dialog {
                 // 标题信息流
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 120
                     spacing: 3
 
                     RowLayout {
+                        Layout.fillWidth: true
                         spacing: 8
 
                         Label {
@@ -317,8 +408,8 @@ Dialog {
                             Layout.preferredHeight: 20
                             implicitWidth: camTagText.implicitWidth + 12
                             radius: Theme.radiusPill
-                            color: Theme.pressed
-                            border.color: Theme.accent
+                            color: Theme.surface
+                            border.color: Theme.borderMuted
                             border.width: 1
 
                             Text {
@@ -378,9 +469,14 @@ Dialog {
                                 }
                             }
                         }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
                     }
 
                     Label {
+                        Layout.fillWidth: true
                         text: inspectDialog.subtitleText.length > 0 ? inspectDialog.subtitleText : "支持鼠标滚轮平滑缩放、按住拖拽平移，点检数据实时更新"
                         color: Theme.muted
                         font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
@@ -389,47 +485,46 @@ Dialog {
                     }
                 }
 
-                // 数据面板展开/折叠切换按钮
-                ActionButton {
-                    text: inspectDialog.showSidePanel ? "收起指标" : "展开指标"
-                    variant: inspectDialog.showSidePanel ? "primary" : "secondary"
-                    Layout.preferredHeight: 34
-                    Layout.preferredWidth: 92
-                    visible: inspectDialog.currentItemObject !== null
-                    onClicked: {
-                        inspectDialog.showSidePanel = !inspectDialog.showSidePanel;
-                    }
+                ViewerZoomControls {
+                    zoom: inspectDialog.userZoom
+                    pixelScale: inspectDialog.pixelScale
+                    canZoomIn: inspectDialog.userZoom < inspectDialog.maxZoom - 0.0001
+                    canZoomOut: inspectDialog.userZoom > inspectDialog.minZoom + 0.0001
+                    onZoomInRequested: inspectDialog.zoomBy(1.25)
+                    onZoomOutRequested: inspectDialog.zoomBy(1 / 1.25)
+                    onFitRequested: inspectDialog.resetView()
+                    onActualSizeRequested: inspectDialog.showActualSize()
                 }
 
-                // 优雅关闭按钮
+                // 数据面板展开/折叠切换
+                IconButton {
+                    visible: inspectDialog.currentItemObject !== null
+                    iconName: "icon_ruler"
+                    text: inspectDialog.showSidePanel ? "收起指标" : "展开指标"
+                    toolTipText: "显示或隐藏右侧点检指标"
+                    onClicked: inspectDialog.showSidePanel = !inspectDialog.showSidePanel
+                }
+
                 Rectangle {
-                    Layout.preferredWidth: 34
-                    Layout.preferredHeight: 34
-                    radius: Theme.radiusPill
-                    color: closeBtnMouse.containsMouse ? Theme.pressed : "transparent"
-                    border.width: 1
-                    border.color: closeBtnMouse.containsMouse ? Theme.borderStrong : Theme.borderMuted
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: 20
+                    color: Theme.borderMuted
+                }
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Theme.animFast
-                        }
-                    }
+                IconButton {
+                    objectName: "inspectSaveAsButton"
+                    iconName: "icon_save"
+                    text: saver.busy ? "保存中" : "另存为"
+                    enabled: saver.canSave && inspectDialog.imageReady
+                    toolTipText: "把原图保存到本地（Ctrl+S）"
+                    onClicked: saver.open()
+                }
 
-                    AppIcon {
-                        anchors.centerIn: parent
-                        name: "icon_close"
-                        size: 16
-                        color: closeBtnMouse.containsMouse ? Theme.text : Theme.muted
-                    }
-
-                    MouseArea {
-                        id: closeBtnMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: inspectDialog.closeViewer()
-                    }
+                IconButton {
+                    iconName: "icon_close"
+                    bordered: false
+                    toolTipText: "关闭（Esc）"
+                    onClicked: inspectDialog.closeViewer()
                 }
             }
         }
@@ -440,10 +535,11 @@ Dialog {
             Layout.fillHeight: true
             spacing: 0
 
-            // 主画布容器
-            Item {
+            // 主画布容器：图像区两种主题都用深色底，判读不受界面主题影响
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                color: Theme.imageStage
                 clip: true
 
                 // 2.1 大图可平移缩放 Flickable 视口
@@ -533,125 +629,102 @@ Dialog {
                         MouseArea {
                             anchors.fill: parent
                             acceptedButtons: Qt.NoButton
+                            cursorShape: flick.interactive ? (flick.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
                             onWheel: function (wheel) {
                                 wheel.accepted = true;
-                                inspectDialog.adjustZoom(wheel.angleDelta.y > 0 ? 1.15 : (1 / 1.15), wheel.x, wheel.y);
+                                // wheel.x/y 是内容坐标，换算为视口坐标后作为缩放焦点
+                                inspectDialog.adjustZoom(wheel.angleDelta.y > 0 ? 1.15 : (1 / 1.15),
+                                                         wheel.x - flick.contentX, wheel.y - flick.contentY);
+                            }
+                        }
+
+                        TapHandler {
+                            onDoubleTapped: function (eventPoint) {
+                                inspectDialog.toggleActualSize(eventPoint.position.x - flick.contentX,
+                                                               eventPoint.position.y - flick.contentY);
                             }
                         }
                     }
                 }
 
-                // 2.2 底部悬浮控制坞 (Floating Control Dock)
+                // 2.2 加载中 / 加载失败提示
                 Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 24
-                    height: 44
-                    implicitWidth: dockRow.implicitWidth + 24
-                    radius: Theme.radiusPill
-                    color: Theme.surfaceFloating
-                    border.color: Theme.border
-                    border.width: 1
+                    anchors.centerIn: parent
+                    visible: inspectDialog.imageLoading || inspectDialog.imageFailed
+                    width: stateRow.implicitWidth + Theme.space5 * 2
+                    height: 40
+                    radius: Theme.radiusSmall
+                    color: Theme.overlayFill
 
                     RowLayout {
-                        id: dockRow
+                        id: stateRow
                         anchors.centerIn: parent
-                        spacing: 8
+                        spacing: Theme.space2
 
-                        // 缩小按钮
-                        Rectangle {
-                            Layout.preferredWidth: 30
-                            Layout.preferredHeight: 30
-                            radius: Theme.radiusPill
-                            color: zoomOutMouse.containsMouse ? Theme.pressed : "transparent"
-                            Text {
-                                anchors.centerIn: parent
-                                text: "－"
-                                color: Theme.text
-                                font.weight: Theme.fontMedium
-                                font.pixelSize: Theme.fontBody
-                            }
-                            MouseArea {
-                                id: zoomOutMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: inspectDialog.adjustZoom(1 / 1.25, flick.width / 2, flick.height / 2)
-                            }
+                        AppIcon {
+                            visible: inspectDialog.imageFailed
+                            name: "icon_warning"
+                            size: 16
+                            color: Theme.warn
                         }
 
-                        // 缩放百分比胶囊
-                        Rectangle {
-                            Layout.preferredHeight: 26
-                            implicitWidth: zoomPctText.implicitWidth + 14
-                            radius: Theme.radiusPill
-                            color: Theme.surfaceAlt
-                            border.color: Theme.borderMuted
-                            border.width: 1
+                        Text {
+                            text: inspectDialog.imageFailed ? "图像加载失败，原图可能已被清理" : "图像加载中…"
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
+                        }
+                    }
+                }
 
-                            Text {
-                                id: zoomPctText
-                                anchors.centerIn: parent
-                                text: Math.round(inspectDialog.userZoom * 100) + "%"
-                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                font.pixelSize: Theme.fontCaption
-                                font.weight: Theme.fontMedium
-                                color: Theme.text
-                            }
+                // 2.3 左下角图像信息与操作提示
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Theme.space3
+                    visible: inspectDialog.imageReady
+                    height: 28
+                    width: Math.min(parent.width - Theme.space3 * 2, infoRow.implicitWidth + Theme.space3 * 2)
+                    radius: Theme.radiusSmall
+                    color: Theme.overlayFill
+                    clip: true
+
+                    RowLayout {
+                        id: infoRow
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: Theme.space3
+                        spacing: Theme.space3
+
+                        Text {
+                            visible: text.length > 0
+                            text: inspectDialog.imageInfoText
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.features: Theme.fontFeaturesTabular
+                            font.pixelSize: Theme.fontCaption
                         }
 
-                        // 放大按钮
                         Rectangle {
-                            Layout.preferredWidth: 30
-                            Layout.preferredHeight: 30
-                            radius: Theme.radiusPill
-                            color: zoomInMouse.containsMouse ? Theme.pressed : "transparent"
-                            Text {
-                                anchors.centerIn: parent
-                                text: "＋"
-                                color: Theme.text
-                                font.weight: Theme.fontMedium
-                                font.pixelSize: Theme.fontBody
-                            }
-                            MouseArea {
-                                id: zoomInMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: inspectDialog.adjustZoom(1.25, flick.width / 2, flick.height / 2)
-                            }
-                        }
-
-                        // 竖向分割线
-                        Rectangle {
+                            visible: inspectDialog.imageInfoText.length > 0
                             Layout.preferredWidth: 1
-                            Layout.preferredHeight: 18
+                            Layout.preferredHeight: 12
                             color: Theme.borderMuted
                         }
 
-                        // 1:1 原图查看
-                        ActionButton {
-                            text: "1:1 原图"
-                            variant: "secondary"
-                            Layout.preferredHeight: 28
-                            Layout.preferredWidth: 70
-                            onClicked: {
-                                if (inspectDialog.fitScale > 0) {
-                                    inspectDialog.userZoom = 1.0 / inspectDialog.fitScale;
-                                    inspectDialog.centerContent();
-                                }
-                            }
-                        }
-
-                        // 适应屏幕
-                        ActionButton {
-                            text: "适应视口"
-                            variant: "secondary"
-                            Layout.preferredHeight: 28
-                            Layout.preferredWidth: 74
-                            onClicked: inspectDialog.resetView()
+                        Text {
+                            text: "滚轮缩放  ·  拖拽平移  ·  双击切换 1:1"
+                            color: Theme.muted
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
+                }
+
+                ImageSaveAs {
+                    id: saver
+                    objectName: "imageSaveAs"
+                    anchors.fill: parent
+                    sourceUrl: String(inspectDialog.viewerSource)
                 }
             }
 
@@ -781,13 +854,13 @@ Dialog {
                             MetricRow {
                                 labelName: "载具编号 (Carrier)"
                                 metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.carrierId !== undefined && inspectDialog.currentItemObject.carrierId > 0 ? inspectDialog.currentItemObject.carrierId : inspectDialog.currentItemObject.rack) : "-"
-                                valColor: Theme.accent
+                                valColor: Theme.text
                             }
 
                             MetricRow {
                                 labelName: "工位相机 (Camera)"
                                 metricValue: inspectDialog.currentItemObject ? String(inspectDialog.currentItemObject.cameraId !== undefined && inspectDialog.currentItemObject.cameraId > 0 ? inspectDialog.currentItemObject.cameraId : (inspectDialog.slotIndex + 1)) : "-"
-                                valColor: Theme.accent
+                                valColor: Theme.text
                             }
 
                             MetricRow {
