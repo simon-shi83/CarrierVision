@@ -148,6 +148,7 @@ struct MaintenanceResult {
     int files = 0;
     int orphans = 0;
     int skippedUnsafe = 0;
+    int requests = 0;
     int effectiveKeepDays = 0;
     double freePercent = 100.0;
 };
@@ -174,6 +175,7 @@ MaintenanceResult runMaintenance(const MaintenanceRequest &request)
                 return;
             }
             result.records += stats.recordsDeleted;
+            result.requests += stats.requestsDeleted;
             result.files += stats.filesDeleted;
             result.skippedUnsafe += stats.skippedUnsafe;
             if (!more) break;
@@ -197,7 +199,8 @@ MaintenanceResult runMaintenance(const MaintenanceRequest &request)
         result.freePercent = StorageMonitor::lowest(request.storagePaths).freePercent;
     }
     result.effectiveKeepDays = keepDays;
-    if (result.ok) AppLogger::cleanupLogsOlderThanDays(request.logKeepDays);
+    // 日志清理与数据库无关，数据库清理失败时也照常执行
+    AppLogger::cleanupLogsOlderThanDays(request.logKeepDays);
     return result;
 }
 
@@ -257,13 +260,15 @@ void AppController::startMaintenance(bool emergency)
         QMetaObject::invokeMethod(this, [this, request, result]() {
             m_cleanupRunning = false;
             if (!result.ok) {
+                LOG_ERROR("{}清理未完成（已删除记录 {} 条、图片 {} 张）: {}", request.emergency ? "紧急" : "",
+                          result.records, result.files, result.error.toStdString());
                 setStatusMessage(QStringLiteral("清理未完成: %1").arg(result.error));
                 return;
             }
             removeExpiredLegacyFtpLogs(request.logKeepDays);
-            LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 剩余空间 {:.1f}%",
+            LOG_INFO("{}清理完成: 删除记录 {} 条, 图片 {} 张, 孤儿图片 {} 张, 路径异常仅删记录 {} 组, 过期重发去重记录 {} 条, 剩余空间 {:.1f}%",
                      request.emergency ? "紧急" : "", result.records, result.files, result.orphans,
-                     result.skippedUnsafe, result.freePercent);
+                     result.skippedUnsafe, result.requests, result.freePercent);
             if (result.skippedUnsafe > 0)
                 LOG_WARN("清理发现 {} 组图片路径不在图像目录内（已删除记录、保留文件），请检查客户端 imageName", result.skippedUnsafe);
             if (request.emergency && result.effectiveKeepDays < request.keepDays)
@@ -1673,7 +1678,10 @@ void AppController::onFtpImageStored(const QString &filePath, const QString &req
         update.prepare(QStringLiteral(
             "UPDATE record SET image_path = :path "
             "WHERE createtime >= :since AND imagename = :name COLLATE NOCASE "
-            "AND (image_path IS NULL OR image_path = '')"));
+            // 写成 COALESCE 表达式而不是 "image_path IS NULL OR image_path = ''"：后者会让 SQLite 改走
+            // image_path 索引，逐行扫描全部未关联图片的历史记录（升级前的记录全部为空），
+            // 记录越多越慢，且在主线程上每收到一张图执行一次。表达式形式只走最近 1 小时的时间索引
+            "AND COALESCE(image_path, '') = ''"));
         update.bindValue(QStringLiteral(":path"), absolutePath);
         update.bindValue(QStringLiteral(":since"), AgcUtils::formatDateTime(QDateTime::currentDateTime().addSecs(-3600)));
         update.bindValue(QStringLiteral(":name"), requestedName);

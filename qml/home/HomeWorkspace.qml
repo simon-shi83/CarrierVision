@@ -191,7 +191,8 @@ Page {
 
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
-                        running: delegateRoot.hasResult
+                        // 切到其他页面时停止：任何运行中的动画都会让整个窗口按刷新率持续重绘
+                        running: delegateRoot.hasResult && root.visible
                         NumberAnimation {
                             from: 1.0
                             to: 0.4
@@ -380,6 +381,7 @@ Page {
 
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
+                                    running: root.visible
                                     NumberAnimation {
                                         from: 1.0
                                         to: 0.3

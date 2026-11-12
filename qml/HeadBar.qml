@@ -173,13 +173,18 @@ Rectangle {
                             spacing: 4
 
                             Rectangle {
+                                id: masterStatusDot
                                 width: 6
                                 height: 6
                                 radius: Theme.radiusPill
                                 color: root.masterStatusColor
 
+                                // 服务正常时常亮，异常时闪烁提示。常驻的无限动画会让整个窗口按显示器刷新率
+                                // 一直重绘（7×24 运行时持续占用 CPU/GPU），因此只在需要引起注意时运行
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
+                                    running: !root.allServicesRunning
+                                    onRunningChanged: if (!running) masterStatusDot.opacity = 1.0
                                     NumberAnimation {
                                         from: 1.0
                                         to: 0.25

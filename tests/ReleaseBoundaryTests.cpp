@@ -258,6 +258,16 @@ private slots:
         QVERIFY(QDir(dir.filePath("camera/deep")).exists());
         QVERIFY(q.exec("SELECT COUNT(*) FROM record")); QVERIFY(q.next()); QCOMPARE(q.value(0).toInt(),1);
     }
+    void cleanupPrunesExpiredIngestRequests() {
+        // TCP 重发去重表随清理一起删除过期项，否则只增不减
+        QTemporaryDir dir; QSqlQuery q(db);
+        QVERIFY(q.exec("INSERT INTO ingest_requests(request_id,carrier_id,item_count,committed_at) VALUES('old',1,16,'2026-06-01 08:00:00')"));
+        QVERIFY(q.exec("INSERT INTO ingest_requests(request_id,carrier_id,item_count,committed_at) VALUES('new',1,16,'2026-06-07 08:00:00')"));
+        int removed; bool more; QString error; ArchiveMaintenance::CleanupStats stats;
+        QVERIFY2(ArchiveMaintenance::cleanup(db,dir.path(),{dir.path()},QDateTime::fromString("2026-06-07T01:00:00",Qt::ISODate),removed,more,error,&stats),qPrintable(error));
+        QCOMPARE(stats.requestsDeleted,1);
+        QVERIFY(q.exec("SELECT request_id FROM ingest_requests")); QVERIFY(q.next()); QCOMPARE(q.value(0).toString(),QString("new")); QVERIFY(!q.next());
+    }
     void cleanupRecoveryHonorsNewReference() {
         QTemporaryDir dir; const QString target = dir.filePath("keep.png"); QVERIFY(makeImage(target));
         QSqlQuery q(db);
