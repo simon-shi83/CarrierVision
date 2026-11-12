@@ -182,6 +182,13 @@ Rectangle {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
+                indicator: AppIcon {
+                    x: resultCombo.width - width - (Theme.space2 + 2)
+                    y: (resultCombo.height - height) / 2
+                    name: "icon_chevron_down"
+                    size: 12
+                    color: resultCombo.enabled ? Theme.textSoft : Theme.disabled
+                }
                 popup: Popup {
                     y: resultCombo.height + 4
                     width: resultCombo.width

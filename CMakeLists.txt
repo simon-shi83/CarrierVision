@@ -500,6 +500,7 @@ if(BUILD_TESTING)
             assets/icons/icon_check_circle.svg
             assets/icons/icon_chevron_left.svg
             assets/icons/icon_chevron_right.svg
+            assets/icons/icon_chevron_down.svg
             assets/icons/icon_close.svg
             assets/icons/icon_camera.svg
             assets/icons/icon_eye.svg
