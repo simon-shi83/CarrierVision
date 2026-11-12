@@ -618,21 +618,48 @@ QVariantMap AppLogger::getLogStats()
 QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
                                  const QString &category)
 {
+    return queryLogRange(dateStr, dateStr, level, keyword, page, pageSize, category);
+}
+
+QVariantMap AppLogger::queryLogRange(const QString &startDate, const QString &endDate, const QString &level,
+                                     const QString &keyword, int page, int pageSize, const QString &category)
+{
     page = qMax(1, page);
     pageSize = qBound(1, pageSize <= 0 ? 50 : pageSize, 200);
-    const QString targetDate = dateStr.trimmed().isEmpty() ? QDate::currentDate().toString(Qt::ISODate) : dateStr.trimmed();
+    const QString today = QDate::currentDate().toString(Qt::ISODate);
+    const QString startText = startDate.trimmed().isEmpty() ? today : startDate.trimmed();
+    const QString endText = endDate.trimmed().isEmpty() ? startText : endDate.trimmed();
     QVariantMap result{{"page",page},{"pageSize",pageSize},{"total",0},{"totalPages",1},{"items",QVariantList()}};
-    if (!QDate::fromString(targetDate,Qt::ISODate).isValid()) {
+    QDate first = QDate::fromString(startText, Qt::ISODate);
+    QDate last = QDate::fromString(endText, Qt::ISODate);
+    if (!first.isValid() || !last.isValid()) {
         result["error"] = QStringLiteral("无效的日志日期"); return result;
     }
-    struct Volume { QString path; qint64 size; int index; };
-    QList<Volume> volumes;
-    QRegularExpression volumeRe("^carrier_" + QRegularExpression::escape(targetDate) + "(?:\\.([0-9]+))?\\.log$");
-    for (const auto &info : QDir(s_logDir).entryInfoList({"carrier_"+targetDate+"*.log"},QDir::Files)) {
-        const auto match = volumeRe.match(info.fileName());
-        if (match.hasMatch()) volumes.append({info.absoluteFilePath(), info.size(), match.captured(1).toInt()});
+    if (first > last) std::swap(first, last);
+    if (first.daysTo(last) >= kMaxLogQueryDays) {
+        result["error"] = QStringLiteral("日志查询范围不能超过 %1 天").arg(kMaxLogQueryDays); return result;
     }
-    std::sort(volumes.begin(),volumes.end(),[](const auto &a,const auto &b){return a.index < b.index;});
+    result["startDate"] = first.toString(Qt::ISODate);
+    result["endDate"] = last.toString(Qt::ISODate);
+
+    // 按日期从早到晚、同一天按分卷号排列，与写入顺序一致
+    struct Volume { QString path; qint64 size; QDate date; int index; };
+    QList<Volume> volumes;
+    const QRegularExpression volumeRe(QStringLiteral("^carrier_(\\d{4}-\\d{2}-\\d{2})(?:\\.([0-9]+))?\\.log$"));
+    for (const auto &info : QDir(s_logDir).entryInfoList({QStringLiteral("carrier_*.log")}, QDir::Files)) {
+        const auto match = volumeRe.match(info.fileName());
+        if (!match.hasMatch()) continue;
+        const QDate date = QDate::fromString(match.captured(1), Qt::ISODate);
+        if (!date.isValid() || date < first || date > last) continue;
+        // 文件长度必须从打开的句柄读取：Windows 上正在写入的文件，目录项中的大小要等写入方关闭句柄后才更新，
+        // Qt 6.11 的 QDir 直接使用目录枚举返回的大小，会把当天日志读成 0 字节（查询结果为 0 条）
+        QFile file(info.absoluteFilePath());
+        if (!file.open(QIODevice::ReadOnly)) continue;
+        volumes.append({info.absoluteFilePath(), file.size(), date, match.captured(2).toInt()});
+    }
+    std::sort(volumes.begin(),volumes.end(),[](const auto &a,const auto &b){
+        return a.date != b.date ? a.date < b.date : a.index < b.index;
+    });
     const QString filterLevel = level.trimmed().toLower(), filterKeyword = keyword.trimmed();
     // 报警处置日志统一以"报警处置"开头（完成 / 失败），历史日志同样适用
     const bool alertDispositionOnly = category.trimmed() == QLatin1String("alertDisposition");
@@ -675,8 +702,8 @@ QVariantMap AppLogger::queryLogs(const QString &dateStr, const QString &level, c
     };
     total = scan(false,0,0);
     const qint64 offset = qint64(page-1)*pageSize;
-    const qint64 last = qMax<qint64>(0,total-offset), first=qMax<qint64>(0,last-pageSize);
-    if (last>first) scan(true,first,last);
+    const qint64 lastIndex = qMax<qint64>(0,total-offset), firstIndex=qMax<qint64>(0,lastIndex-pageSize);
+    if (lastIndex>firstIndex) scan(true,firstIndex,lastIndex);
     std::reverse(items.begin(),items.end());
     result["total"] = total;
     result["totalPages"] = qMax<qint64>(1,(total+pageSize-1)/pageSize);

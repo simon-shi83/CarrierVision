@@ -18,12 +18,49 @@
 #include <QTemporaryDir>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 
 class CoreBoundaryTests final : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void latestWheelImagePicksNewestRecordAndResolvesFile()
+    {
+        QTemporaryDir images;
+        QVERIFY(images.isValid());
+        {
+            QFile file(images.filePath(QStringLiteral("new.png")));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write("png");
+        }
+        const QString connection = QStringLiteral("LatestWheelImageTest");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connection);
+            db.setDatabaseName(":memory:");
+            QVERIFY(db.open());
+            QVERIFY(DBSchema::ensureAllTables(db));
+            QSqlQuery q(db);
+            QVERIFY(q.exec("INSERT INTO record(createtime,carrier_id,wheel_id,result,imagename) VALUES"
+                           "('2026-10-20 12:00:00',3,9,1,'old.png'),"
+                           "('2026-10-21 08:00:00',3,9,0,'new.png'),"
+                           "('2026-10-22 08:00:00',3,10,1,'other-wheel.png'),"
+                           "('2026-10-22 08:00:00',4,9,1,'other-rack.png')"));
+            const QVariantMap image = SearchService::latestWheelImage(db, 3, 9, images.path(), images.path());
+            QCOMPARE(image.value("fileName").toString(), QStringLiteral("new.png"));
+            QCOMPARE(image.value("result").toInt(), 0);
+            QCOMPARE(image.value("time").toString(), QStringLiteral("2026-10-21 08:00:00"));
+            QVERIFY(QFileInfo(image.value("filePath").toString()).isAbsolute());
+            // 文件不在磁盘上时退回图片名，页面据此判断
+            QCOMPARE(SearchService::latestWheelImage(db, 3, 10, images.path(), images.path()).value("filePath").toString(),
+                     QStringLiteral("other-wheel.png"));
+            QVERIFY(SearchService::latestWheelImage(db, 5, 9, images.path(), images.path()).isEmpty());
+            QVERIFY(SearchService::latestWheelImage(db, 0, 9, images.path(), images.path()).isEmpty());
+            QVERIFY(SearchService::latestWheelImage(db, 3, 17, images.path(), images.path()).isEmpty());
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+
     void alertRackCountsTrackDispositionsAcrossAllWheels()
     {
         const QString connection = QStringLiteral("AlertRackCountsTest");

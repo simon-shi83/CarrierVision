@@ -65,6 +65,17 @@ Dialog {
     readonly property real originalWidth: (imageInfo && imageInfo.width > 0) ? imageInfo.width : currentImageWidth
     readonly property real pixelScale: originalWidth > 0 ? contentScale * currentImageWidth / originalWidth : contentScale
 
+    // 预览最多按 4096 像素解码；放大到超过预览分辨率（例如 1:1）时，再按原图分辨率解码一份叠在上面，
+    // 同一张图解码后保留到切换图像为止，来回缩放不重复解码。超过显卡纹理上限的超大图仍按 16384 像素封顶。
+    readonly property int fullResMaxSide: 16384
+    readonly property bool previewDownscaled: imageReady && originalWidth > currentImageWidth * 1.01
+    property bool fullResRequested: false
+    readonly property bool fullResShown: fullRes.status === Image.Ready && fullRes.source.toString() === activePreview.source.toString()
+    onPixelScaleChanged: {
+        if (previewDownscaled && pixelScale * originalWidth > currentImageWidth * 1.05)
+            fullResRequested = true;
+    }
+
     function formatBytes(bytes) {
         if (!(bytes > 0))
             return "";
@@ -128,6 +139,7 @@ Dialog {
         subtitleText = subtitle || "";
         isLiveUpdating = false;
         userZoom = 1.0;
+        fullResRequested = false;
         loadImageInfo(viewerSource);
 
         showingA = true;
@@ -153,6 +165,7 @@ Dialog {
         slotIndex = -1;
         currentItemObject = null;
         isLiveUpdating = false;
+        fullResRequested = false;
         imageInfo = ({});
     }
 
@@ -285,12 +298,12 @@ Dialog {
     }
     Shortcut {
         enabled: inspectDialog.opened
-        sequences: [StandardKey.ZoomIn, "=", "+"]
+        sequences: ["Ctrl++", "Ctrl+=", "+", "="]
         onActivated: inspectDialog.zoomBy(1.25)
     }
     Shortcut {
         enabled: inspectDialog.opened
-        sequences: [StandardKey.ZoomOut, "-"]
+        sequences: ["Ctrl+-", "-"]
         onActivated: inspectDialog.zoomBy(1 / 1.25)
     }
     Shortcut {
@@ -623,6 +636,22 @@ Dialog {
                                     }
                                 }
                             }
+                        }
+
+                        // 原分辨率图层：只在放大超过预览分辨率后加载，尺寸与当前预览一致
+                        Image {
+                            id: fullRes
+                            anchors.centerIn: parent
+                            source: inspectDialog.fullResRequested ? inspectDialog.activePreview.source : ""
+                            sourceSize: Qt.size(Math.min(inspectDialog.fullResMaxSide, inspectDialog.imageInfo.width || inspectDialog.fullResMaxSide),
+                                                Math.min(inspectDialog.fullResMaxSide, inspectDialog.imageInfo.height || inspectDialog.fullResMaxSide))
+                            asynchronous: true
+                            cache: false
+                            fillMode: Image.PreserveAspectFit
+                            width: inspectDialog.activePreview.width
+                            height: inspectDialog.activePreview.height
+                            smooth: true
+                            visible: inspectDialog.fullResShown && inspectDialog.activePreview.visible
                         }
 
                         // 滚轮缩放监听

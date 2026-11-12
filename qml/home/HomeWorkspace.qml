@@ -87,16 +87,26 @@ Page {
             detectionRequestId = appController.requestStats("homepageCurrentDetection", []);
     }
 
+    // 最新图像在后台查询，返回前再次点击以最后一次为准
+    property int latestImageRequestId: -1
+    property var latestImageRequest: ({})
+
     function openLatestImage(wheel) {
-        if (currentRack <= 0 || !appController || !appController.latestRackWheelMonitorImage)
+        if (currentRack <= 0 || !appController || !appController.requestLatestWheelImage)
             return;
-        var image = appController.latestRackWheelMonitorImage(currentRack, wheel);
-        if (!image.filePath || String(image.filePath).length === 0)
+        latestImageRequest = { rack: currentRack, wheel: wheel };
+        latestImageRequestId = appController.requestLatestWheelImage(currentRack, wheel);
+    }
+
+    function showLatestImage(image) {
+        if (!image || !image.filePath || String(image.filePath).length === 0)
             return;
+        var rack = latestImageRequest.rack;
+        var wheel = latestImageRequest.wheel;
         var normalizedPath = String(image.filePath).replace(/\\/g, "/");
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath) ? "file:///" + normalizedPath : normalizedPath;
         var wheelName = appController.wheelLabel(wheel);
-        imagePreview.openViewer(sourceUrl, "架号 " + currentRack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time);
+        imagePreview.openViewer(sourceUrl, "架号 " + rack + " · " + wheelName, "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time);
     }
 
     Component.onCompleted: refreshDetection()
@@ -115,6 +125,11 @@ Page {
         function onStatsReady(requestId, kind, result) {
             if (requestId === root.detectionRequestId)
                 root.detectionOverview = result || ({});
+        }
+
+        function onLatestWheelImageReady(requestId, image) {
+            if (requestId === root.latestImageRequestId)
+                root.showLatestImage(image);
         }
     }
 

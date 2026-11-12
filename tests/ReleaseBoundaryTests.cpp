@@ -448,6 +448,59 @@ private slots:
         QCOMPARE(result["pageSize"].toInt(),200); QVERIFY(result["items"].toList().isEmpty());
         QVERIFY(AppLogger::queryLogs("*","all","",1,2).contains("error"));
     }
+    void logRangeQuerySpansDaysNewestFirst() {
+        QTemporaryDir dir;
+        AppLogger::init(dir.path()); AppLogger::shutdown();
+        const QList<QPair<QString,QString>> files{
+            {"carrier_2025-01-01.log", "[2025-01-01 09:00:00.000] [info] 报警处置完成 day1\n"},
+            {"carrier_2025-01-02.log", "[2025-01-02 09:00:00.000] [warning] day2-a\n[2025-01-02 10:00:00.000] [info] 报警处置完成 day2-b\n"},
+            {"carrier_2025-01-02.1.log", "[2025-01-02 11:00:00.000] [info] day2-c\n"},
+            {"carrier_2025-01-04.log", "[2025-01-04 09:00:00.000] [info] day4\n"},
+        };
+        for (const auto &entry : files) {
+            QFile file(dir.filePath(entry.first));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(entry.second.toUtf8());
+        }
+        auto result = AppLogger::queryLogRange("2025-01-01", "2025-01-03", "all", "", 1, 10);
+        QCOMPARE(result["total"].toInt(), 4);
+        QCOMPARE(result["startDate"].toString(), QString("2025-01-01"));
+        QCOMPARE(result["endDate"].toString(), QString("2025-01-03"));
+        auto items = result["items"].toList();
+        QCOMPARE(items.size(), 4);
+        QCOMPARE(items.first().toMap()["message"].toString(), QString("day2-c"));
+        QCOMPARE(items.last().toMap()["message"].toString(), QString("报警处置完成 day1"));
+        // 起止颠倒自动交换；分页跨文件
+        result = AppLogger::queryLogRange("2025-01-04", "2025-01-01", "all", "", 2, 2);
+        QCOMPARE(result["total"].toInt(), 5);
+        items = result["items"].toList();
+        QCOMPARE(items.size(), 2);
+        QCOMPARE(items[0].toMap()["message"].toString(), QString("报警处置完成 day2-b"));
+        QCOMPARE(items[1].toMap()["message"].toString(), QString("day2-a"));
+        // 类型、级别筛选在跨天时同样生效
+        QCOMPARE(AppLogger::queryLogRange("2025-01-01", "2025-01-04", "all", "", 1, 10, "alertDisposition")["total"].toInt(), 2);
+        QCOMPARE(AppLogger::queryLogRange("2025-01-01", "2025-01-04", "warn", "", 1, 10)["total"].toInt(), 1);
+        // 单日接口等价于起止相同的范围
+        QCOMPARE(AppLogger::queryLogs("2025-01-02", "all", "", 1, 10)["total"].toInt(), 3);
+        QVERIFY(AppLogger::queryLogRange("2025-01-01", "bad", "all", "", 1, 10).contains("error"));
+        const auto tooLong = AppLogger::queryLogRange("2024-01-01", "2025-01-04", "all", "", 1, 10);
+        QVERIFY(tooLong.contains("error"));
+        QCOMPARE(tooLong["total"].toInt(), 0);
+    }
+    void logQueryReadsFileStillOpenForWriting() {
+        // 日志文件由写入方一直打开；查询必须按打开句柄的实际长度读取，不能依赖目录项里的大小
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        AppLogger::init(dir.path());
+        for (int i = 0; i < 20; ++i) LOG_INFO("持续写入的日志 {}", i);
+        AppLogger::logger()->flush();
+        const QString date = QDate::currentDate().toString("yyyy-MM-dd");
+        QCOMPARE(AppLogger::queryLogs(date, "all", "持续写入的日志", 1, 50)["total"].toInt(), 20);
+        LOG_INFO("持续写入的日志 {}", 20);
+        AppLogger::logger()->flush();
+        QCOMPARE(AppLogger::queryLogRange(date, date, "all", "持续写入的日志", 1, 50)["total"].toInt(), 21);
+        AppLogger::shutdown();
+    }
     void ftpTimeoutReleasesCountExactlyOnce() {
         QTemporaryDir dir; FtpServer server;
         QVERIFY(server.listen(QHostAddress::LocalHost,0,dir.path(),QMap<QString,QString>{{"u","p"}}));

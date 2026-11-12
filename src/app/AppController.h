@@ -96,11 +96,6 @@ public:
     Q_INVOKABLE void alertSearchPaged(const QString &startText, const QString &endText,
                                       int rackNumber, const QString &wheelNo,
                                       int page, int pageSize);
-    Q_INVOKABLE int latestRackWheelImageRack() const;
-    Q_INVOKABLE void loadLatestRackWheelImages(int rackNumber);
-    Q_INVOKABLE void loadLatestRackWheelImagesPage(int rackNumber, int page);
-    Q_INVOKABLE int latestRackWheelTotalPages(int rackNumber) const;
-    Q_SIGNAL void latestRackLoadFinished(int count, const QString &dbPath);
     Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void startFtpServer();
     Q_INVOKABLE void stopFtpServer();
@@ -116,17 +111,13 @@ public:
     Q_INVOKABLE int ftpPort() const;
     Q_INVOKABLE bool ftpRunning() const;
     Q_INVOKABLE int ftpClientCount() const;
-    Q_INVOKABLE void setFtpUser(const QString &user);
-    Q_INVOKABLE void setFtpPass(const QString &pass);
     Q_INVOKABLE void setFtpRoot(const QString &root);
     Q_INVOKABLE void setFtpPort(int port);
     Q_INVOKABLE QVariantList ftpAccounts() const;
-    Q_INVOKABLE QString ftpAccountsDebug() const;
     Q_INVOKABLE void addFtpAccount(const QString &user, const QString &pass);
     Q_INVOKABLE void removeFtpAccount(const QString &user);
     Q_INVOKABLE QVariantList slotMapping() const;
     Q_INVOKABLE void setSlotMapping(int sourceOneBased, int targetValue);
-    Q_INVOKABLE QVariantList rackWheelDistances(int rackNumber) const;
     // 报警操作在后台线程执行，结果通过请求编号返回，页面丢弃过期响应。
     // 处置操作（handled / falseAlarm）必须提供系统设置中预设的处置人员姓名，写入处置日志。
     Q_INVOKABLE int requestAlertOperation(const QString &kind, const QString &start, const QString &end,
@@ -137,27 +128,15 @@ public:
     QStringList alertHandlers() const;
     Q_INVOKABLE QString addAlertHandler(const QString &name);
     Q_INVOKABLE bool removeAlertHandler(const QString &name);
-    // 异步统计：kind 为下方同步统计函数名，args 与其参数顺序一致；结果经 statsReady 返回。
-    // 页面应优先使用该接口，同步版本仅为兼容保留，会阻塞界面线程。
+    // 异步统计：kind 与参数见 StatsService::run；结果经 statsReady 返回。
     Q_INVOKABLE int requestStats(const QString &kind, const QVariantList &args = {});
-    Q_INVOKABLE QVariantList driveWheelRackStats(const QString &startDate, const QString &endDate);
-    Q_INVOKABLE QVariantList walkingWheelRackStats(const QString &startDate, const QString &endDate);
-    Q_INVOKABLE QVariantList rackWheelMonitorStatus() const;
-	Q_INVOKABLE QVariantList rackPhotoCounts() const;
-    Q_INVOKABLE QVariantMap latestRackWheelMonitorImage(int rackNumber, int wheelNumber) const;
+    // 某架号某轮位最新一张检测图像，后台查询，结果经 latestWheelImageReady 返回（无记录时为空 map）
+    Q_INVOKABLE int requestLatestWheelImage(int rackNumber, int wheelNumber);
     // 热力图像：后台查询 50 架最近一轮的 12 相机图像，结果经 roundImagesReady 返回
     Q_INVOKABLE int requestRoundImages();
-	Q_INVOKABLE QVariantMap homepageCurrentDetection() const;
-    Q_INVOKABLE QVariantList wheelRackResultStats(const QString &startDate, const QString &endDate, int wheelNumber, const QString &resultType);
-    Q_INVOKABLE QVariantList rackWheelResultStats(const QString &startDate, const QString &endDate,
-                                                  int rackNumber, const QString &resultType,
-                                                  int wheelType) const;
-    Q_INVOKABLE bool saveRackWheelDistances(int rackNumber, const QVariantList &distances);
     Q_INVOKABLE QVariantList weeklyReports();
     Q_INVOKABLE void openReportFile(const QString &fileName);
-    Q_INVOKABLE void rowSelected(int index);
     Q_INVOKABLE void gearSumQuery(const QString &startDate, const QString &endDate, const QString &rackno, const QVariant &selectedTurns);
-    Q_INVOKABLE void openGenericSearch(const QString &startDate, const QString &endDate, int wheelNumber, const QString &resultType);
     Q_INVOKABLE bool saveCsv(const QString &filePath, const QString &content);
     Q_INVOKABLE void triggerCleanup();
     Q_INVOKABLE int cleanupKeepDays() const;
@@ -178,23 +157,17 @@ public:
     Q_INVOKABLE bool hasMaintenancePassword() const;
     Q_INVOKABLE bool setMaintenancePassword(const QString &currentSettingsPassword, const QString &newPassword);
     Q_INVOKABLE void activateEnglishInputMethod();
-    Q_INVOKABLE void debugLog(const QString &text);
 
-    // 日志查询与统计接口
-    Q_INVOKABLE QStringList getAvailableLogDates();
-    Q_INVOKABLE QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
-                                      const QString &category = QString());
-    Q_INVOKABLE QVariantMap getLogStats();
-    // category 同 AppLogger::queryLogs："all" 或 "alertDisposition"
-    Q_INVOKABLE int requestLogs(const QString &date, const QString &level, const QString &keyword, int page, int pageSize,
-                                const QString &category = QString());
+    // 日志检索在后台线程执行，结果经 logQueryFinished 返回（附带今日统计 stats）。
+    // startDate ~ endDate 含两端，最多 AppLogger::kMaxLogQueryDays 天；category 为 "all" 或 "alertDisposition"
+    Q_INVOKABLE int requestLogs(const QString &startDate, const QString &endDate, const QString &level,
+                                const QString &keyword, int page, int pageSize, const QString &category = QString());
     Q_INVOKABLE void openLogDirectory();
     Q_INVOKABLE void copyToClipboard(const QString &text);
 
     // 槽位映射与目录管理接口
     Q_INVOKABLE void resetSlotMapping();
     Q_INVOKABLE void openArchiveDirectory();
-    Q_INVOKABLE void openImagesDirectory() { openArchiveDirectory(); }
     Q_INVOKABLE void openFtpRootDirectory();
 
     // 图像放大窗口“另存为”：保存在后台线程执行，完成后发出 imageSaveFinished
@@ -234,6 +207,7 @@ signals:
     void slotUpdated(int index);
     void rackWheelMonitorUpdated();
     void roundImagesReady(int requestId, const QVariantList &racks);
+    void latestWheelImageReady(int requestId, const QVariantMap &image);
     // 新的检测记录入库，或已入库记录关联到了图片
     void recordImagesChanged();
     void imageSaveFinished(int requestId, bool ok, const QString &message, const QString &targetPath);
@@ -308,6 +282,7 @@ private:
     QThreadPool m_statsPool;
     int m_statsRequestSeq = 0;
     int m_roundImagesRequestSeq = 0;
+    int m_latestWheelImageSeq = 0;
     int m_gearSumGeneration = 0;
     QThreadPool m_maintenancePool;
     QThreadPool m_exportPool;
