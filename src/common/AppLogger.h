@@ -34,6 +34,12 @@ public:
     // category："all"/空 为全部日志；"alertDisposition" 只返回报警处置记录（正文以"报警处置"开头）
     static QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
                                  const QString &category = QString());
+    // 跨天查询：startDate ~ endDate（含两端，yyyy-MM-dd，可颠倒），最多 kMaxLogQueryDays 天；
+    // 结果按时间倒序分页，附带实际使用的 startDate / endDate
+    static constexpr int kMaxLogQueryDays = 92;
+    static QVariantMap queryLogRange(const QString &startDate, const QString &endDate, const QString &level,
+                                     const QString &keyword, int page, int pageSize,
+                                     const QString &category = QString());
     static QVariantMap getLogStats();
 
     // 实时日志监听回调（level: "INFO"/"WARN"/"ERROR"/"CRITICAL", message, time）

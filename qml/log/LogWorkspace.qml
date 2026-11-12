@@ -17,34 +17,27 @@ Page {
     property int logRequestId: -1
     property var logItems: []
     property var logStats: ({})
-    property var availableDates: []
+    property string queryError: ""
 
+    // 统计指标随异步查询结果一起返回
     function refreshData() {
-        if (!appController) return
-
-        // 1. 刷新统计指标
-        // Statistics are returned with the asynchronous query.
-
-        // 2. 刷新可用日期列表
-        var dates = appController.getAvailableLogDates()
-        availableDates = dates
-        if (dateCombo.currentIndex < 0 || dateCombo.currentIndex >= dates.length) {
-            dateCombo.currentIndex = 0
-        }
-
-        // 3. 执行查询
         queryCurrentPage()
     }
 
+    // 日期范围含首尾两天，起止颠倒时后台自动交换
     function queryCurrentPage() {
         if (!appController) return
-        var dStr = (availableDates && availableDates.length > dateCombo.currentIndex && dateCombo.currentIndex >= 0)
-                   ? availableDates[dateCombo.currentIndex] : ""
         var lvl = levelCombo.currentValue || "all"
         var kw = searchField.text.trim()
         var category = categoryCombo.currentValue || "all"
 
-        logRequestId = appController.requestLogs(dStr, lvl, kw, currentPage, pageSize, category)
+        logRequestId = appController.requestLogs(startDateField.dateString, endDateField.dateString,
+                                                 lvl, kw, currentPage, pageSize, category)
+    }
+
+    function onDateRangeChanged() {
+        currentPage = 1
+        queryCurrentPage()
     }
 
     function filterByLevel(lvl) {
@@ -68,6 +61,7 @@ Page {
             root.currentPage = res.page || 1
             root.logItems = res.items || []
             root.logStats = res.stats || {}
+            root.queryError = res.error || ""
         }
     }
 
@@ -217,89 +211,34 @@ Page {
                 anchors.rightMargin: 16
                 spacing: 12
 
-                // 日期筛选
+                // 日期范围筛选：可跨多天查询
                 RowLayout {
-                    spacing: 8
+                    spacing: 6
                     Text {
                         text: "日志日期:"
                         font.pixelSize: Theme.fontCaption
                         font.family: Theme.fontSans
                         color: Theme.textSoft
                     }
-                    ComboBox {
-                        id: dateCombo
-                        Layout.preferredWidth: 140
+                    DatePicker {
+                        id: startDateField
+                        Layout.preferredWidth: 128
                         Layout.preferredHeight: 34
-                        model: root.availableDates
-                        font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
+                        Accessible.name: "起始日期"
+                        onDateChanged: root.onDateRangeChanged()
+                    }
+                    Text {
+                        text: "~"
                         font.pixelSize: Theme.fontCaption
-
-                        background: Rectangle {
-                            radius: Theme.radiusMicro
-                            color: Theme.fieldFill
-                            border.color: dateCombo.activeFocus ? Theme.selectedBorder : Theme.border
-                            border.width: 1
-                        }
-
-                        contentItem: Text {
-                            leftPadding: 10
-                            rightPadding: 26
-                            text: dateCombo.currentText
-                            color: Theme.text
-                            font: dateCombo.font
-                            verticalAlignment: Text.AlignVCenter
-                            elide: Text.ElideRight
-                        }
-
-                        indicator: AppIcon {
-                            x: dateCombo.width - width - 8
-                            y: (dateCombo.height - height) / 2
-                            name: "icon_arrow_down"
-                            size: 12
-                            color: Theme.textSoft
-                        }
-
-                        popup: Popup {
-                            y: dateCombo.height + 4
-                            width: Math.max(dateCombo.width, 160)
-                            implicitHeight: Math.min(260, contentItem.implicitHeight + 8)
-                            padding: 4
-                            background: Rectangle {
-                                color: Theme.surfaceFloating
-                                radius: Theme.radiusSmall
-                                border.color: Theme.border
-                                border.width: 1
-                            }
-                            contentItem: ListView {
-                                clip: true
-                                implicitHeight: contentHeight
-                                model: dateCombo.popup.visible ? dateCombo.delegateModel : null
-                                currentIndex: dateCombo.highlightedIndex
-                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                            }
-                        }
-
-                        delegate: ItemDelegate {
-                            width: dateCombo.width - 8
-                            height: 32
-                            contentItem: Text {
-                                text: modelData
-                                color: Theme.text
-                                font.family: Theme.fontSans; font.features: Theme.fontFeaturesTabular
-                                font.pixelSize: Theme.fontCaption
-                                verticalAlignment: Text.AlignVCenter
-                                leftPadding: 8
-                            }
-                            background: Rectangle {
-                                radius: Theme.radiusMicro
-                                color: highlighted ? Theme.pressed : "transparent"
-                            }
-                        }
-
-                        onActivated: {
-                            root.currentPage = 1
-                            root.queryCurrentPage()
-                        }
+                        font.family: Theme.fontSans
+                        color: Theme.muted
+                    }
+                    DatePicker {
+                        id: endDateField
+                        Layout.preferredWidth: 128
+                        Layout.preferredHeight: 34
+                        Accessible.name: "结束日期"
+                        onDateChanged: root.onDateRangeChanged()
                     }
                 }
 
@@ -789,7 +728,7 @@ Page {
                                 Layout.alignment: Qt.AlignHCenter
                             }
                             Text {
-                                text: "请尝试调整上方日期、级别或关键字筛选条件"
+                                text: root.queryError.length > 0 ? root.queryError : "请尝试调整上方日期、级别或关键字筛选条件"
                                 font.pixelSize: Theme.fontCaption
                                 color: Theme.muted
                                 Layout.alignment: Qt.AlignHCenter

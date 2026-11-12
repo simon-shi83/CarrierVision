@@ -60,6 +60,10 @@ qt_add_executable(CarrierVision
     src/main.cpp
     src/app/AppController.cpp
     src/app/AppController.h
+    src/app/AppControllerInternal.h
+    src/app/AppControllerMaintenance.cpp
+    src/app/AppControllerNetwork.cpp
+    src/app/AppControllerQueries.cpp
     src/app/UiSnapshot.cpp
     src/app/UiSnapshot.h
     src/app/ThumbnailCache.cpp

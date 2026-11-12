@@ -464,4 +464,37 @@ bool parseResultFilter(const QString &text, int &result)
     return false;
 }
 
+QVariantMap latestWheelImage(const QSqlDatabase &db, int rackNumber, int wheelNumber,
+                             const QString &archiveDir, const QString &sourceDir)
+{
+    QVariantMap image;
+    if (rackNumber < 1 || rackNumber > 50 || wheelNumber < 1 || wheelNumber > 16) return image;
+    if (!db.isValid() || !db.isOpen()) return image;
+
+    // 走 idx_record_carrier_wheel(carrier_id, wheel_id, createtime DESC)
+    QSqlQuery query(db);
+    query.prepare(QStringLiteral(
+        "SELECT imagename, createtime, result, image_path FROM record "
+        "WHERE carrier_id = :rack AND wheel_id = :wheel "
+        "ORDER BY createtime DESC, rowid DESC LIMIT 1"));
+    query.bindValue(QStringLiteral(":rack"), rackNumber);
+    query.bindValue(QStringLiteral(":wheel"), wheelNumber);
+    if (!query.exec()) {
+        LOG_ERROR("最新轮位图像查询失败: 架号={}, 轮位={}, {}", rackNumber, wheelNumber,
+                  query.lastError().text().toStdString());
+        return image;
+    }
+    if (!query.next()) return image;
+
+    const QString imageName = query.value(0).toString().trimmed();
+    QString imagePath = resolveRecordImage(query.value(3).toString(), imageName, archiveDir, sourceDir,
+                                           query.value(1).toString());
+    if (imagePath.isEmpty()) imagePath = imageName;
+    image.insert(QStringLiteral("filePath"), imagePath);
+    image.insert(QStringLiteral("fileName"), QFileInfo(imagePath).fileName());
+    image.insert(QStringLiteral("time"), query.value(1).toString());
+    image.insert(QStringLiteral("result"), query.value(2).toInt());
+    return image;
+}
+
 } // namespace SearchService

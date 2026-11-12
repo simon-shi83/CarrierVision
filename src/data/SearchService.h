@@ -53,6 +53,11 @@ QString resolveRecordImage(const QString &imagePath, const QString &imageName,
                            const QString &archiveDir, const QString &sourceDir,
                            const QString &createTime = QString());
 
+// 某架号某轮位最新一条检测记录及其图像：filePath（找不到落盘文件时为图片名）、fileName、time、result；
+// 无记录或参数越界时返回空 map。会访问磁盘确认图片位置，只应在后台线程调用。
+QVariantMap latestWheelImage(const QSqlDatabase &db, int rackNumber, int wheelNumber,
+                             const QString &archiveDir, const QString &sourceDir);
+
 // 热力图像：50 个架号各自最近一轮检测的 12 个相机图像，固定返回 50 组、每组 12 项（CAM 01 ~ CAM 12）。
 // 一轮 = 该架号最新记录往前 IngestCoordinator::kSameCarrierMergeSecs 秒内的记录（两次触发各 6 个相机）；
 // 每个相机取本轮最新的图像，该图像覆盖的任一轮 NG 则该相机 NG。

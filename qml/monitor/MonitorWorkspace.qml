@@ -44,19 +44,26 @@ Item {
         photoCountByRack = counts
     }
 
-    function openLatestImage(rackNumber, wheelNumber, wheelLabel) {
-        if (!appController || !appController.latestRackWheelMonitorImage)
-            return
+    // 最新图像在后台查询，返回前再次点击以最后一次为准
+    property int latestImageRequestId: -1
+    property var latestImageRequest: ({})
 
-        var image = appController.latestRackWheelMonitorImage(rackNumber, wheelNumber)
-        if (!image.filePath || String(image.filePath).length === 0)
+    function openLatestImage(rackNumber, wheelNumber, wheelLabel) {
+        if (!appController || !appController.requestLatestWheelImage)
+            return
+        latestImageRequest = { rack: rackNumber, label: wheelLabel }
+        latestImageRequestId = appController.requestLatestWheelImage(rackNumber, wheelNumber)
+    }
+
+    function showLatestImage(image) {
+        if (!image || !image.filePath || String(image.filePath).length === 0)
             return
 
         var normalizedPath = String(image.filePath).replace(/\\/g, "/")
         var sourceUrl = /^[a-zA-Z]:\//.test(normalizedPath)
                 ? "file:///" + normalizedPath : normalizedPath
         imagePreview.openViewer(sourceUrl,
-                "架号 #" + rackNumber + " · " + wheelLabel,
+                "架号 #" + latestImageRequest.rack + " · " + latestImageRequest.label,
                 "最新检测判定: " + (image.result === 1 ? "OK 正常" : "NG 异常") + " · 采集时间: " + image.time)
     }
 
@@ -87,6 +94,10 @@ Item {
                 root.applyStatus(result || [])
             else if (requestId === root.photoCountRequestId)
                 root.applyPhotoCounts(result || [])
+        }
+        function onLatestWheelImageReady(requestId, image) {
+            if (requestId === root.latestImageRequestId)
+                root.showLatestImage(image)
         }
     }
 
