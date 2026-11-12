@@ -279,7 +279,7 @@ Rectangle {
                     implicitWidth: hoverRow.implicitWidth + 16
                     radius: Theme.radiusPill
                     color: Theme.surfaceAlt
-                    border.color: Theme.accent
+                    border.color: Theme.borderStrong
                     border.width: 1
 
                     RowLayout {

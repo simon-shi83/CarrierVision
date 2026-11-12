@@ -12,6 +12,7 @@
 #include "data/SettingsStore.h"
 #include "ingest/IngestCoordinator.h"
 #include "common/StorageMonitor.h"
+#include "common/ImageExport.h"
 #include <iostream>
 #include <QDir>
 #include <QFile>
@@ -618,6 +619,7 @@ AppController::AppController(QObject *parent)
     m_statsPool.setExpiryTimeout(-1);
     m_maintenancePool.setMaxThreadCount(1);
     m_maintenancePool.setExpiryTimeout(-1);
+    m_exportPool.setMaxThreadCount(1);
     connect(&m_logWatcher, &QFutureWatcher<QVariantMap>::finished, this, [this]() {
         m_logBusy = false;
         if (m_activeLogRequest == m_logGeneration) emit logQueryFinished(m_activeLogRequest, m_logWatcher.result());
@@ -942,6 +944,7 @@ AppController::~AppController()
     m_statsPool.clear();
     m_statsPool.waitForDone();
     m_maintenancePool.waitForDone();
+    m_exportPool.waitForDone();
     m_logPool.waitForDone();
     AppLogger::setLogCallback(nullptr);
 }
@@ -1980,4 +1983,57 @@ void AppController::openFtpRootDirectory()
     if (!root.isEmpty()) {
         QDesktopServices::openUrl(QUrl::fromLocalFile(root));
     }
+}
+
+QVariantMap AppController::imageFileInfo(const QString &source) const
+{
+    return ImageExport::probe(source);
+}
+
+QStringList AppController::imageSaveSuffixes(const QString &source) const
+{
+    return ImageExport::supportedTargetSuffixes(QFileInfo(ImageExport::localPathFromSource(source)).suffix());
+}
+
+QString AppController::imageSaveFolderUrl() const
+{
+    QString dir = m_lastImageSaveDir;
+    if (dir.isEmpty() || !QFileInfo(dir).isDir())
+        dir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (dir.isEmpty() || !QFileInfo(dir).isDir())
+        dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    return dir.isEmpty() ? QString() : QUrl::fromLocalFile(dir).toString();
+}
+
+int AppController::saveImageAs(const QString &source, const QString &target)
+{
+    const int requestId = ++m_imageSaveSeq;
+    // 原图可达数百 MB，复制或转码放到后台线程，避免阻塞界面
+    (void)QtConcurrent::run(&m_exportPool, [this, requestId, source, target]() {
+        QElapsedTimer timer;
+        timer.start();
+        const ImageExport::Result result = ImageExport::exportImage(source, target);
+        const QString sourceName = QFileInfo(ImageExport::localPathFromSource(source)).fileName();
+        if (result.ok) {
+            LOG_INFO("图像另存为完成: 原图={}, 目标={}, 耗时={}ms", sourceName.toStdString(),
+                     result.targetPath.toStdString(), timer.elapsed());
+        } else {
+            LOG_WARN("图像另存为失败: 原图={}, 目标={}, 原因={}", sourceName.toStdString(),
+                     target.toStdString(), result.message.toStdString());
+        }
+        QMetaObject::invokeMethod(this, [this, requestId, result]() {
+            if (result.ok) m_lastImageSaveDir = QFileInfo(result.targetPath).absolutePath();
+            emit imageSaveFinished(requestId, result.ok, result.message, result.targetPath);
+        }, Qt::QueuedConnection);
+    });
+    return requestId;
+}
+
+void AppController::revealFileInFolder(const QString &path)
+{
+    const QString local = ImageExport::localPathFromSource(path);
+    if (local.isEmpty()) return;
+    const QFileInfo fi(local);
+    const QString dir = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+    if (QFileInfo(dir).isDir()) QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
 }

@@ -103,6 +103,8 @@ qt_add_executable(CarrierVision
     src/common/AppLogger.h
     src/common/StorageMonitor.cpp
     src/common/StorageMonitor.h
+    src/common/ImageExport.cpp
+    src/common/ImageExport.h
     src/common/CrashHandler.cpp
     src/common/CrashHandler.h
 )
@@ -156,6 +158,9 @@ qt_add_qml_module(CarrierVision
         qml/common/QueryConditionBar.qml
         qml/common/ImageGridView.qml
         qml/common/PasswordConfirmDialog.qml
+        qml/common/IconButton.qml
+        qml/common/ViewerZoomControls.qml
+        qml/common/ImageSaveAs.qml
 
         # 首页与3D数字孪生视窗
         qml/home/HomeWorkspace.qml
@@ -242,6 +247,8 @@ qt_add_qml_module(CarrierVision
         assets/icons/icon_chevron_down.svg
         assets/icons/icon_plus.svg
         assets/icons/icon_minus.svg
+        assets/icons/icon_save.svg
+        assets/icons/icon_fit.svg
 )
 
 target_link_libraries(CarrierVision PRIVATE
@@ -435,6 +442,7 @@ if(BUILD_TESTING)
         src/network/NetworkAccess.cpp src/network/NetworkAccess.h
         src/data/DbSchema.cpp src/data/DbSchema.h
         src/data/DatabaseGuard.cpp src/data/DatabaseGuard.h
+        src/common/ImageExport.cpp src/common/ImageExport.h
         src/common/AgcUtils.cpp src/common/AgcUtils.h
         src/common/AppLogger.cpp src/common/AppLogger.h)
     target_include_directories(CarrierVisionReleaseTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -480,6 +488,9 @@ if(BUILD_TESTING)
             qml/common/DateQueryBar.qml
             qml/stats/WheelQueryBar.qml
             qml/home/StationImageInspectDialog.qml
+            qml/common/IconButton.qml
+            qml/common/ViewerZoomControls.qml
+            qml/common/ImageSaveAs.qml
             qml/common/ZoomOverlay.qml)
     qt_add_resources(CarrierVisionWheelSelectionTests wheel_test_icons
         PREFIX "/qt/qml/CarrierVision"
@@ -491,7 +502,15 @@ if(BUILD_TESTING)
             assets/icons/icon_chevron_right.svg
             assets/icons/icon_close.svg
             assets/icons/icon_camera.svg
-            assets/icons/icon_eye.svg)
+            assets/icons/icon_eye.svg
+            assets/icons/icon_image.svg
+            assets/icons/icon_save.svg
+            assets/icons/icon_fit.svg
+            assets/icons/icon_plus.svg
+            assets/icons/icon_minus.svg
+            assets/icons/icon_ruler.svg
+            assets/icons/icon_folder.svg
+            assets/icons/icon_warning.svg)
     add_test(NAME CarrierVisionWheelSelectionTests COMMAND CarrierVisionWheelSelectionTests
         -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/WheelSelectionTests.txt,txt")
 endif()
