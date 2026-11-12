@@ -520,6 +520,42 @@ private slots:
         }
         QSqlDatabase::removeDatabase(connectionName);
     }
+    void alertHandlersRoundTripAndNormalize()
+    {
+        const QString connectionName = QStringLiteral("TestAlertHandlersDb");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+            db.setDatabaseName(QStringLiteral(":memory:"));
+            QVERIFY(db.open());
+            QVERIFY(DBSchema::ensureAllTables(db));
+
+            // 现场旧库没有名单：返回空列表
+            QVERIFY(SettingsStore::loadAlertHandlers(db).isEmpty());
+
+            // 折叠空白（含换行）、去掉空名和重复名（不区分大小写），保持添加顺序
+            QVERIFY(SettingsStore::saveAlertHandlers(db, {QStringLiteral(" 张三 "), QStringLiteral("李\n四"),
+                                                          QString(), QStringLiteral("   "), QStringLiteral("张三"),
+                                                          QStringLiteral("Wang"), QStringLiteral("wang")}));
+            const QStringList expected{QStringLiteral("张三"), QStringLiteral("李 四"), QStringLiteral("Wang")};
+            QCOMPARE(SettingsStore::loadAlertHandlers(db), expected);
+
+            // 姓名限长；名单限人数
+            QCOMPARE(SettingsStore::normalizeAlertHandlerName(QString(40, QChar('A'))).size(),
+                     SettingsStore::kMaxAlertHandlerNameLength);
+            QStringList many;
+            for (int i = 0; i < SettingsStore::kMaxAlertHandlers + 5; ++i) many.append(QStringLiteral("人员%1").arg(i));
+            QVERIFY(SettingsStore::saveAlertHandlers(db, many));
+            QCOMPARE(SettingsStore::loadAlertHandlers(db).size(), SettingsStore::kMaxAlertHandlers);
+
+            // 损坏的配置值不导致崩溃，按空名单处理
+            QVERIFY(DBSchema::setConfig(db, QStringLiteral("alert/handlers"), QStringLiteral("not-json")));
+            QVERIFY(SettingsStore::loadAlertHandlers(db).isEmpty());
+            QVERIFY(DBSchema::setConfig(db, QStringLiteral("alert/handlers"), QStringLiteral("[\"甲\", 3, null]")));
+            QCOMPARE(SettingsStore::loadAlertHandlers(db), QStringList{QStringLiteral("甲")});
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connectionName);
+    }
     void settingsStoreRoundTripsAndValidates()
     {
         const QString connectionName = QStringLiteral("TestSettingsDb");

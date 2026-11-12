@@ -777,21 +777,69 @@ QVariantMap AppController::homepageCurrentDetection() const
     return StatsService::homepageCurrentDetection(QSqlDatabase::database(), currentRackHint());
 }
 
+QStringList AppController::alertHandlers() const
+{
+    QMutexLocker locker(&m_dbMutex);
+    QSqlDatabase db = QSqlDatabase::database();
+    return SettingsStore::loadAlertHandlers(db);
+}
+
+QString AppController::addAlertHandler(const QString &name)
+{
+    const QString clean = SettingsStore::normalizeAlertHandlerName(name);
+    if (clean.isEmpty()) return QStringLiteral("请输入人员姓名");
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        QStringList names = SettingsStore::loadAlertHandlers(db);
+        if (names.contains(clean, Qt::CaseInsensitive)) return QStringLiteral("该人员已在名单中");
+        if (names.size() >= SettingsStore::kMaxAlertHandlers)
+            return QStringLiteral("名单最多 %1 人").arg(SettingsStore::kMaxAlertHandlers);
+        names.append(clean);
+        if (!SettingsStore::saveAlertHandlers(db, names)) return QStringLiteral("保存失败，请查看日志");
+    }
+    LOG_INFO("添加报警处置人员：{}", clean.toStdString());
+    emit alertHandlersChanged();
+    return {};
+}
+
+bool AppController::removeAlertHandler(const QString &name)
+{
+    {
+        QMutexLocker locker(&m_dbMutex);
+        QSqlDatabase db = QSqlDatabase::database();
+        QStringList names = SettingsStore::loadAlertHandlers(db);
+        if (!names.removeOne(name)) return false;
+        if (!SettingsStore::saveAlertHandlers(db, names)) return false;
+    }
+    LOG_INFO("移除报警处置人员：{}", name.toStdString());
+    emit alertHandlersChanged();
+    return true;
+}
+
 int AppController::requestAlertOperation(const QString &kind, const QString &start, const QString &end,
                                          int rack, int wheel, int page, const QString &operatorName)
 {
     const int requestId = ++m_statsRequestSeq;
     const QString archiveDir = m_archiveDirectory;
     const QString sourceDir = m_sourceDirectory;
-    // 操作员姓名写入单行日志：折叠空白（含换行），限制长度
-    const QString operatorText = operatorName.simplified().left(32);
+    const QString operatorText = SettingsStore::normalizeAlertHandlerName(operatorName);
     const bool disposition = kind == QLatin1String("handled") || kind == QLatin1String("falseAlarm");
-    if (disposition && operatorText.isEmpty()) {
-        QMetaObject::invokeMethod(this, [this, requestId]() {
-            emit alertOperationFinished(requestId, {{QStringLiteral("ok"), false},
-                                                    {QStringLiteral("error"), QStringLiteral("请填写操作员姓名")}});
-        }, Qt::QueuedConnection);
-        return requestId;
+    if (disposition) {
+        // 处置人必须来自系统设置中的预设名单
+        QString error;
+        if (operatorText.isEmpty())
+            error = QStringLiteral("请选择处置人员");
+        else if (!alertHandlers().contains(operatorText, Qt::CaseInsensitive))
+            error = QStringLiteral("处置人员不在系统设置的名单中，请重新选择");
+        if (!error.isEmpty()) {
+            LOG_WARN("报警处置被拒绝，架号={}，轮位={}：{}", rack, wheel, error.toStdString());
+            QMetaObject::invokeMethod(this, [this, requestId, error]() {
+                emit alertOperationFinished(requestId, {{QStringLiteral("ok"), false},
+                                                        {QStringLiteral("error"), error}});
+            }, Qt::QueuedConnection);
+            return requestId;
+        }
     }
     (void)QtConcurrent::run(&m_statsPool, [this, requestId, kind, start, end, rack, wheel, page, archiveDir, sourceDir, operatorText]() {
         const QVariantMap result = SearchService::alertOperation(getThreadDatabase(), kind, start, end,
@@ -1912,14 +1960,16 @@ QStringList AppController::getAvailableLogDates()
     return AppLogger::getAvailableDates();
 }
 
-QVariantMap AppController::queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize)
+QVariantMap AppController::queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
+                                     const QString &category)
 {
-    return AppLogger::queryLogs(dateStr, level, keyword, page, pageSize);
+    return AppLogger::queryLogs(dateStr, level, keyword, page, pageSize, category);
 }
 
-int AppController::requestLogs(const QString &date, const QString &level, const QString &keyword, int page, int pageSize)
+int AppController::requestLogs(const QString &date, const QString &level, const QString &keyword, int page, int pageSize,
+                               const QString &category)
 {
-    m_logRequest = {date,level,keyword,page,pageSize};
+    m_logRequest = {date,level,keyword,page,pageSize,category};
     ++m_logGeneration;
     if (!m_logBusy) startLogQuery();
     return m_logGeneration;
@@ -1931,7 +1981,8 @@ void AppController::startLogQuery()
     const auto request = m_logRequest;
     m_activeLogRequest = m_logGeneration;
     m_logWatcher.setFuture(QtConcurrent::run(&m_logPool, [request]() {
-        auto result = AppLogger::queryLogs(request[0].toString(),request[1].toString(),request[2].toString(),request[3].toInt(),request[4].toInt());
+        auto result = AppLogger::queryLogs(request[0].toString(),request[1].toString(),request[2].toString(),request[3].toInt(),request[4].toInt(),
+                                             request[5].toString());
         result["stats"] = AppLogger::getLogStats();
         return result;
     }));

@@ -757,6 +757,29 @@ private slots:
         QCOMPARE(trace.value("total").toInt(), 1);
         AppLogger::shutdown();
     }
+    void loggerFiltersAlertDispositionCategory() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        AppLogger::init(dir.path());
+        LOG_INFO("报警处置完成，操作员={}，架号={}，轮位={}", "张三", 12, 3);
+        LOG_WARN("报警处置被拒绝，架号={}，轮位={}：{}", 7, 2, "处置人员不在系统设置的名单中");
+        LOG_INFO("添加报警处置人员：{}", "张三");
+        LOG_INFO("TCP 入库完成，架号={}", 12);
+        AppLogger::logger()->flush();
+        const QString date = QDate::currentDate().toString("yyyy-MM-dd");
+        const auto alerts = AppLogger::queryLogs(date, "all", "", 1, 20, "alertDisposition");
+        QCOMPARE(alerts.value("total").toInt(), 2);
+        for (const auto &item : alerts.value("items").toList())
+            QVERIFY(item.toMap().value("message").toString().startsWith(QStringLiteral("报警处置")));
+        // 类型与级别、关键字同时生效
+        QCOMPARE(AppLogger::queryLogs(date, "warn", "", 1, 20, "alertDisposition").value("total").toInt(), 1);
+        QCOMPARE(AppLogger::queryLogs(date, "all", "张三", 1, 20, "alertDisposition").value("total").toInt(), 1);
+        // 未指定类型或 all 时不过滤
+        QVERIFY(AppLogger::queryLogs(date, "all", "", 1, 20).value("total").toInt() >= 4);
+        QCOMPARE(AppLogger::queryLogs(date, "all", "", 1, 20, "all").value("total").toInt(),
+                 AppLogger::queryLogs(date, "all", "", 1, 20).value("total").toInt());
+        AppLogger::shutdown();
+    }
     void tcpReceiverDisconnectsOverflowingClient() {
         TcpDataReceiver receiver;
         QVERIFY(receiver.listen(QHostAddress::LocalHost, 0));

@@ -25,7 +25,8 @@ Page {
     property string operationMessage: ""
     property var pendingDisposition: ({})
     property bool preserveWheel: false
-    // 上一次处置填写的操作员姓名，本次运行内再次处置时预填
+    // 系统设置中预设的处置人员；上一次所选人员在本次运行内再次处置时预选
+    readonly property var handlerNames: appController ? appController.alertHandlers : []
     property string lastOperatorName: ""
 
     function resetImage() {
@@ -45,9 +46,9 @@ Page {
 
     function confirmDisposition() {
         if (dispositionRequestId !== -1 || !pendingDisposition.kind) return
-        var operatorName = operatorInput.text.trim()
+        var operatorName = operatorCombo.currentIndex >= 0 ? String(operatorCombo.currentText) : ""
         if (operatorName.length === 0) {
-            operatorInput.forceActiveFocus()
+            operatorCombo.forceActiveFocus()
             return
         }
         lastOperatorName = operatorName
@@ -617,10 +618,15 @@ Page {
 
         readonly property string actionText: root.pendingDisposition.kind === "handled" ? "已处理（已换轮）" : "误报"
 
-        onAboutToShow: operatorInput.text = root.lastOperatorName
+        onAboutToShow: {
+            var index = root.handlerNames.indexOf(root.lastOperatorName)
+            operatorCombo.currentIndex = index >= 0 ? index : (root.handlerNames.length === 1 ? 0 : -1)
+        }
         onOpened: {
-            operatorInput.forceActiveFocus()
-            operatorInput.selectAll()
+            if (root.handlerNames.length > 0)
+                operatorCombo.forceActiveFocus()
+            else
+                cancelDispositionButton.forceActiveFocus()
         }
         onClosed: root.pendingDisposition = ({})
 
@@ -675,31 +681,101 @@ Page {
             }
             Label {
                 Layout.topMargin: Theme.space2
-                text: "操作员姓名"
+                text: "处置人员"
                 color: Theme.text
                 font.family: Theme.fontSans
                 font.pixelSize: Theme.fontCaption
                 font.weight: Theme.fontMedium
             }
-            TextField {
-                id: operatorInput
+            ComboBox {
+                id: operatorCombo
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                maximumLength: 32
-                placeholderText: "请输入处置人姓名，将随处置记录写入日志"
-                placeholderTextColor: Theme.muted
-                color: Theme.text
+                visible: root.handlerNames.length > 0
+                model: root.handlerNames
+                displayText: currentIndex >= 0 ? currentText : "请选择处置人员"
                 font.family: Theme.fontSans
                 font.pixelSize: Theme.fontBody
-                selectByMouse: true
-                onAccepted: root.confirmDisposition()
+                Accessible.name: "处置人员"
+                Keys.onReturnPressed: if (!popup.visible) root.confirmDisposition()
+                Keys.onEnterPressed: if (!popup.visible) root.confirmDisposition()
 
                 background: Rectangle {
                     radius: Theme.radiusSmall
-                    color: Theme.fieldFill
+                    color: operatorCombo.hovered ? Theme.hover : Theme.fieldFill
                     border.width: 1
-                    border.color: operatorInput.activeFocus ? Theme.accent : Theme.border
+                    border.color: (operatorCombo.activeFocus || operatorCombo.popup.visible) ? Theme.selectedBorder
+                                  : (operatorCombo.hovered ? Theme.borderStrong : Theme.border)
                 }
+
+                contentItem: Text {
+                    leftPadding: Theme.space3
+                    rightPadding: 30
+                    text: operatorCombo.displayText
+                    color: operatorCombo.currentIndex >= 0 ? Theme.text : Theme.muted
+                    font: operatorCombo.font
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+
+                indicator: AppIcon {
+                    x: operatorCombo.width - width - Theme.space3
+                    y: (operatorCombo.height - height) / 2
+                    name: "icon_arrow_down"
+                    size: 12
+                    color: Theme.textSoft
+                }
+
+                popup: Popup {
+                    y: operatorCombo.height + 4
+                    width: operatorCombo.width
+                    implicitHeight: Math.min(240, contentItem.implicitHeight + 8)
+                    padding: 4
+                    background: Rectangle {
+                        color: Theme.surfaceFloating
+                        radius: Theme.radiusSmall
+                        border.color: Theme.border
+                        border.width: 1
+                    }
+                    contentItem: ListView {
+                        clip: true
+                        implicitHeight: contentHeight
+                        model: operatorCombo.popup.visible ? operatorCombo.delegateModel : null
+                        currentIndex: operatorCombo.highlightedIndex
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    }
+                }
+
+                delegate: ItemDelegate {
+                    required property string modelData
+                    required property int index
+                    width: operatorCombo.width - 8
+                    height: 34
+                    highlighted: operatorCombo.highlightedIndex === index
+                    contentItem: Text {
+                        text: modelData
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontBody
+                        font.weight: index === operatorCombo.currentIndex ? Theme.fontMedium : Theme.fontRegular
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: Theme.space2
+                        elide: Text.ElideRight
+                    }
+                    background: Rectangle {
+                        radius: Theme.radiusMicro
+                        color: highlighted ? Theme.pressed : "transparent"
+                    }
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: root.handlerNames.length === 0
+                text: "尚未预设处置人员，请先在“系统设置 → 报警处置”中添加。"
+                color: Theme.warn
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontCaption
+                wrapMode: Text.Wrap
             }
         }
 
@@ -723,7 +799,7 @@ Page {
                 ActionButton {
                     text: "确认" + dispositionDialog.actionText
                     variant: "danger"
-                    enabled: root.dispositionRequestId === -1 && operatorInput.text.trim().length > 0
+                    enabled: root.dispositionRequestId === -1 && operatorCombo.currentIndex >= 0
                     onClicked: root.confirmDisposition()
                 }
             }

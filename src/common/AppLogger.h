@@ -31,7 +31,9 @@ public:
 
     // 日志查询与统计接口（供前端及控制器使用）
     static QStringList getAvailableDates();
-    static QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize);
+    // category："all"/空 为全部日志；"alertDisposition" 只返回报警处置记录（正文以"报警处置"开头）
+    static QVariantMap queryLogs(const QString &dateStr, const QString &level, const QString &keyword, int page, int pageSize,
+                                 const QString &category = QString());
     static QVariantMap getLogStats();
 
     // 实时日志监听回调（level: "INFO"/"WARN"/"ERROR"/"CRITICAL", message, time）
