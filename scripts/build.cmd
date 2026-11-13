@@ -5,7 +5,7 @@ rem
 rem 用法:
 rem   scripts\build.cmd [Debug^|Release] [--no-test] [--clean] [--install [目录]]
 rem
-rem   Debug / Release   构建类型，默认 Debug，构建目录为 build\<类型>
+rem   Debug / Release   构建类型，默认 Release，构建目录为 build\<类型>
 rem   --no-test         跳过 ctest
 rem   --clean           先删除对应构建目录再全量构建
 rem   --install [目录]  构建后执行 cmake --install 并部署 Qt 依赖（windeployqt）；
@@ -109,10 +109,10 @@ set "PATH=%QT_DIR%\bin;%PATH%"
 echo [build] Qt 套件: %QT_DIR%
 
 rem ---------------------------------------------------------------------------
-rem 3. 只有安装时才打开依赖部署（cmake\DeployWindows.cmake，调用 windeployqt）
+rem 3. 始终打开安装部署（cmake\DeployWindows.cmake，调用 windeployqt）。
+rem    它只在 cmake --install 时执行，不影响编译；这样 install.cmd 可直接对已编译目录安装
 rem ---------------------------------------------------------------------------
-set "DEPLOY_ARGS=-DENABLE_WINDEPLOYQT=OFF"
-if "%DO_INSTALL%"=="1" set "DEPLOY_ARGS=-DENABLE_WINDEPLOYQT=ON"
+set "DEPLOY_ARGS=-DENABLE_WINDEPLOYQT=ON"
 
 rem ---------------------------------------------------------------------------
 rem 4. 配置、构建、测试

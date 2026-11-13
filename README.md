@@ -213,8 +213,10 @@ cmake --install build/Release      # 输出到 install/CarrierVision_linux_<版�
 
 ```bash
 scripts/build.sh [Debug|Release] [--no-test] [--clean]   # 配置、编译 -j8、运行 ctest
-scripts/install.sh [目录] [--no-test] [--clean]          # Release 构建 + 测试 + 安装部署
+scripts/install.sh [目录] [--build-dir <构建目录>]        # 对已编译的 build/Release 安装部署（不编译）
 ```
+
+先用 build 编译再用 install 打包；install 会检查构建目录是否最新（源码或 git 提交有变化时拒绝安装），避免打出旧版本。版本号随 git 提交自动更新，无需删除构建目录。
 
 Windows 下 `scripts\build.cmd` 自动加载 MSVC 环境（vswhere）并选用 `C:\Qt` 下版本最高的 `msvc*_64` 套件，可用环境变量 `QT_DIR` 指定。Windows 的安装部署由 `cmake/DeployWindows.cmake` 完成（调用 windeployqt），不需要 Python；Linux 的安装部署仍使用 `scripts/deploy_linux.py`，需要 python3。
 
