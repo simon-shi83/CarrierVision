@@ -220,7 +220,7 @@ scripts/install.sh [目录] [--build-dir <构建目录>]        # 对已编译�
 
 Windows 下 `scripts\build.cmd` 自动加载 MSVC 环境（vswhere）并选用 `C:\Qt` 下版本最高的 `msvc*_64` 套件，可用环境变量 `QT_DIR` 指定。Windows 的安装部署由 `cmake/DeployWindows.cmake` 完成（调用 windeployqt），不需要 Python；Linux 的安装部署仍使用 `scripts/deploy_linux.py`，需要 python3。
 
-持续集成：推送到 `main` 或向 `main` 发起 PR 时，GitHub Actions 自动执行 Windows 构建、全部测试并打包为 zip（在运行记录的 Artifacts 中下载，保留 14 天）。也可在 Actions 页面手动对任意分支运行。
+持续集成：推送到 `main` 或向 `main` 发起 PR 时，GitHub Actions 自动执行 Windows 构建、全部测试并生成两个 zip（在运行记录的 Artifacts 中下载，保留 14 天）：完整包 `CarrierVision_windows_<版本>` 含 Qt 运行库与 `assets/`，用于首次部署或 Qt 版本、字体、模型变化时；增量包 `..._update` 只含程序本体与启动脚本，现场已装过完整包时解压覆盖即可升级。也可在 Actions 页面手动对任意分支运行。
 
 ---
 
