@@ -103,9 +103,36 @@ jobs:
         run: |
           Compress-Archive -Path "$env:PACKAGE_PATH\*" -DestinationPath "$env:PACKAGE_NAME.zip" -Force
 
+      # 增量包：只含程序本体与启动脚本，不含 Qt 运行库（lib/、plugins/、qml/）和 assets/。
+      # 现场已装过同一 Qt 版本的完整包时，解压覆盖即可升级；Qt 版本、字体或模型变化时用完整包
+      - name: Build Update Package
+        shell: pwsh
+        run: |
+          $updateName = "$env:PACKAGE_NAME" + "_update"
+          $updatePath = Join-Path $PWD "install/$updateName"
+          New-Item -ItemType Directory -Force -Path $updatePath | Out-Null
+          $files = @("CarrierVision.exe", "CarrierVision.bat", "CarrierVision_watchdog.bat",
+                     "register_env.bat", "unregister_env.bat", "README.txt", "CarrierVision.svg")
+          foreach ($f in $files) {
+            $src = Join-Path $env:PACKAGE_PATH $f
+            if (Test-Path $src) { Copy-Item $src $updatePath }
+          }
+          if (-not (Test-Path (Join-Path $updatePath "CarrierVision.exe"))) { throw "增量包缺少 CarrierVision.exe" }
+          Write-Host "Update package contents:"
+          Get-ChildItem -Path $updatePath
+          Compress-Archive -Path "$updatePath\*" -DestinationPath "$updateName.zip" -Force
+          Add-Content -Path $env:GITHUB_ENV -Value "UPDATE_NAME=$updateName"
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PACKAGE_NAME }}
           path: ${{ env.PACKAGE_NAME }}.zip
+          retention-days: 14
+
+      - name: Upload Update Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.UPDATE_NAME }}
+          path: ${{ env.UPDATE_NAME }}.zip
           retention-days: 14
