@@ -41,6 +41,14 @@ if(GIT_FOUND AND EXISTS "${GIT_ROOT_DIR}/.git")
         set(VERSION_SUFFIX "${GIT_COMMIT_COUNT}.${GIT_SHORT_HASH}${DIRTY_SUFFIX}")
     endif()
 
+    # 版本号只在 CMake 配置时计算。提交、拉取、切换分支都会改写 .git/logs/HEAD，
+    # 把它登记为配置依赖，下次构建时自动重新配置，避免沿用旧的版本号和安装目录名
+    foreach(_git_state "${GIT_ROOT_DIR}/.git/HEAD" "${GIT_ROOT_DIR}/.git/logs/HEAD")
+        if(EXISTS "${_git_state}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_git_state}")
+        endif()
+    endforeach()
+
 else()
     message(WARNING "Git not found or not a git repo → version suffix = unknown")
 endif()

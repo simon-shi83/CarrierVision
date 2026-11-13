@@ -10,7 +10,9 @@ project(CarrierVision VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT
    OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local"
    OR CMAKE_INSTALL_PREFIX STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/install/Release"
-   OR CMAKE_INSTALL_PREFIX MATCHES "^C:/Program Files")
+   OR CMAKE_INSTALL_PREFIX MATCHES "^C:/Program Files"
+   # 上次配置自动生成的默认目录：版本号变化后跟着更新，不沿用旧版本号
+   OR CMAKE_INSTALL_PREFIX MATCHES "/install/CarrierVision_(windows|linux)_[^/]*$")
     if(WIN32)
         set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/CarrierVision_windows_${VERSION_FULL}" CACHE PATH "Windows 安装输出目录" FORCE)
     else()

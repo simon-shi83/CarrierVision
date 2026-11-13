@@ -5,7 +5,7 @@
 # 用法:
 #   scripts/build.sh [Debug|Release] [--no-test] [--clean] [--install [目录]]
 #
-#   Debug / Release   构建类型，默认 Debug，构建目录为 build/<类型>
+#   Debug / Release   构建类型，默认 Release，构建目录为 build/<类型>
 #   --no-test         跳过 ctest
 #   --clean           先删除对应构建目录再全量构建
 #   --install [目录]  构建后执行 cmake --install 并部署 Qt 依赖（需要 python3）；
@@ -87,10 +87,13 @@ if [[ -n "${QT_DIR:-}" ]]; then
     export PATH="$QT_DIR/bin:$PATH"
 fi
 
-if [[ "$DO_INSTALL" == 1 ]]; then
-    command -v python3 >/dev/null || { echo "[build] 错误: 安装部署需要 python3。"; exit 1; }
+# 有 python3 时始终打开安装部署（只在 cmake --install 时执行），install.sh 可直接对已编译目录安装
+if command -v python3 >/dev/null; then
     CMAKE_ARGS+=(-DENABLE_LINUX_DEPLOY=ON -DPython3_EXECUTABLE="$(command -v python3)")
+elif [[ "$DO_INSTALL" == 1 ]]; then
+    echo "[build] 错误: 安装部署需要 python3。"; exit 1
 else
+    echo "[build] 提示: 未找到 python3，本次构建目录不能用于 install.sh"
     CMAKE_ARGS+=(-DENABLE_LINUX_DEPLOY=OFF)
 fi
 
